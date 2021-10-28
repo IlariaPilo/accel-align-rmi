@@ -3,6 +3,7 @@
 using namespace std;
 const unsigned mod = (1UL << 29) - 1;
 const unsigned step = 1;
+float f = 0.0002; // ignore top FLOAT fraction of most frequent kmers
 unsigned kmer;
 
 struct Data {
@@ -14,6 +15,13 @@ struct Data {
     return X.key == Y.key ? X.pos < Y.pos : X.key < Y.key;
   }
 
+};
+
+struct Count {
+  uint32_t key, cnt;
+  bool operator()(const Count &X, const Count &Y) const {
+    return X.cnt > Y.cnt;
+  }
 };
 
 class Index {
@@ -99,8 +107,8 @@ bool Index::make_index(const char *F) {
   tbb::parallel_for(tbb::blocked_range<size_t>(0, limit), Tbb_cal_key(data, this));
   cerr << "hash\t" << data.size() << endl;
 
-  //XXX: Parallel sort uses lots of memory. Need to fix this. In general, we
-  //use 8 bytes per item. Its a waste.
+  // sort data by key, and pos in ascending order
+  //XXX: Parallel sort uses lots of memory. Need to fix this. In general, we use 8 bytes per item. Its a waste.
   try {
     cerr << "Attempting parallel sorting\n";
     tbb::task_scheduler_init init(tbb::task_scheduler_init::automatic);
@@ -110,6 +118,27 @@ bool Index::make_index(const char *F) {
     sort(data.begin(), data.end(), Data());
   }
 
+  vector<Count> cnts_each_key;
+  cnts_each_key.reserve(MOD);
+
+  Count cnt = Count{0, 0};
+  for (Data d: data){
+    if (d.key == cnt.key)
+      cnt.cnt++;
+    else{
+      cnts_each_key.push_back(cnt);
+      cnt.key = d.key;
+      cnt.cnt = 1;
+    }
+  }
+
+  // sort by cnt in descending order
+  sort(cnts_each_key.begin(), cnts_each_key.end(), Count());
+  unsigned cutoff_index = cnts_each_key.size() * f;
+  unsigned cutoff_freq = cnts_each_key[cutoff_index].cnt;
+  cerr << "There is " << cnts_each_key.size() << " unique kmers" << endl;
+  cerr << "Ignore " << cutoff_index << " kmers whose frequent is higher than " << cutoff_freq << endl;
+
   cerr << "writing\n";
   string fn = F;
   fn += ".hash";
@@ -118,8 +147,7 @@ bool Index::make_index(const char *F) {
   // determine the number of valid entries based on first junk entry
   auto joff = std::lower_bound(data.begin(), data.end(), Data(-1, -1), Data());
   size_t eof = joff - data.begin();
-  cerr << "Found " << eof << " valid entries out of " <<
-       data.size() << " total\n";
+  cerr << "Found " << eof << " valid entries out of " << data.size() << " total\n";
   fo.write((char *) &eof, 4);
 
   // write out keys

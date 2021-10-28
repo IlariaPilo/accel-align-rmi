@@ -940,6 +940,7 @@ void AccAlign::map_paired_read(Read &mate1, Read &mate2) {
       }
     }
   }
+
   min_dist_f1r2 = min_dist;
 
   for (unsigned i = 0; i < nrregions1; i++) {
