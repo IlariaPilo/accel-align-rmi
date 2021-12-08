@@ -975,6 +975,34 @@ void AccAlign::embed_wrapper_pair(Read &R1, Read &R2,
                                 R2.kmer_step, flag_r2, pairdis, best_threshold, next_threshold, best_f1, best_r2);
 }
 
+void AccAlign::lsh_filter(char *Q, size_t rlen,
+                          vector<Region> &candidate_regions,
+                          int &best_threshold, int &next_threshold,
+                          unsigned &best_idx, unsigned &next_idx) {
+  const char **candidate_refs;
+  unsigned ncandidates = candidate_regions.size();
+
+  if (!ncandidates)
+    return;
+
+  // alloc space
+  candidate_refs = new const char *[ncandidates + 1];
+  candidate_refs[0] = Q;
+
+  // add all remaining candidates for embedding
+  const char *ptr_ref = ref.c_str();
+  for (unsigned i = 0; i < ncandidates; ++i) {
+    Region &r = candidate_regions[i];
+    candidate_refs[i + 1] = ptr_ref + r.rs;
+  }
+
+  // now do embedding
+  embedding->embeddata_iterative_update(candidate_regions, candidate_refs, ncandidates + 1,
+                                        rlen, best_threshold, next_threshold, true, best_idx, next_idx);
+
+  delete[] candidate_refs;
+}
+
 void AccAlign::embed_wrapper(Read &R, bool ispe,
                              vector<Region> &fcandidate_regions, vector<Region> &rcandidate_regions,
                              unsigned &fbest, unsigned &fnext, unsigned &rbest, unsigned &rnext,
@@ -990,33 +1018,38 @@ void AccAlign::embed_wrapper(Read &R, bool ispe,
     assert(fcandidate_regions[0].cov >= fcandidate_regions[1].cov);
   if (!ispe && nrregions > 1)
     assert(rcandidate_regions[0].cov >= rcandidate_regions[1].cov);
-  vpair_sort_count += nfregions + nrregions;
 
   // pass the one with the highest coverage in first
   bool fwd_first = true;
-  // there is no fwd, or fwd cov < rev cov
-  if (nfregions == 0 || (nrregions > 0 && fcandidate_regions[0].cov < rcandidate_regions[0].cov))
-    fwd_first = false;
+  vpair_sort_count += nfregions + nrregions;
+  if (nfregions > 1 && nrregions > 1) {
+    if (fcandidate_regions[0].cov < rcandidate_regions[0].cov) {
+      fwd_first = false;
+    }
+  }
 
   // embed now, but only in the case where we have > 1 regions either for the
   // forward or for reverse or for both strands. If we have only 1 region
   // globally, there is no point embedding.
   size_t rlen = strlen(R.seq);
   fbest = fnext = rbest = rnext = 0;
-  const char *ptr_ref = ref.c_str();
 
-  if (fwd_first) {
-    embedding->embed_unmatch_iter(fcandidate_regions, ptr_ref, R.fwd, rlen, R.kmer_step,
-                                  best_threshold, next_threshold, fbest, fnext);
-    if (nrregions)
-      embedding->embed_unmatch_iter(rcandidate_regions, ptr_ref, R.rev, rlen, R.kmer_step,
-                                    best_threshold, next_threshold, rbest, rnext);
+  if ((nfregions == 0) || (nrregions == 0)) {
+    fbest = fnext = rbest = rnext = 0;
+    if (nfregions) {
+      lsh_filter(R.fwd, rlen, fcandidate_regions, best_threshold, next_threshold, fbest, fnext);
+    }
+    if (nrregions) {
+      lsh_filter(R.rev, rlen, rcandidate_regions, best_threshold, next_threshold, rbest, rnext);
+    }
   } else {
-    embedding->embed_unmatch_iter(rcandidate_regions, ptr_ref, R.rev, rlen, R.kmer_step,
-                                  best_threshold, next_threshold, rbest, rnext);
-    if (nfregions)
-      embedding->embed_unmatch_iter(fcandidate_regions, ptr_ref, R.fwd, rlen, R.kmer_step,
-                                    best_threshold, next_threshold, fbest, fnext);
+    if (fwd_first) {
+      lsh_filter(R.fwd, rlen, fcandidate_regions, best_threshold, next_threshold, fbest, fnext);
+      lsh_filter(R.rev, rlen, rcandidate_regions, best_threshold, next_threshold, rbest, rnext);
+    } else {
+      lsh_filter(R.rev, rlen, rcandidate_regions, best_threshold, next_threshold, rbest, rnext);
+      lsh_filter(R.fwd, rlen, fcandidate_regions, best_threshold, next_threshold, fbest, fnext);
+    }
   }
 
 }

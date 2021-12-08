@@ -3,6 +3,83 @@
 #define EMBED_PAD 4
 #define CGK2_EMBED 1
 
+void Embedding::embeddata_iterative_update(vector<Region> &candidate_regions,
+                                           const char **input, unsigned ninput, unsigned rlen,
+                                           int &best_threshold, int &next_threshold,
+                                           bool max_rnd, unsigned &best_idx, unsigned &next_idx) {
+  int step = 1;
+  int elen = rlen * efactor;
+  char embeddedQ[elen];
+
+  // do first candidate
+  auto start = std::chrono::system_clock::now();
+  int nmismatch = 0;
+  if (best_threshold == 0 && next_threshold == 0) {
+    // if we already have 2 exact match (one for best, one for second best for mapq), look for exact matches only
+    nmismatch = (memcmp(input[1], input[0], rlen) == 0 ? 0 : elen);
+  } else {
+    // embed Q
+    embedstr(input, rlen, elen, 0, 0, embeddedQ);
+    nmismatch = embedstr(input, rlen, next_threshold, 1, 0, embeddedQ);
+  }
+  candidate_regions[0].embed_dist = nmismatch;
+  if (nmismatch < best_threshold) {
+    next_threshold = best_threshold;
+    best_threshold = nmismatch;
+  } else if (nmismatch < next_threshold) {
+    next_threshold = nmismatch;
+  }
+  int best_dist = nmismatch;
+  int next_dist = numeric_limits<int>::max();
+  best_idx = next_idx = 0;
+
+//#if DBGPRINT
+//    cout << "Candidate region 0 at pos " << candidate_regions[0].pos <<
+//        " with cov " << candidate_regions[0].cov << " has nmismatch " <<
+//        nmismatch << endl;
+//#endif
+
+  for (unsigned i = 2; i < ninput; i += step) {
+    if (best_threshold == 0 && next_threshold == 0) {
+      // if we already have 2 exact match (one for best, one for second best for mapq), look for exact matches only
+      nmismatch = (memcmp(input[i], input[0], rlen) == 0 ? 0 : elen);
+    } else {
+      nmismatch = embedstr(input, rlen, next_threshold, i, 0, embeddedQ);
+    }
+    candidate_regions[i - 1].embed_dist = nmismatch;
+
+//#if DBGPRINT
+//        cout << "Candidate region " << i - 1 << " at pos " << candidate_regions[i - 1].pos <<
+//            " with cov " << candidate_regions[0].cov << " has nmismatch " <<
+//            nmismatch << endl;
+//#endif
+
+    if (nmismatch < best_threshold) {
+      next_threshold = best_threshold;
+      best_threshold = nmismatch;
+    } else if (nmismatch < next_threshold) {
+      next_threshold = nmismatch;
+    }
+
+    // set best and next idx so that we dont have to sort regions later
+    // pick the minimal pos hit when several hits have same embed dist and the best one is not the hcov(0)
+    if (nmismatch < best_dist ||
+        (nmismatch == best_dist && best_idx != 0 && candidate_regions[i - 1].rs < candidate_regions[best_idx].rs)) {
+      next_dist = best_dist;
+      next_idx = best_idx;
+      best_dist = nmismatch;
+      best_idx = i - 1;
+    } else if (nmismatch < next_dist) {
+      next_dist = nmismatch;
+      next_idx = i - 1;
+    }
+  }
+
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  embed_time += elapsed.count();
+}
+
 int Embedding::cgk2_unmatched(const char *r, const char *ref,
                               const vector<uint32_t> &mch,
                               const unsigned rlen,

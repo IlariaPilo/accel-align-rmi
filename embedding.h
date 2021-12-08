@@ -22,6 +22,10 @@ class Embedding {
                           const char *ptr_ref, const char *r, const unsigned rlen, const unsigned kmer_step,
                           bool flag_r2[], unsigned pairdis, int &best_threshold, int &next_threshold,
                           unsigned &best_f1, unsigned &best_r2);
+  void embeddata_iterative_update(vector<Region> &candidate_regions,
+                                             const char **input, unsigned ninput, unsigned rlen,
+                                             int &best_threshold, int &next_threshold,
+                                             bool max_rnd, unsigned &best_idx, unsigned &next_idx);
 
   //unsigned char **hash_eb;
   std::bitset<TOTAL_RBITS> hash_eb;

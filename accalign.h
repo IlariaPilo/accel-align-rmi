@@ -83,6 +83,10 @@ class AccAlign {
   void print_sam(Read &R);
   bool tbb_fastq(const char *F1, const char *F2);
   int get_mapq(int best, int secbest);
+  void lsh_filter(char *Q, size_t rlen,
+                            vector<Region> &candidate_regions,
+                            int &best_threshold, int &next_threshold,
+                            unsigned &best_idx, unsigned &next_idx);
   AccAlign(Reference &r);
   ~AccAlign();
 };
