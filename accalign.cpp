@@ -705,7 +705,7 @@ void AccAlign::pghole_wrapper(Read &R,
 
     unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
 
-    if (nkmers < 4){
+    if (nkmers < 4) {
       //nkmer 3, 2, 1, top 2 cov of cov >=2, is 3, 2, is as same as cov>=2
       // as cov2 is faster than top2, use cov2
       pigeonhole_query(R.fwd, rlen, fcandidate_regions, '+', fbest, ori_slide, 2, kmer_step, MAX_OCC, high_freq);
@@ -1025,7 +1025,7 @@ void AccAlign::embed_wrapper(Read &R, bool ispe,
 int AccAlign::get_mapq(int as, int best, int secbest, int rlen, int clen, int cov) {
   static const float q_coef = 40.0f;
   float identity = (float) rlen / clen;
-  float x = (float) best / secbest;
+  float x = (float) (best / secbest);
   int mapq = (int) (cov * q_coef * identity * (1 - x) * logf((float) as / SC_MCH));
   mapq = mapq < 60 ? mapq : 60;
   mapq = mapq < 0 ? 0 : mapq;
@@ -1848,13 +1848,27 @@ void AccAlign::score_region(Read &r, char *qseq, Region &region,
   unsigned qlen = strlen(r.seq);
 
   // if the region has a embed distance of 0, then its an exact match
-  if (!extend_all && (!region.embed_dist || !enable_extension)) {
-    // XXX: the scoring here of setting it to len is based on the
-    // assumption that our current ssw impl. gives a best score of 150
-    region.score = qlen * SC_MCH;
-    r.mapq = 60;
-  } else {
+  if (!extend_all && (region.embed_dist == 0 || region.embed_dist == 1 || !enable_extension)) {
+    if (region.embed_dist == 0)
+      region.score = qlen * SC_MCH;
+    if (region.embed_dist == 1)
+      region.score = (qlen - 1) * SC_MCH - SC_MIS;
 
+    //if embed dist = 0/1, should have a high conf (exact match)
+    if (r.secBest == 0) {
+      r.mapq = 40;
+    } else {
+      int mapq;
+      if (r.best == 0)
+        mapq = 40 + ceil(20 * (1 - (float) (++r.best) / r.secBest)); //r.best=0, r.secBest =1, expect to be < 60
+      else
+        mapq = 40 + ceil(20 * (1 - (float) r.best / r.secBest));
+      mapq = mapq < 60 ? mapq : 60;
+      mapq = mapq < 0 ? 0 : mapq;
+      r.mapq = mapq;
+    }
+
+  } else {
     Extension *extension = nullptr;
     uint32_t raw_rs = region.rs;
 
@@ -1972,7 +1986,7 @@ void AccAlign::score_region(Read &r, char *qseq, Region &region,
 
 void AccAlign::save_region(Read &R, size_t rlen, Region &region,
                            Alignment &a) {
-  if (!region.embed_dist) {
+  if (!region.embed_dist || region.embed_dist == 1) {
     R.pos = region.rs;
     sprintf(R.cigar, "%uM", (unsigned) rlen);
     R.nm = 0;
