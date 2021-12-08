@@ -1852,7 +1852,7 @@ void AccAlign::score_region(Read &r, char *qseq, Region &region,
     // XXX: the scoring here of setting it to len is based on the
     // assumption that our current ssw impl. gives a best score of 150
     region.score = qlen * SC_MCH;
-    r.mapq = 60;
+    r.mapq = get_mapq(region.score, r.best, r.secBest, qlen, qlen, region.cov);
   } else {
 
     Extension *extension = nullptr;
