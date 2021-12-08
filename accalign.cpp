@@ -705,7 +705,7 @@ void AccAlign::pghole_wrapper(Read &R,
 
     unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
 
-    if (nkmers < 4){
+    if (nkmers < 4) {
       //nkmer 3, 2, 1, top 2 cov of cov >=2, is 3, 2, is as same as cov>=2
       // as cov2 is faster than top2, use cov2
       pigeonhole_query(R.fwd, rlen, fcandidate_regions, '+', fbest, ori_slide, 2, kmer_step, MAX_OCC, high_freq);
@@ -1025,7 +1025,7 @@ void AccAlign::embed_wrapper(Read &R, bool ispe,
 int AccAlign::get_mapq(int as, int best, int secbest, int rlen, int clen, int cov) {
   static const float q_coef = 40.0f;
   float identity = (float) rlen / clen;
-  float x = (float) best / secbest;
+  float x = (float) (rlen - secbest) / (rlen - best);
   int mapq = (int) (cov * q_coef * identity * (1 - x) * logf((float) as / SC_MCH));
   mapq = mapq < 60 ? mapq : 60;
   mapq = mapq < 0 ? 0 : mapq;
