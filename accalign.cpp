@@ -1852,9 +1852,20 @@ void AccAlign::score_region(Read &r, char *qseq, Region &region,
     // XXX: the scoring here of setting it to len is based on the
     // assumption that our current ssw impl. gives a best score of 150
     region.score = qlen * SC_MCH;
-    r.mapq = get_mapq(region.score, r.best, r.secBest, qlen, qlen, region.cov);
+    //if embed dist = 0, should have a high conf (exact match)
+    if (r.secBest == 0) {
+      r.mapq = 40;
+    } else {
+      int mapq;
+      if (r.best == 0)
+        mapq = 40 + 20 * (1 - (++r.best) / r.secBest); //r.best=0, r.secBest =1, expect to be < 60
+      else
+        mapq = 40 + 20 * (1 - r.best / r.secBest);
+      mapq = mapq < 60 ? mapq : 60;
+      mapq = mapq < 0 ? 0 : mapq;
+      r.mapq = mapq;
+    }
   } else {
-
     Extension *extension = nullptr;
     uint32_t raw_rs = region.rs;
 
