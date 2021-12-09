@@ -1848,11 +1848,13 @@ void AccAlign::score_region(Read &r, char *qseq, Region &region,
   unsigned qlen = strlen(r.seq);
 
   // if the region has a embed distance of 0, then its an exact match
-  if (!extend_all && (!region.embed_dist || !enable_extension)) {
-    // XXX: the scoring here of setting it to len is based on the
-    // assumption that our current ssw impl. gives a best score of 150
-    region.score = qlen * SC_MCH;
-    //if embed dist = 0, should have a high conf (exact match)
+  if (!extend_all && (region.embed_dist == 0 || region.embed_dist == 1 || !enable_extension)) {
+    if (region.embed_dist == 0)
+      region.score = qlen * SC_MCH;
+    if (region.embed_dist == 1)
+      region.score = (qlen - 1) * SC_MCH - SC_MIS;
+
+    //if embed dist = 0/1, should have a high conf (exact match)
     if (r.secBest == 0) {
       r.mapq = 40;
     } else {
@@ -1865,6 +1867,7 @@ void AccAlign::score_region(Read &r, char *qseq, Region &region,
       mapq = mapq < 0 ? 0 : mapq;
       r.mapq = mapq;
     }
+
   } else {
     Extension *extension = nullptr;
     uint32_t raw_rs = region.rs;
@@ -1983,7 +1986,7 @@ void AccAlign::score_region(Read &r, char *qseq, Region &region,
 
 void AccAlign::save_region(Read &R, size_t rlen, Region &region,
                            Alignment &a) {
-  if (!region.embed_dist) {
+  if (!region.embed_dist || region.embed_dist == 1) {
     R.pos = region.rs;
     sprintf(R.cigar, "%uM", (unsigned) rlen);
     R.nm = 0;
