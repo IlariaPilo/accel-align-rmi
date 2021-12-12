@@ -1239,6 +1239,26 @@ void AccAlign::map_paired_read(Read &mate1, Read &mate2) {
                       best_f1, best_r1, best_f2, best_r2, next_f1, next_r1, next_f2, next_r2,
                       flag_f1, flag_r1, flag_f2, flag_r2, has_f1r2, has_r1f2);
 
+  int total_in = 0;
+  for(int i = 0; i < region_f1.size(); i++){
+    if (flag_f1[i])
+      total_in++;
+  }
+  for(int i = 0; i < region_r1.size(); i++){
+    if (flag_r1[i])
+      total_in++;
+  }
+  for(int i = 0; i < region_f2.size(); i++){
+    if (flag_f2[i])
+      total_in++;
+  }
+  for(int i = 0; i < region_r2.size(); i++){
+    if (flag_r2[i])
+      total_in++;
+  }
+  int total = region_f1.size() + region_r1.size() + region_f2.size() + region_r2.size();
+  cout << total << "," << total_in << endl;
+
   if (!has_f1r2 && !has_r1f2) {
     mate1.strand = '*';
     mate2.strand = '*';
