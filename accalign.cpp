@@ -1025,7 +1025,7 @@ void AccAlign::embed_wrapper(Read &R, bool ispe,
 int AccAlign::get_mapq(int as, int best, int secbest, int rlen, int clen, int cov) {
   static const float q_coef = 40.0f;
   float identity = (float) rlen / clen;
-  float x = (float) (rlen - secbest) / (rlen - best);
+  float x = (float) ( best/secbest);
   int mapq = (int) (cov * q_coef * identity * (1 - x) * logf((float) as / SC_MCH));
   mapq = mapq < 60 ? mapq : 60;
   mapq = mapq < 0 ? 0 : mapq;
