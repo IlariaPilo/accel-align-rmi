@@ -928,38 +928,75 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
   bool high_freq_1 = false, high_freq_2 = false; //read is from high repetitive region
   int mac_occ_1 = MAX_OCC, mac_occ_2 = MAX_OCC;
 
-  while (slide1 < slide && slide2 < slide) {
+  vector<vector<Region>> vec_region_f2, vec_region_r2;
+  bool *pgmate2 = new bool[slide]();
+  vector<Region> *_region_f2 = nullptr, *_region_r2 = nullptr;
+
+
 //  while (kmer_step1 > 0 && kmer_step2 > 0) {
+  for (; slide1 < slide; ++slide1) {
+
     if (has_f1r2 || has_r1f2)
       break;
 
     pghole_wrapper_mates(mate1, region_f1, region_r1, best_f1, best_r1, slide1, kmer_step1, mac_occ_1, high_freq_1);
-    pghole_wrapper_mates(mate2, region_f2, region_r2, best_f2, best_r2, slide2, kmer_step2, mac_occ_2, high_freq_2);
 
-    // filter based on pairdis
-    flag_f1 = new bool[region_f1.size()]();
-    flag_r1 = new bool[region_r1.size()]();
-    flag_f2 = new bool[region_f2.size()]();
-    flag_r2 = new bool[region_r2.size()]();
-    has_f1r2 = pairdis_filter(region_f1, region_r2, flag_f1, flag_r2, best_f1, next_f1, best_r2, next_r2);
-    has_r1f2 = pairdis_filter(region_r1, region_f2, flag_r1, flag_f2, best_r1, next_r1, best_f2, next_f2);
+    if (!region_f1.size() && !region_r1.size())
+      continue;
 
-    if (!has_f1r2 && !has_r1f2) {
-      region_f1.clear();
-      region_f2.clear();
-      region_r1.clear();
-      region_r2.clear();
-      delete[] flag_f1;
-      delete[] flag_r1;
-      delete[] flag_f2;
-      delete[] flag_r2;
+    slide2 = 0;
+    for (; slide2 < slide; ++slide2) {
+      bool to_push = false;
+      if (!pgmate2[slide2]){
+        pghole_wrapper_mates(mate2, region_f2, region_r2, best_f2, best_r2, slide2, kmer_step2, mac_occ_2, high_freq_2);
+        pgmate2[slide2] = true;
+        to_push = true;
+      }
+
+      if (to_push){
+        _region_f2 = &region_f2;
+        _region_r2 = &region_r2;
+      }else{
+        _region_f2 = &vec_region_f2[slide2];
+        _region_r2 = &vec_region_r2[slide2];
+      }
+
+      if (!_region_f2->size() && !_region_r2->size())
+        continue;
+
+      // filter based on pairdis
+      flag_f1 = new bool[region_f1.size()]();
+      flag_r1 = new bool[region_r1.size()]();
+      flag_f2 = new bool[_region_f2->size()]();
+      flag_r2 = new bool[_region_r2->size()]();
+      has_f1r2 = pairdis_filter(region_f1, *_region_r2, flag_f1, flag_r2, best_f1, next_f1, best_r2, next_r2);
+      has_r1f2 = pairdis_filter(region_r1, *_region_f2, flag_r1, flag_f2, best_r1, next_r1, best_f2, next_f2);
+
+      if (!has_f1r2 && !has_r1f2) {
+        if (to_push){
+          vec_region_f2.push_back(move(*_region_f2));
+          vec_region_r2.push_back(move(*_region_r2));
+          _region_f2->clear();
+          _region_r2->clear();
+        }
+        delete[] flag_f1;
+        delete[] flag_r1;
+        delete[] flag_f2;
+        delete[] flag_r2;
+      }else{
+        region_f2 = *_region_f2;
+        region_r2 = *_region_r2;
+        return;
+      }
     }
+    region_f1.clear();
+    region_r1.clear();
 
-    slide1++;
-    slide2++;
 //    kmer_step1 /= 2;
 //    kmer_step2 /= 2;
   }
+  delete[] pgmate2;
+
 }
 
 void AccAlign::embed_wrapper_pair(Read &R1, Read &R2,
