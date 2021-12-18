@@ -929,9 +929,8 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
   int mac_occ_1 = MAX_OCC, mac_occ_2 = MAX_OCC;
 
   vector<vector<Region>> vec_region_f2, vec_region_r2;
-  bool *pgmate2 = new bool[slide]();
   vector<Region> *_region_f2 = nullptr, *_region_r2 = nullptr;
-
+  bool pgmate2[slide] = {0};
 
 //  while (kmer_step1 > 0 && kmer_step2 > 0) {
   for (; slide1 < slide; ++slide1) {
@@ -944,16 +943,12 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
     if (!region_f1.size() && !region_r1.size())
       continue;
 
-    slide2 = 0;
-    for (; slide2 < slide; ++slide2) {
-      bool to_push = false;
+    for (slide2 = 0; slide2 < slide; ++slide2) {
       if (!pgmate2[slide2]){
         pghole_wrapper_mates(mate2, region_f2, region_r2, best_f2, best_r2, slide2, kmer_step2, mac_occ_2, high_freq_2);
-        pgmate2[slide2] = true;
-        to_push = true;
       }
 
-      if (to_push){
+      if (!pgmate2[slide2]){
         _region_f2 = &region_f2;
         _region_r2 = &region_r2;
       }else{
@@ -973,9 +968,10 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
       has_r1f2 = pairdis_filter(region_r1, *_region_f2, flag_r1, flag_f2, best_r1, next_r1, best_f2, next_f2);
 
       if (!has_f1r2 && !has_r1f2) {
-        if (to_push){
+        if (!pgmate2[slide2]){
           vec_region_f2.push_back(move(*_region_f2));
           vec_region_r2.push_back(move(*_region_r2));
+          pgmate2[slide2] = true;
           _region_f2->clear();
           _region_r2->clear();
         }
@@ -995,7 +991,6 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
 //    kmer_step1 /= 2;
 //    kmer_step2 /= 2;
   }
-  delete[] pgmate2;
 
 }
 
