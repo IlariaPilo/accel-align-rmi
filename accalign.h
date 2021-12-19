@@ -14,8 +14,11 @@ class AccAlign {
 
   // output fields
   std::string sam_name;
+  std::string bam_name;
   std::ofstream sam_stream;
   std::mutex sam_mutex;
+  gzFile bam_stream;
+  std::string bam_string_block;
 
   void cpu_root_fn(tbb::concurrent_bounded_queue<ReadCnt> *inputQ,
                    tbb::concurrent_bounded_queue<ReadCnt> *outputQ);
@@ -56,6 +59,7 @@ class AccAlign {
   void score_region(Read &r, char *qseq, Region &region,
                     Alignment &a);
   void sam_header(void);
+  void bam_header(void);
   void extend_pair(Read &mate1, Read &mate2,
                    vector<Region> &candidate_regions_f1, vector<Region> &candidate_regions_r2,
                    bool flag_f1[], bool flag_r2[], unsigned &best_f1, unsigned &best_r2,
@@ -68,12 +72,15 @@ class AccAlign {
   uint32_t *keyv, *posv;
 
   void open_output(std::string &out_file);
+  void open_output_bam(std::string &out_file);
   void close_output();
+  void close_output_bam();
   bool fastq(const char *F1, const char *F2, bool enable_gpu);
   void print_stats();
   void map_read(Read &R);
   void align_read(Read &R);
   void out_sam(string *sam);
+  void out_bam(string *sam);
   void snprintf_sam(Read &R, string *s);
   void snprintf_pair_sam(Read &R, string *s, Read &R2, string *s2);
   void map_paired_read(Read &mate1, Read &mate2);

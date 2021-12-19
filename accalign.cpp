@@ -1669,6 +1669,24 @@ void AccAlign::out_sam(string *s) {
   sam_out_time += elapsed.count();
 }
 
+void AccAlign::out_bam(string *s){
+  auto start = std::chrono::system_clock::now();
+
+  bam_string_block+=*s + "\n";
+  //cout<<"bam_string_block ="<<bam_string_block<<endl;
+  while(bam_string_block.size()>=64000 ){
+    string toconvert = bam_string_block.substr(0,64000);
+    //cout<<"tocovert = "<<toconvert<<endl;
+    int index = gzputs(bam_stream, toconvert.c_str());
+    bam_string_block = bam_string_block.substr(64000, bam_string_block.length());
+    //cout<<"bam_string_block (end of if)= "<<bam_string_block<<endl;
+  }
+
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  //bam_out_time += elapsed.count();
+}
+
 class Tbb_aligner {
   Read *all_reads;
   string *sams;
@@ -1738,6 +1756,7 @@ void AccAlign::align_wrapper(int tid, int soff, int eoff, Read *ptlread, Read *p
     start = std::chrono::system_clock::now();
     for (int i = soff; i < eoff; i++) {
       out_sam(sams + i);
+      out_bam(sams + i); //on recupere les sam ligne par ligne mais danas l'idéal, on aimerait print le string sams pour vérifier a quoi ca ressemble..
     }
     end = std::chrono::system_clock::now();
     elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -1757,6 +1776,7 @@ void AccAlign::align_wrapper(int tid, int soff, int eoff, Read *ptlread, Read *p
     start = std::chrono::system_clock::now();
     for (int i = soff; i < 2 * eoff; i++) {
       out_sam(sams + i);
+      out_bam(sams + i); //MDRR
     }
     end = std::chrono::system_clock::now();
     elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -2158,6 +2178,20 @@ void AccAlign::sam_header(void) {
     cout << so.str();
 }
 
+void AccAlign::bam_header(void) {
+  ostringstream so;
+
+  so << "@HD\tVN:1.3\tSO:coordinate\n";
+  for (size_t i = 0; i < name.size(); i++)
+    so << "@SQ\tSN:" << name[i] << '\t' << "LN:" << offset[i + 1] - offset[i] << '\n';
+  so << "@PG\tID:AccAlign\tPN:AccAlign\tVN:0.0\n";
+
+  if (bam_name.length())
+    bam_string_block += so.str();
+  else
+    cout << so.str();
+}
+
 void AccAlign::open_output(string &out_file) {
   sam_name = out_file;
 
@@ -2172,10 +2206,33 @@ void AccAlign::open_output(string &out_file) {
   sam_header();
 }
 
+void AccAlign::open_output_bam(string &out_file) {
+  bam_name = out_file;
+
+  if (out_file.length()) {
+    cerr << "setting output file (bam) as " << out_file << endl;
+    //bam_stream = gzopen(bam_name.c_str(),"rbwb");
+    bam_stream = gzopen("test.gz","rbwb");
+  } else {
+    assert(g_batch_file.length() == 0);
+    setvbuf(stdout, NULL, _IOFBF, 16 * 1024 * 1024);
+  }
+
+  bam_header();
+}
+
 void AccAlign::close_output() {
   if (sam_name.length()) {
     cerr << "Closing output file " << sam_name << endl;
     sam_stream.close();
+  }
+}
+
+void AccAlign::close_output_bam() {
+  if (bam_name.length()) {
+    cerr << "Closing output file (bam) " << bam_name << endl;
+    int index = gzputs(bam_stream, bam_string_block.c_str());
+    gzclose(bam_stream);
   }
 }
 
@@ -2431,6 +2488,7 @@ int main(int ac, char **av) {
 
   AccAlign f(*r);
   f.open_output(g_out);
+  f.open_output_bam(g_out);
 
   if (opn == ac - 1) {
     f.fastq(av[opn], "\0", false);
@@ -2449,6 +2507,7 @@ int main(int ac, char **av) {
 
   f.print_stats();
   f.close_output();
+  f.close_output_bam();
 
   delete r;
 
