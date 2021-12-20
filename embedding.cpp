@@ -348,13 +348,13 @@ void Embedding::embed_unmatch_pair(Read &mate1, Read &mate2,
         best_threshold = sum_dist;
         best_f1 = itr - candidate_regions_f1.begin();
         best_r2 = i;
+        mate1.secBest = mate1.best;
+        mate2.secBest = mate2.best;
         mate1.best = mate1.best < itr->embed_dist ? mate1.best : itr->embed_dist;
         mate2.best = mate2.best < region.embed_dist ? mate2.best : region.embed_dist;
       } else if (sum_dist < next_threshold) {
         next_threshold = sum_dist;
         has_sec = true;
-        mate1.secBest = mate1.secBest < itr->embed_dist ? mate1.secBest : itr->embed_dist;
-        mate2.secBest = mate2.secBest < region.embed_dist ? mate2.secBest : region.embed_dist;
       }
     }
   }
