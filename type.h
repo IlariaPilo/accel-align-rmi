@@ -2,7 +2,6 @@
 
 #include "const.h"
 
-
 struct Alignment {
   std::string cigar_string;
   int ref_begin;
@@ -41,6 +40,12 @@ struct Read {
   Region best_region;
 
   friend gzFile &operator>>(gzFile &in, Read &r);
+
+  Read() {
+    best = INT_MAX;
+    secBest = INT_MAX;
+  }
+
 };
 
 class Reference {

@@ -983,8 +983,9 @@ void AccAlign::embed_wrapper_pair(Read &R1, Read &R2,
   //embed r1
   embedding->embed_unmatch(candidate_regions_f1, ptr_ref, seq1, strlen(R1.seq), R1.kmer_step, flag_f1);
   //embed r2
-  embedding->embed_unmatch_pair(candidate_regions_f1, candidate_regions_r2, ptr_ref, seq2, strlen(R2.seq), R2.kmer_step,
-                                flag_r2, pairdis, best_threshold, next_threshold, best_f1, best_r2, n_sub, has_sec);
+  embedding->embed_unmatch_pair(R1, R2, candidate_regions_f1, candidate_regions_r2, ptr_ref, seq2, strlen(R2.seq),
+                                R2.kmer_step, flag_r2, pairdis, best_threshold, next_threshold, best_f1, best_r2,
+                                n_sub, has_sec);
   R1.n_sub = R2.n_sub = n_sub;
   R1.has_secbest = R2.has_secbest = has_sec;
 }
@@ -1463,8 +1464,8 @@ void AccAlign::map_paired_read(Read &mate1, Read &mate2) {
       secmin_dist = next_r1f2;
   }
 
-  mate1.best = mate2.best = min(best_f1r2, best_r1f2);
-  mate1.secBest = mate2.secBest = secmin_dist;
+//  mate1.best = mate2.best = min(best_f1r2, best_r1f2);
+//  mate1.secBest = mate2.secBest = secmin_dist;
 //  size_t max_hamming = (strlen(mate1.seq) + strlen(mate2.seq)) * embedding->efactor;
 
   bool has_secbest = mate1.has_secbest || (has_f1r2 && has_r1f2);
