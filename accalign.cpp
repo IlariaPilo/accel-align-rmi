@@ -1175,9 +1175,10 @@ int AccAlign::get_mapq(int as, int best, int secBest, int mlen, int blen, int co
   } else {
     float x = (float) best / secBest;
     mapq = ceil(60 * (1 - x * x));
-//      mapq = mapq < 60 ? mapq : 60;
-//      mapq = mapq < 0 ? 0 : mapq;
   }
+  mapq -= (int) (4.343f * logf(n_sub + 1) + .499f);
+  mapq = mapq < 60 ? mapq : 60;
+  mapq = mapq < 0 ? 0 : mapq;
   return mapq;
 }
 
