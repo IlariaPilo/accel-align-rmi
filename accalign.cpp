@@ -2421,6 +2421,10 @@ struct tbb_align {
     accalign->align_read(*mate1);
     accalign->align_read(*mate2);
 
+    int mapq_pe = mate1->mapq > mate2->mapq? mate1->mapq : mate2->mapq;
+    if (mate1->mapq < mapq_pe) mate1->mapq = (int)(.2f * mate1->mapq + .8f * mapq_pe + .499f);
+    if (mate2->mapq < mapq_pe) mate2->mapq = (int)(.2f * mate2->mapq + .8f * mapq_pe + .499f);
+
     return p;
   }
 };
