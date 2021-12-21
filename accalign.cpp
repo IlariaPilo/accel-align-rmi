@@ -1672,7 +1672,8 @@ void AccAlign::out_sam(string *s) {
 void AccAlign::out_bam(string *s){
   auto start = std::chrono::system_clock::now();
 
-  bam_string_block+=*s + "\n";
+  //cerr<<*s<<endl;
+  bam_string_block+=*s;
   //cout<<"bam_string_block ="<<bam_string_block<<endl;
   while(bam_string_block.size()>=64000 ){
     string toconvert = bam_string_block.substr(0,64000);
@@ -1756,7 +1757,7 @@ void AccAlign::align_wrapper(int tid, int soff, int eoff, Read *ptlread, Read *p
     start = std::chrono::system_clock::now();
     for (int i = soff; i < eoff; i++) {
       out_sam(sams + i);
-      out_bam(sams + i); //on recupere les sam ligne par ligne mais danas l'idéal, on aimerait print le string sams pour vérifier a quoi ca ressemble..
+      out_bam(sams + i);
     }
     end = std::chrono::system_clock::now();
     elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -1776,7 +1777,8 @@ void AccAlign::align_wrapper(int tid, int soff, int eoff, Read *ptlread, Read *p
     start = std::chrono::system_clock::now();
     for (int i = soff; i < 2 * eoff; i++) {
       out_sam(sams + i);
-      out_bam(sams + i); //MDRR
+      //cerr<<"avant out_bam"<<endl;
+      out_bam(sams + i);
     }
     end = std::chrono::system_clock::now();
     elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -2494,8 +2496,8 @@ int main(int ac, char **av) {
     f.fastq(av[opn], "\0", false);
 //    f.tbb_fastq(av[opn], "\0");
   } else if (opn == ac - 2) {
-//    f.fastq(av[opn], av[opn + 1], false);
-    f.tbb_fastq(av[opn], av[opn + 1]);
+    f.fastq(av[opn], av[opn + 1], false);
+//    f.tbb_fastq(av[opn], av[opn + 1]);
   } else {
     print_usage();
     return 0;
