@@ -13,6 +13,7 @@ string g_out, g_batch_file, g_embed_file;
 char rcsymbol[6] = "TGCAN";
 uint8_t code[256];
 bool enable_extension = true, enable_wfa_extension = false, extend_all = false;
+bool bam = false;
 
 int g_ncpus = 1;
 float delTime = 0, alignTime = 0, mapqTime, keyvTime = 0, posvTime = 0, sortTime = 0;
@@ -1410,11 +1411,22 @@ void AccAlign::print_paired_sam(Read &R, Read &R2) {
 
   {
     std::lock_guard<std::mutex> guard(sam_mutex);
-    if (sam_name.length()) {
-      sam_stream << ss.str();
-      sam_stream.flush();
-    } else {
-      cout << ss.str();
+    if (bam)
+    {
+      string ss_str = ss.str();
+      out_bam(&ss_str);
+    }
+    else
+    {
+      if (sam_name.length())
+      {
+        sam_stream << ss.str();
+        sam_stream.flush();
+      }
+      else
+      {
+        cout << ss.str();
+      }
     }
   }
 
@@ -1603,11 +1615,22 @@ void AccAlign::print_sam(Read &R) {
 
   {
     std::lock_guard<std::mutex> guard(sam_mutex);
-    if (sam_name.length()) {
-      sam_stream << ss.str();
-      sam_stream.flush();
-    } else {
-      cout << ss.str();
+    if (bam)
+    {
+      string ss_str = ss.str();
+      out_bam(&ss_str);
+    }
+    else
+    {
+      if (sam_name.length())
+      {
+        sam_stream << ss.str();
+        sam_stream.flush();
+      }
+      else
+      {
+        cout << ss.str();
+      }
     }
   }
 
@@ -1672,15 +1695,11 @@ void AccAlign::out_sam(string *s) {
 void AccAlign::out_bam(string *s){
   auto start = std::chrono::system_clock::now();
 
-  //cerr<<*s<<endl;
   bam_string_block+=*s;
-  //cout<<"bam_string_block ="<<bam_string_block<<endl;
   while(bam_string_block.size()>=64000 ){
     string toconvert = bam_string_block.substr(0,64000);
-    //cout<<"tocovert = "<<toconvert<<endl;
     int index = gzputs(bam_stream, toconvert.c_str());
     bam_string_block = bam_string_block.substr(64000, bam_string_block.length());
-    //cout<<"bam_string_block (end of if)= "<<bam_string_block<<endl;
   }
 
   auto end = std::chrono::system_clock::now();
@@ -1756,8 +1775,11 @@ void AccAlign::align_wrapper(int tid, int soff, int eoff, Read *ptlread, Read *p
 
     start = std::chrono::system_clock::now();
     for (int i = soff; i < eoff; i++) {
-      out_sam(sams + i);
-      out_bam(sams + i);
+      if(bam){
+        out_bam(sams + i);
+      } else{
+        out_sam(sams + i);
+      }
     }
     end = std::chrono::system_clock::now();
     elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -1776,9 +1798,11 @@ void AccAlign::align_wrapper(int tid, int soff, int eoff, Read *ptlread, Read *p
 
     start = std::chrono::system_clock::now();
     for (int i = soff; i < 2 * eoff; i++) {
-      out_sam(sams + i);
-      //cerr<<"avant out_bam"<<endl;
-      out_bam(sams + i);
+      if(bam){
+        out_bam(sams + i);
+      } else{
+        out_sam(sams + i);
+      }
     }
     end = std::chrono::system_clock::now();
     elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -2213,8 +2237,8 @@ void AccAlign::open_output_bam(string &out_file) {
 
   if (out_file.length()) {
     cerr << "setting output file (bam) as " << out_file << endl;
-    //bam_stream = gzopen(bam_name.c_str(),"rbwb");
-    bam_stream = gzopen("test.gz","rbwb");
+    bam_stream = gzopen(bam_name.c_str(),"rbwb");
+    //bam_stream = gzopen("test.gz","rbwb");
   } else {
     assert(g_batch_file.length() == 0);
     setvbuf(stdout, NULL, _IOFBF, 16 * 1024 * 1024);
@@ -2437,6 +2461,10 @@ int main(int ac, char **av) {
         g_out = av[opn + 1];
         opn += 2;
         flag = true;
+      } else if (av[opn][1] == 'B') {
+        g_out = av[opn + 1];
+        opn += 2;
+        flag = true;
       } else if (av[opn][1] == 'e') {
         g_embed_file = av[opn + 1];
         opn += 2;
@@ -2489,15 +2517,19 @@ int main(int ac, char **av) {
   auto start = std::chrono::system_clock::now();
 
   AccAlign f(*r);
-  f.open_output(g_out);
-  f.open_output_bam(g_out);
+  
+  if (bam){
+    f.open_output_bam(g_out);
+  } else{
+    f.open_output(g_out);
+  }  
 
   if (opn == ac - 1) {
-    f.fastq(av[opn], "\0", false);
-//    f.tbb_fastq(av[opn], "\0");
+    //f.fastq(av[opn], "\0", false);
+    f.tbb_fastq(av[opn], "\0");
   } else if (opn == ac - 2) {
-    f.fastq(av[opn], av[opn + 1], false);
-//    f.tbb_fastq(av[opn], av[opn + 1]);
+    //f.fastq(av[opn], av[opn + 1], false);
+    f.tbb_fastq(av[opn], av[opn + 1]);
   } else {
     print_usage();
     return 0;
@@ -2508,8 +2540,13 @@ int main(int ac, char **av) {
   cerr << "Time to align: " << elapsed.count() / 1000 << " secs\n";
 
   f.print_stats();
-  f.close_output();
-  f.close_output_bam();
+
+  if (bam){
+    f.close_output_bam();
+  } else{
+    f.close_output();
+  }
+  
 
   delete r;
 
