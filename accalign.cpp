@@ -106,6 +106,7 @@ void AccAlign::print_stats() {
        "Extending time (+ build output string if ENABLE_GPU):\t" << sw_time / 1000000 << "\n" <<
        "Mark best region time:\t" << mapqTime / 1000000 << "\n" <<
        "SAM output time :\t" << sam_time / 1000000 << "\n" <<
+       "BAM output time :\t" << bam_time / 1000000 << "\n" <<
        std::endl << endl;
 
   cerr << "Total pairs sorted: " << vpair_sort_count << endl;
@@ -1704,7 +1705,7 @@ void AccAlign::out_bam(string *s){
 
   auto end = std::chrono::system_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-  //bam_out_time += elapsed.count();
+  bam_out_time += elapsed.count();
 }
 
 class Tbb_aligner {
@@ -1784,6 +1785,7 @@ void AccAlign::align_wrapper(int tid, int soff, int eoff, Read *ptlread, Read *p
     end = std::chrono::system_clock::now();
     elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     sam_time += elapsed.count();
+    bam_time += elapsed.count();
 
     dataQ->push(make_tuple(ptlread, (Read *) NULL));
   } else {
@@ -1807,6 +1809,7 @@ void AccAlign::align_wrapper(int tid, int soff, int eoff, Read *ptlread, Read *p
     end = std::chrono::system_clock::now();
     elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     sam_time += elapsed.count();
+    bam_time += elapsed.count();
 
     dataQ->push(make_tuple(ptlread, ptlread2));
   }
@@ -2270,7 +2273,7 @@ AccAlign::AccAlign(Reference &r) :
   input_io_time = parse_time = 0;
   seeding_time = hit_count_time = 0;
   vpair_build_time = 0;
-  sw_time = sam_time = sam_pre_time = sam_out_time = 0;
+  sw_time = sam_time = sam_pre_time = sam_out_time = bam_time = 0;
   vpair_sort_count = 0;
 
   if (g_embed_file.size())
@@ -2461,10 +2464,6 @@ int main(int ac, char **av) {
         g_out = av[opn + 1];
         opn += 2;
         flag = true;
-      } else if (av[opn][1] == 'B') {
-        g_out = av[opn + 1];
-        opn += 2;
-        flag = true;
       } else if (av[opn][1] == 'e') {
         g_embed_file = av[opn + 1];
         opn += 2;
@@ -2518,18 +2517,20 @@ int main(int ac, char **av) {
 
   AccAlign f(*r);
   
-  if (bam){
+  if(g_out.substr(g_out.find_last_of(".") + 1) == "bam") {
+    bam = true;
     f.open_output_bam(g_out);
-  } else{
+  } else {
+    bam = false; //sam or others
     f.open_output(g_out);
-  }  
+  }
 
   if (opn == ac - 1) {
-    //f.fastq(av[opn], "\0", false);
-    f.tbb_fastq(av[opn], "\0");
+    f.fastq(av[opn], "\0", false);
+    //f.tbb_fastq(av[opn], "\0");
   } else if (opn == ac - 2) {
-    //f.fastq(av[opn], av[opn + 1], false);
-    f.tbb_fastq(av[opn], av[opn + 1]);
+    f.fastq(av[opn], av[opn + 1], false);
+    //f.tbb_fastq(av[opn], av[opn + 1]);
   } else {
     print_usage();
     return 0;
