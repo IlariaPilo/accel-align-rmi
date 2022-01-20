@@ -105,8 +105,9 @@ void AccAlign::print_stats() {
        "Embedding time(total/actual):\t" << embedding->embed_time / 1000000 << "\n" <<
        "Extending time (+ build output string if ENABLE_GPU):\t" << sw_time / 1000000 << "\n" <<
        "Mark best region time:\t" << mapqTime / 1000000 << "\n" <<
-       "SAM output time :\t" << sam_time / 1000000 << "\n" <<
-       "BAM output time :\t" << bam_time / 1000000 << "\n" <<
+       "Output time :\t" << output_time / 1000000 << "\n" <<
+       "SAM out time :\t" << sam_out_time / 1000000 << "\n" <<
+       "BAL out time :\t" << bam_out_time / 1000000 << "\n" <<
        std::endl << endl;
 
   cerr << "Total pairs sorted: " << vpair_sort_count << endl;
@@ -1784,8 +1785,7 @@ void AccAlign::align_wrapper(int tid, int soff, int eoff, Read *ptlread, Read *p
     }
     end = std::chrono::system_clock::now();
     elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    sam_time += elapsed.count();
-    bam_time += elapsed.count();
+    output_time += elapsed.count();
 
     dataQ->push(make_tuple(ptlread, (Read *) NULL));
   } else {
@@ -1808,8 +1808,7 @@ void AccAlign::align_wrapper(int tid, int soff, int eoff, Read *ptlread, Read *p
     }
     end = std::chrono::system_clock::now();
     elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    sam_time += elapsed.count();
-    bam_time += elapsed.count();
+    output_time += elapsed.count();
 
     dataQ->push(make_tuple(ptlread, ptlread2));
   }
@@ -2273,7 +2272,7 @@ AccAlign::AccAlign(Reference &r) :
   input_io_time = parse_time = 0;
   seeding_time = hit_count_time = 0;
   vpair_build_time = 0;
-  sw_time = sam_time = sam_pre_time = sam_out_time = bam_time = 0;
+  sw_time = output_time = sam_pre_time = sam_out_time = 0;
   vpair_sort_count = 0;
 
   if (g_embed_file.size())
@@ -2539,6 +2538,8 @@ int main(int ac, char **av) {
   auto end = std::chrono::system_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
   cerr << "Time to align: " << elapsed.count() / 1000 << " secs\n";
+  cerr << "Time to align: " << elapsed.count()<< " ms\n";
+
 
   f.print_stats();
 
