@@ -2,7 +2,8 @@
 
 using namespace std;
 const unsigned mod = (1UL << 29) - 1;
-const unsigned step = 1;
+
+unsigned step = 1;
 unsigned kmer;
 
 struct Data {
@@ -64,7 +65,7 @@ void Index::cal_key(size_t i, vector<Data> &data) {
     }
     h = (h << 2) + ref[i + j];
   }
-  if (!hasn) {
+  if (!hasn && i % step == 0 ) {
     data[i / step].key = h % mod;
     data[i / step].pos = i;
   }
@@ -194,12 +195,15 @@ int main(int ac, char **av) {
     cerr << "index [options] <ref.fa>\n";
     cerr << "options:\n";
     cerr << "\t-l INT length of seed [32]\n";
+    cerr << "\t-s INT step of seed [1]\n";
     return 0;
   }
   unsigned kmer_temp = 0;
   for (int it = 1; it < ac; it++) {
     if (strcmp(av[it], "-l") == 0)
       kmer_temp = atoi(av[it + 1]);
+    if (strcmp(av[it], "-s") == 0)
+      step = atoi(av[it + 1]);
   }
   kmer = 32;
   if (kmer_temp != 0)

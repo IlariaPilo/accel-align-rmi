@@ -33,7 +33,7 @@ struct Read {
   int tid, as, nm, best, secBest;
   uint32_t pos;
   char strand;
-  short mapq, kmer_step; //kmer_step used that find the seed
+  short mapq, kmer_len; //kmer_step used that find the seed
   Region best_region;
 
   friend gzFile &operator>>(gzFile &in, Read &r);

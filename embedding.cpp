@@ -6,7 +6,7 @@
 int Embedding::cgk2_unmatched(const char *r, const char *ref,
                               const vector<uint32_t> &mch,
                               const unsigned rlen,
-                              const unsigned kmer_step,
+                              const unsigned kmer_len,
                               const int threshold,
                               const int strid) {
   unsigned elen = efactor * rlen;
@@ -16,9 +16,11 @@ int Embedding::cgk2_unmatched(const char *r, const char *ref,
   // embed ref: cadidate pos
   unsigned i = 0, m_idx = 0, j = 0;
   while (i < rlen) {
+    while (m_idx < mch.size() && i > mch[m_idx])
+      ++m_idx;
     if (m_idx < mch.size() && i == mch[m_idx]) {
-      i += kmer_step;
-      m_idx++;
+      i += kmer_len;
+      ++m_idx;
     } else {
       uint8_t s = ref[i];
       char bit = hash_eb[BITPOS(strid, j, s)];
@@ -43,7 +45,7 @@ int Embedding::cgk2_unmatched(const char *r, const char *ref,
   i = j = m_idx = 0;
   while (i < rlen) {
     if (m_idx < mch.size() && i == mch[m_idx]) {
-      i += kmer_step;
+      i += kmer_len;
       m_idx++;
     } else {
       uint8_t s = r[i];

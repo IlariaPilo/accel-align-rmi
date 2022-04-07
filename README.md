@@ -32,6 +32,7 @@ It's mandatory to build the index before alignment. Options:
 
 ```
 -l INT the length of k-mers [32]
+-s INT step of seed [1]
 ```
 
 Example:
@@ -51,6 +52,7 @@ Options:
 ```
    -t INT number of cpu threads to use [1].
    -l INT length of seed [32].
+   -s INT step of seed [1].
    -o name of output file to use.
    -x alignment-free.
    -w use WFA for extension. It's using KSW by default.

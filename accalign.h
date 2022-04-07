@@ -30,13 +30,11 @@ class AccAlign {
   void pghole_wrapper(Read &R, vector<Region> &fcandidate_regions,
                       vector<Region> &rcandidate_regions, unsigned &fbest, unsigned &rbest);
   void pigeonhole_query_topcov(char *Q, size_t rlen, vector<Region> &candidate_regions, char S, int err_threshold,
-                               unsigned kmer_step, unsigned max_occ, unsigned &best, unsigned ori_slide);
+                               unsigned max_occ, unsigned &best, unsigned ori_slide);
   void pghole_wrapper_mates(Read &R, vector<Region> &fcandidate_regions, vector<Region> &rcandidate_regions,
-                            unsigned &fbest, unsigned &rbest, unsigned ori_slide, unsigned kmer_step, unsigned max_occ,
-                            bool &high_freq);
+                            unsigned &fbest, unsigned &rbest, unsigned ori_slide, unsigned max_occ, bool &high_freq);
   void pigeonhole_query(char *Q, size_t rlen, vector<Region> &candidate_regions, char S,
-                        unsigned &best, unsigned ori_slide, int err_threshold, unsigned kmer_step,
-                        unsigned max_occ, bool &high_freq);
+                        unsigned &best, unsigned ori_slide, int err_threshold, unsigned max_occ, bool &high_freq);
   void pghole_wrapper_pair(Read &mate1, Read &mate2,
                            vector<Region> &region_f1, vector<Region> &region_r1,
                            vector<Region> &region_f2, vector<Region> &region_r2,
