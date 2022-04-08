@@ -6,7 +6,7 @@ using namespace tbb::flow;
 using namespace std;
 
 unsigned kmer_len = 32;
-int kmer_step = 1;
+int step = 1;
 uint64_t mask;
 unsigned pairdis = 1000;
 string g_out, g_batch_file, g_embed_file;
@@ -718,7 +718,7 @@ void AccAlign::pghole_wrapper(Read &R,
     nfregions = fcandidate_regions.size();
     nrregions = rcandidate_regions.size();
 
-    if (!nfregions && !nrregions) {
+    if (!nfregions && !nrregions && ori_slide >= step - 1) {
       pigeonhole_query(R.fwd, rlen, fcandidate_regions, '+', fbest, ori_slide, 1, kmer_step, MAX_OCC, high_freq);
       pigeonhole_query(R.rev, rlen, rcandidate_regions, '-', rbest, ori_slide, 1, kmer_step, MAX_OCC, high_freq);
       nfregions = fcandidate_regions.size();
@@ -897,7 +897,7 @@ void AccAlign::pghole_wrapper_mates(Read &R,
   unsigned nfregions = fcandidate_regions.size();
   unsigned nrregions = rcandidate_regions.size();
 
-  if (!nfregions && !nrregions) {
+  if (!nfregions && !nrregions && ori_slide >= step - 1) {
     pigeonhole_query(R.fwd, rlen, fcandidate_regions, '+', fbest, ori_slide, 1, kmer_step, max_occ, high_freq);
     pigeonhole_query(R.rev, rlen, rcandidate_regions, '-', rbest, ori_slide, 1, kmer_step, max_occ, high_freq);
   }
@@ -2452,7 +2452,7 @@ int main(int ac, char **av) {
   mask = kmer_len == 32 ? ~0 : (1ULL << (kmer_len * 2)) - 1;
 
   cerr << "Using " << g_ncpus << " cpus " << endl;
-  cerr << "Using kmer length " << kmer_len << " and step size " << kmer_step << endl;
+  cerr << "Using kmer length " << kmer_len << " and step size " << step << endl;
 
   tbb::task_scheduler_init init(g_ncpus);
   make_code();
