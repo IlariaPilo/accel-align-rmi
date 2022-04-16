@@ -37,6 +37,9 @@
 #include "embedding.h"
 #include "accalign.h"
 
+#include "minimap.h"
+#include "mmpriv.h"
+
 extern "C" {
 #include "gap_affine/affine_wavefront_align.h"
 }

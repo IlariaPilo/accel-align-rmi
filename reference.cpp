@@ -61,7 +61,17 @@ Reference::Reference(const char *F) {
   auto start = std::chrono::system_clock::now();
 
   // Start index load in parallel
-  thread t(&Reference::load_index, this, F);
+//  thread t(&Reference::load_index, this, F);
+
+  int n_threads = 3;
+
+  mm_idxopt_t ipt;
+  mm_idxopt_init(&ipt);
+  string fn = string(F) + ".hash";
+  const char* fnw = fn.c_str();
+
+  mm_idx_reader_t *idx_rdr = mm_idx_reader_open(fnw, &ipt, nullptr);
+  mm_idx_t *mi = mm_idx_reader_read(idx_rdr, n_threads);
 
   size_t ref_size = 0;
   string bref(F);
@@ -145,7 +155,7 @@ Reference::Reference(const char *F) {
   }
 
   // wait for index load to finish
-  t.join();
+//  t.join();
 
   auto end = std::chrono::system_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
