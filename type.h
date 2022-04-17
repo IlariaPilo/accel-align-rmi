@@ -1,6 +1,7 @@
 #pragma once
 
 #include "const.h"
+#include "minimap.h"
 
 struct Alignment {
   std::string cigar_string;
@@ -55,6 +56,7 @@ class Reference {
   std::vector<uint32_t> offset;
   uint32_t *keyv, *posv;
   uint32_t nposv, nkeyv;
+  mm_idx_t *mi;
 
   ~Reference();
 };

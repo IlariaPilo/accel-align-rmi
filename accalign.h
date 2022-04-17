@@ -66,6 +66,7 @@ class AccAlign {
                           int &best_threshold, int &next_threshold, char strand);
  public:
   uint32_t *keyv, *posv;
+  mm_idx_t *mi;
 
   void open_output(std::string &out_file);
   void close_output();
