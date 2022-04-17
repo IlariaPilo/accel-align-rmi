@@ -163,11 +163,12 @@ Reference::Reference(const char *F) {
 }
 
 Reference::~Reference() {
-  size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
-  size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
-  char *base = (char *) posv - 4;
-  int r = munmap(base, posv_sz + keyv_sz);
-  assert(r == 0);
+  mm_idx_destroy(mi);
+//  size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
+//  size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
+//  char *base = (char *) posv - 4;
+//  int r = munmap(base, posv_sz + keyv_sz);
+//  assert(r == 0);
 }
 
 

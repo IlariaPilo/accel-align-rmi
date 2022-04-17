@@ -4,7 +4,7 @@
 #define CGK2_EMBED 1
 
 int Embedding::cgk2_unmatched(const char *r, const char *ref,
-                              const vector<uint32_t> &mch,
+                              const vector<Interval> &mch,
                               const unsigned rlen,
                               const unsigned kmer_step,
                               const int threshold,
@@ -16,8 +16,8 @@ int Embedding::cgk2_unmatched(const char *r, const char *ref,
   // embed ref: cadidate pos
   unsigned i = 0, m_idx = 0, j = 0;
   while (i < rlen) {
-    if (m_idx < mch.size() && i == mch[m_idx]) {
-      i += kmer_step;
+    if (m_idx < mch.size() && i == mch[m_idx].s) {
+      i = mch[m_idx].e;
       m_idx++;
     } else {
       uint8_t s = ref[i];
@@ -42,8 +42,8 @@ int Embedding::cgk2_unmatched(const char *r, const char *ref,
   //reset idx, embed read and cal mismatch
   i = j = m_idx = 0;
   while (i < rlen) {
-    if (m_idx < mch.size() && i == mch[m_idx]) {
-      i += kmer_step;
+    if (m_idx < mch.size() && i == mch[m_idx].s) {
+      i = mch[m_idx].e;
       m_idx++;
     } else {
       uint8_t s = r[i];
