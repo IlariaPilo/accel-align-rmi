@@ -24,15 +24,18 @@ void Reference::load_index(const char *F) {
     cerr << "Unable to open index file " << fn << endl;
     exit(0);
   }
-  fi.read((char *) &nposv, 4);
+  fi.read((char *) &nposv, sizeof(uint64_t));
   fi.close();
   nkeyv = MOD + 1;
 
-  cerr << "Mapping keyv of size: " << nkeyv * 4 <<
-       " and posv of size " << (size_t) nposv * 4 <<
+  cerr << "Mapping keyv of size: " << nkeyv * sizeof(uint64_t)<<
+       " and posv of size " << (size_t) nposv * sizeof(uint64_t) <<
        " from index file " << fn << endl;
-  size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
-  size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
+  cerr << "Mapping nkeyv : " << nkeyv <<
+       " and nposv " << (size_t) nposv <<
+       " from index file " << fn << endl;
+  size_t posv_sz = (size_t) nposv * sizeof(uint64_t);
+  size_t keyv_sz = (size_t) nkeyv * sizeof(uint64_t);
   int fd = open(fn.c_str(), O_RDONLY);
 
 #if __linux__
@@ -48,13 +51,12 @@ void Reference::load_index(const char *F) {
 #define MMAP_FLAGS MAP_PRIVATE
 #endif
 
-  char *base = reinterpret_cast<char *>(mmap(NULL, 4 + posv_sz + keyv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
+  char *base = reinterpret_cast<char *>(mmap(NULL, sizeof(uint64_t) + posv_sz + keyv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
   assert(base != MAP_FAILED);
-  posv = (uint32_t * )(base + 4);
+  posv = (uint64_t * )(base + sizeof(uint64_t));
   keyv = posv + nposv;
   cerr << "Mapping done" << endl;
   cerr << "done loading hashtable\n";
-
 }
 
 Reference::Reference(const char *F) {
@@ -148,9 +150,9 @@ Reference::Reference(const char *F) {
 }
 
 Reference::~Reference() {
-  size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
-  size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
-  char *base = (char *) posv - 4;
+  size_t posv_sz = (size_t) nposv * sizeof(uint64_t);
+  size_t keyv_sz = (size_t) nkeyv * sizeof(uint64_t);
+  char *base = (char *) posv - sizeof(uint64_t);
   int r = munmap(base, posv_sz + keyv_sz);
   assert(r == 0);
 }

@@ -3,7 +3,7 @@ class AccAlign {
  private:
   std::string &ref;
   std::vector<std::string> &name;
-  std::vector<uint32_t> &offset;
+  std::vector<uint64_t> &offset;
   Embedding *embedding;
 
   float input_io_time, parse_time;
@@ -63,7 +63,7 @@ class AccAlign {
                           bool flag_f1[], bool flag_r2[], unsigned &best_f1, unsigned &best_r2,
                           int &best_threshold, int &next_threshold, char strand);
  public:
-  uint32_t *keyv, *posv;
+  uint64_t *keyv, *posv;
 
   void open_output(std::string &out_file);
   void close_output();

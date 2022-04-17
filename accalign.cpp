@@ -428,9 +428,9 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   if (!ntotal_hits)
     return;
 
-  uint32_t top_pos[nkmers];
+  uint64_t top_pos[nkmers];
   int rel_off[nkmers];
-  uint32_t MAX_POS = numeric_limits<uint32_t>::max();
+  uint64_t MAX_POS = numeric_limits<uint64_t>::max();
 
   start = std::chrono::system_clock::now();
   // initialize top values with first values for each kmer.
@@ -454,7 +454,8 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   posvTime += elapsed.count();
 
   size_t nprocessed = 0;
-  uint32_t last_pos = MAX_POS, last_qs = ori_slide_bk; //last query start pos
+  uint64_t last_pos = MAX_POS;
+  uint32_t last_qs = ori_slide_bk; //last query start pos
   int last_cov = 0;
 
   start = std::chrono::system_clock::now();
@@ -470,8 +471,8 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
 
   while (nprocessed < ntotal_hits) {
     //find min
-    uint32_t *min_item = min_element(top_pos, top_pos + nkmers);
-    uint32_t min_pos = *min_item;
+    uint64_t *min_item = min_element(top_pos, top_pos + nkmers);
+    uint64_t min_pos = *min_item;
     int min_kmer = min_item - top_pos;
 
     if ((!high_freq && e[min_kmer] - b[min_kmer] < max_occ) || high_freq) {
@@ -510,7 +511,7 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
 
     // add next element
     b[min_kmer]++;
-    uint32_t next_pos = b[min_kmer] < e[min_kmer] ? posv[b[min_kmer]] : MAX_POS;
+    uint64_t next_pos = b[min_kmer] < e[min_kmer] ? posv[b[min_kmer]] : MAX_POS;
     if (next_pos != MAX_POS) {
       uint32_t shift_pos = rel_off[min_kmer] + ori_slide_bk;
       //TODO: for each chrome, happen to < the start pos
@@ -619,7 +620,7 @@ void AccAlign::pigeonhole_query_sort(char *Q,
         Region r;
         r.rs = posv[j];
         r.qs = i * kmer_step + ori_slide;
-        r.rs -= min(r.rs, r.qs);
+        r.rs -= min(r.rs, (uint64_t) r.qs);
         regions.push_back(r);
         // rs can't be samller than 0, if insertion before this kmer, set rs to 0 instead of -1
       }
@@ -785,7 +786,7 @@ void AccAlign::pigeonhole_query(char *Q,
   if (!ntotal_hits)
     return;
 
-  uint32_t top_pos[nkmers], MAX_POS = numeric_limits<uint32_t>::max();
+  uint64_t top_pos[nkmers], MAX_POS = numeric_limits<uint64_t>::max();
   int rel_off[nkmers];
 
   start = std::chrono::system_clock::now();
@@ -795,7 +796,7 @@ void AccAlign::pigeonhole_query(char *Q,
       top_pos[i] = posv[b[i]];
       rel_off[i] = i / kmer_step * kmer_window + i % kmer_step;
       uint32_t shift_pos = rel_off[i] + ori_slide;
-      top_pos[i] -= min(top_pos[i], shift_pos); //pos can't <0, e.g. insertion before this kmer, set 0 instead of -1
+      top_pos[i] -= min(top_pos[i], (uint64_t) shift_pos); //pos can't <0, e.g. insertion before this kmer, set 0 instead of -1
     } else {
       top_pos[i] = MAX_POS;
     }
@@ -805,7 +806,8 @@ void AccAlign::pigeonhole_query(char *Q,
   posvTime += elapsed.count();
 
   size_t nprocessed = 0;
-  uint32_t last_pos = MAX_POS, last_qs = ori_slide; //last query start pos
+  uint64_t last_pos = MAX_POS;
+  uint32_t last_qs = ori_slide; //last query start pos
   int last_cov = 0;
 
   start = std::chrono::system_clock::now();
@@ -814,8 +816,8 @@ void AccAlign::pigeonhole_query(char *Q,
   r.matched_intervals.reserve(nkmers);
   while (nprocessed < ntotal_hits) {
     //find min
-    uint32_t *min_item = min_element(top_pos, top_pos + nkmers);
-    uint32_t min_pos = *min_item;
+    uint64_t *min_item = min_element(top_pos, top_pos + nkmers);
+    uint64_t min_pos = *min_item;
     int min_kmer = min_item - top_pos;
 
     if ((!high_freq && e[min_kmer] - b[min_kmer] < max_occ) || high_freq) {
@@ -852,10 +854,10 @@ void AccAlign::pigeonhole_query(char *Q,
 
     // add next element
     b[min_kmer]++;
-    uint32_t next_pos = b[min_kmer] < e[min_kmer] ? posv[b[min_kmer]] : MAX_POS;
+    uint64_t next_pos = b[min_kmer] < e[min_kmer] ? posv[b[min_kmer]] : MAX_POS;
     if (next_pos != MAX_POS) {
       uint32_t shift_pos = rel_off[min_kmer] + ori_slide;
-      *min_item = next_pos - min(next_pos, shift_pos);
+      *min_item = next_pos - min(next_pos, (uint64_t) shift_pos);
       //pos can't <0, e.g. insertion before this kmer, set 0 instead of -1
     } else
       *min_item = MAX_POS;

@@ -13,7 +13,7 @@ struct Interval {
 };
 
 struct Region {
-  uint32_t rs, re;  // start, end position of the reference match to the whole read
+  uint64_t rs, re;  // start, end position of the reference match to the whole read
   uint32_t qs, qe;  // start, end position of matched seed in the query (read)
   uint16_t cov;
   uint16_t embed_dist;
@@ -31,7 +31,7 @@ struct Region {
 struct Read {
   char name[MAX_LEN], qua[MAX_LEN], seq[MAX_LEN], fwd[MAX_LEN], rev[MAX_LEN], rev_str[MAX_LEN], cigar[MAX_LEN];
   int tid, as, nm, best, secBest;
-  uint32_t pos;
+  uint64_t pos;
   char strand;
   short mapq, kmer_len; //kmer_step used that find the seed
   Region best_region;
@@ -52,9 +52,11 @@ class Reference {
 
   std::string ref;
   std::vector<std::string> name;
-  std::vector<uint32_t> offset;
-  uint32_t *keyv, *posv;
-  uint32_t nposv, nkeyv;
+  std::vector<uint64_t> offset;
+  uint32_t nkeyv;
+
+  uint64_t *keyv, *posv;
+  uint64_t nposv;
 
   ~Reference();
 };

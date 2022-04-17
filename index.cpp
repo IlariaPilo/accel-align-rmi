@@ -7,9 +7,10 @@ unsigned step = 1;
 unsigned kmer;
 
 struct Data {
-  uint32_t key, pos;
+  uint32_t key;
+  uint64_t pos;
   Data() : key(-1), pos(-1) {}
-  Data(uint32_t k, uint32_t p) : key(k), pos(p) {}
+  Data(uint32_t k, uint64_t p) : key(k), pos(p) {}
 
   bool operator()(const Data &X, const Data &Y) const {
     return X.key == Y.key ? X.pos < Y.pos : X.key < Y.key;
@@ -121,23 +122,23 @@ bool Index::make_index(const char *F) {
   size_t eof = joff - data.begin();
   cerr << "Found " << eof << " valid entries out of " <<
        data.size() << " total\n";
-  fo.write((char *) &eof, 4);
+  fo.write((char *) &eof, sizeof(uint64_t));
 
   // write out keys
   for (size_t i = eof; i < data.size(); i++)
     assert(data[i].key == (uint32_t) -1);
   try {
     cerr << "Fast writing posv (" << eof << ")\n";
-    uint32_t *buf = new uint32_t[eof];
+    uint64_t *buf = new uint64_t[eof];
     for (size_t i = 0; i < eof; i++) {
       buf[i] = data[i].pos;
     }
-    fo.write((char *) buf, eof * sizeof(uint32_t));
+    fo.write((char *) buf, eof * sizeof(uint64_t));
     delete[] buf;
   } catch (std::bad_alloc e) {
     cerr << "Fall back to slow writing posv due to low mem.\n";
     for (size_t i = 0; i < eof; i++) {
-      fo.write((char *) &data[i].pos, 4);
+      fo.write((char *) &data[i].pos, sizeof(uint64_t));
     }
   }
 
@@ -145,7 +146,7 @@ bool Index::make_index(const char *F) {
   try {
     cerr << "Fast writing keyv\n";
     size_t buf_idx = 0;
-    uint32_t *buf = new uint32_t[mod + 1];
+    uint64_t *buf = new uint64_t[mod + 1];
     for (size_t i = 0; i < eof;) {
       assert (data[i].key != (uint32_t) -1);
       size_t h = data[i].key, n;
@@ -164,7 +165,7 @@ bool Index::make_index(const char *F) {
       ++buf_idx;
     }
     assert(buf_idx == (mod + 1));
-    fo.write((char *) buf, buf_idx * sizeof(uint32_t));
+    fo.write((char *) buf, buf_idx * sizeof(uint64_t));
     delete[] buf;
   } catch (std::bad_alloc e) {
     cerr << "Fall back to slow writing keyv (low mem)\n";
@@ -173,7 +174,7 @@ bool Index::make_index(const char *F) {
       size_t h = data[i].key, n;
       offset = i;
       for (size_t j = last_key; j <= h; j++) {
-        fo.write((char *) &offset, 4);
+        fo.write((char *) &offset, sizeof(uint64_t));
       }
       last_key = h + 1;
       for (n = i + 1; n < eof && data[n].key == h; n++);
@@ -181,7 +182,7 @@ bool Index::make_index(const char *F) {
     }
     offset = eof;
     for (size_t j = last_key; j <= mod; j++) {
-      fo.write((char *) &offset, 4);
+      fo.write((char *) &offset, sizeof(uint64_t));
     }
   }
 
