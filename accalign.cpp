@@ -2201,7 +2201,8 @@ void AccAlign::close_output() {
 AccAlign::AccAlign(Reference &r) :
     ref(r.ref), name(r.name),
     offset(r.offset),
-    keyv(r.keyv), posv(r.posv) {
+    keyv(r.keyv), posv(r.posv),
+    mi(r.mi){
 
   input_io_time = parse_time = 0;
   seeding_time = hit_count_time = 0;
