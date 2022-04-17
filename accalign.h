@@ -1,4 +1,6 @@
 #pragma once
+
+#include "mmpriv.h"
 class AccAlign {
  private:
   std::string &ref;
@@ -64,6 +66,11 @@ class AccAlign {
                           vector<Region> &candidate_regions_f1, vector<Region> &candidate_regions_r2,
                           bool flag_f1[], bool flag_r2[], unsigned &best_f1, unsigned &best_r2,
                           int &best_threshold, int &next_threshold, char strand);
+  void mm(char *Q, size_t rlen, int err_threshold, vector<Region> &fcandidate_regions, vector<Region> &rcandidate_regions,
+                    unsigned &fbest, unsigned &rbest);
+  inline uint32_t get_global_pos(uint64_t cr);
+  inline uint64_t normalize_pos(uint64_t cr, uint32_t q_pos);
+
  public:
   uint32_t *keyv, *posv;
   mm_idx_t *mi;
@@ -85,6 +92,9 @@ class AccAlign {
   bool tbb_fastq(const char *F1, const char *F2);
   int get_mapq(int best, int secbest);
   int get_tid(Read &R);
+  void merge_interval(Region &r, uint32_t last_q_pos, int32_t k);
+  void collect_seed_hits_priorityqueue(int n_m0, int64_t n_a, size_t rlen, int err_threshold, mm_seed_t* m, vector<Region> &candidate_regions,
+                                                 vector<Region> &rcandidate_regions, unsigned &best, unsigned &rbest);
   AccAlign(Reference &r);
   ~AccAlign();
 };

@@ -8,7 +8,7 @@ endif
 
 ACCLDFLAGS=./WFA/build/libwfa.a -lz -ltbb 
 TARGETS=accindex accalign
-CPUSRC=reference.cpp accalign.cpp embedding.cpp ksw2_extz2_sse.c bseq.c index.c kthread.c kalloc.c sketch.c misc.c options.c
+CPUSRC=reference.cpp accalign.cpp embedding.cpp ksw2_extz2_sse.c bseq.c index.c kthread.c kalloc.c sketch.c misc.c options.c seed.c
 IDXSRC=index.cpp embedding.cpp bseq.c index.c kthread.c kalloc.c sketch.c misc.c options.c
 HEADERS=$(wildcard *.h) 
 
