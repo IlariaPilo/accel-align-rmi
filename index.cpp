@@ -203,7 +203,7 @@ int main(int ac, char **av) {
     cerr << "options:\n";
     cerr << "\t-l INT length of seed [32]\n";
     cerr << "\t-s INT step of seed [1]\n";
-    cerr << "\t-L large genome\n";
+    cerr << "\t-L Using the mode for large genome if longer than 4.2 billion nt";
     return 0;
   }
   unsigned kmer_temp = 0;
@@ -223,12 +223,16 @@ int main(int ac, char **av) {
   cerr << "Using kmer length " << kmer << " and step size " << step << endl;
 
   if (large_genome){
+    cout << "Using the mode for large genome (longer than 4.2 billion nt)" << endl;
+
     Index<uint64_t> i;
     if (!i.load_ref(av[ac - 1]))
       return 0;
     if (!i.make_index(av[ac - 1]))
       return 0;
   } else{
+    cout << "Using the mode for normal genome (shorter than 4.2 billion nt)" << endl;
+
     Index<uint32_t> i;
     if (!i.load_ref(av[ac - 1]))
       return 0;

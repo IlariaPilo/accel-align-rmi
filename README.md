@@ -12,9 +12,13 @@ You can now pull a preconfigured docker container to get the binaries:
 docker run -it rajaappuswamy/accel-align
 ```
 
+### Pre-built binaries ###
+Pre-built binaries with static linked lib in the repository: accalign-x86-64, accindex-x86-64.
+
+
 ### Pre-requirement ###
 
-If you prefer to do a non-docker install, download and install Intel TBB first.
+If you prefer to build by yourself, please download and install Intel TBB first.
 
 #### Intel TBB ####
 
@@ -28,11 +32,17 @@ If you prefer to do a non-docker install, download and install Intel TBB first.
 
 ### Build index ###
 
-It's mandatory to build the index before alignment. Options:
+It's mandatory to build the index before alignment. 
+If the genome length is shorter than 4.2 billion nt (the size of uint32_t), the maximum memory needed to index is 32GB. 
+Otherwise, please use the option '-L' to support large genome and that would need at least 64GB RAM. 
+If you would like to align large genome with 32GB RAM only, please specify the option '-s 2' which would keep only one kmer of each two adjacent kmers in the index to reduce the memory requirement. 
+Note: the same option used in index should be used in the alignment as well.   
 
+Options:
 ```
 -l INT the length of k-mers [32]
 -s INT step of seed [1]
+-L Using the mode for large genome if longer than 4.2 billion nt. It supports at most 4.2 billion nt (the size of uint32_t) defaultly. 
 ```
 
 Example:
@@ -58,6 +68,7 @@ Options:
    -w use WFA for extension. It's using KSW by default.
    -p the maximum distance allowed between the paired-end reads [1000].
    -d disable embedding, extend all candidates from seeding (this mode is super slow, only for benchmark).
+   -L Using the mode for large genome if longer than 4.2 billion nt. It supports at most 4.2 billion nt (the size of uint32_t) defaultly. 
    Note: maximum read length and read name length supported are 512.
 ```
 

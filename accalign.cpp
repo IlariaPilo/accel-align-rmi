@@ -61,6 +61,7 @@ void print_usage() {
   cerr << "\t-w Use WFA for extension. KSW used by default. \n";
   cerr << "\t-p Maximum distance allowed between the paired-end reads [1000]\n";
   cerr << "\t-d Disable embedding, extend all candidates from seeding (this mode is super slow, only for benchmark).\n";
+  cerr << "\t-L Using the mode for large genome if longer than 4.2 billion nt";
 }
 
 static void ksw_gen_simple_mat(int m, int8_t *mat, int8_t a, int8_t b, int8_t sc_ambi) {
@@ -2496,6 +2497,7 @@ int main(int ac, char **av) {
   if (opn == ac - 1) {
     f1_ptr = av[opn];
   } else if (opn == ac - 2) {
+    f1_ptr = av[opn];
     f2_ptr = av[opn+1];
   } else {
     print_usage();
@@ -2503,6 +2505,8 @@ int main(int ac, char **av) {
   }
 
   if (large_genome) {
+    cout << "Using the mode for large genome (longer than 4.2 billion nt)" << endl;
+
     // load reference once
     Reference<uint64_t> *r = new Reference<uint64_t>(ref_ptr);
 
@@ -2530,6 +2534,8 @@ int main(int ac, char **av) {
 
     cerr << "Total time: " << (time(NULL) - total_begin) << " secs\n";
   } else {
+    cout << "Using the mode for normal genome (shorter than 4.2 billion nt)" << endl;
+
     // load reference once
     Reference<uint32_t> *r = new Reference<uint32_t>(ref_ptr);
 
