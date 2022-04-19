@@ -3,7 +3,8 @@
 #define EMBED_PAD 4
 #define CGK2_EMBED 1
 
-int Embedding::cgk2_unmatched(const char *r, const char *ref,
+template <class T>
+int Embedding<T>::cgk2_unmatched(const char *r, const char *ref,
                               const vector<uint32_t> &mch,
                               const unsigned rlen,
                               const unsigned kmer_len,
@@ -74,7 +75,8 @@ int Embedding::cgk2_unmatched(const char *r, const char *ref,
   return nmismatch;
 }
 
-void Embedding::cgk2_embedQ(const char *oridata, unsigned rlen, int strid, char *embeddedQ) {
+template <class T>
+void Embedding<T>::cgk2_embedQ(const char *oridata, unsigned rlen, int strid, char *embeddedQ) {
   int j = 0;
   int elen = efactor * rlen;
   for (unsigned i = 0; i < rlen; i++) {
@@ -100,7 +102,8 @@ void Embedding::cgk2_embedQ(const char *oridata, unsigned rlen, int strid, char 
   assert(j <= elen);
 }
 
-int Embedding::cgk2_embed_nmismatch(const char *oridata, unsigned rlen, int threshold, int strid, char *embeddedQ) {
+template <class T>
+int Embedding<T>::cgk2_embed_nmismatch(const char *oridata, unsigned rlen, int threshold, int strid, char *embeddedQ) {
   int nmismatch = 0;
   int j = 0;
   int elen = efactor * rlen;
@@ -138,7 +141,8 @@ int Embedding::cgk2_embed_nmismatch(const char *oridata, unsigned rlen, int thre
   return nmismatch;
 }
 
-int Embedding::cgk2_embed(const char **oridata, unsigned rlen, int threshold, int id,
+template <class T>
+int Embedding<T>::cgk2_embed(const char **oridata, unsigned rlen, int threshold, int id,
                           int strid, char *embeddedQ) {
   int nmismatch = 0;
 
@@ -151,7 +155,8 @@ int Embedding::cgk2_embed(const char **oridata, unsigned rlen, int threshold, in
   return nmismatch;
 }
 
-int Embedding::cgk_embed(const char **oridata, unsigned rlen, int threshold, int id,
+template <class T>
+int Embedding<T>::cgk_embed(const char **oridata, unsigned rlen, int threshold, int id,
                          int strid, char *embeddedQ) {
   unsigned i = 0;
   int nmismatch = 0;
@@ -188,7 +193,8 @@ int Embedding::cgk_embed(const char **oridata, unsigned rlen, int threshold, int
   return nmismatch;
 }
 
-int Embedding::embedstr(const char **oridata, unsigned rlen, int threshold, int id,
+template <class T>
+int Embedding<T>::embedstr(const char **oridata, unsigned rlen, int threshold, int id,
                         int strid, char *embeddedQ) {
 #ifdef CGK2_EMBED
   return cgk2_embed(oridata, rlen, threshold, id, strid, embeddedQ);
@@ -197,7 +203,8 @@ int Embedding::embedstr(const char **oridata, unsigned rlen, int threshold, int 
 #endif
 }
 
-void Embedding::embed_unmatch_iter(vector<Region> &candidate_regions, const char *ptr_ref, const char *r,
+template <class T>
+void Embedding<T>::embed_unmatch_iter(vector<Region<T>> &candidate_regions, const char *ptr_ref, const char *r,
                                    const unsigned rlen, const unsigned kmer_step, int &best_threshold,
                                    int &next_threshold, unsigned &best_idx, unsigned &next_idx) {
 
@@ -206,7 +213,7 @@ void Embedding::embed_unmatch_iter(vector<Region> &candidate_regions, const char
   int elen = rlen * efactor, nmismatch;
 
   for (unsigned i = 0; i < candidate_regions.size(); ++i) {
-    Region &region = candidate_regions[i];
+    Region<T>&region = candidate_regions[i];
     region.embed_dist = elen;
 
     for (unsigned strid = 0; strid < NUM_STR; ++strid) {
@@ -248,7 +255,8 @@ void Embedding::embed_unmatch_iter(vector<Region> &candidate_regions, const char
   embed_time += elapsed.count();
 }
 
-void Embedding::embed_unmatch(vector<Region> &candidate_regions,
+template <class T>
+void Embedding<T>::embed_unmatch(vector<Region<T>> &candidate_regions,
                               const char *ptr_ref,
                               const char *r,
                               const unsigned rlen,
@@ -263,7 +271,7 @@ void Embedding::embed_unmatch(vector<Region> &candidate_regions,
       continue;
     }
 
-    Region &region = candidate_regions[i];
+    Region<T>&region = candidate_regions[i];
     region.embed_dist = elen;
 
     for (unsigned strid = 0; strid < NUM_STR; ++strid) {
@@ -282,8 +290,9 @@ void Embedding::embed_unmatch(vector<Region> &candidate_regions,
   embed_time += elapsed.count();
 }
 
-void Embedding::embed_unmatch_pair(Read &mate1, Read &mate2,
-                                   vector<Region> &candidate_regions_f1, vector<Region> &candidate_regions_r2,
+template <class T>
+void Embedding<T>::embed_unmatch_pair(Read<T>&mate1, Read<T>&mate2,
+                                   vector<Region<T>> &candidate_regions_f1, vector<Region<T>> &candidate_regions_r2,
                                    const char *ptr_ref, const char *r, const unsigned rlen, const unsigned kmer_step,
                                    bool flag_r2[], unsigned pairdis, int &best_threshold, int &next_threshold,
                                    unsigned &best_f1, unsigned &best_r2) {
@@ -297,20 +306,20 @@ void Embedding::embed_unmatch_pair(Read &mate1, Read &mate2,
       continue;
     }
 
-    Region &region = candidate_regions_r2[i];
+    Region<T>&region = candidate_regions_r2[i];
     region.embed_dist = elen;
 
-    Region tmp;
+    Region<T>tmp;
     tmp.rs = region.rs < pairdis ? 0 : region.rs - pairdis;
     auto start = lower_bound(candidate_regions_f1.begin(), candidate_regions_f1.end(), tmp,
-                             [](const Region &left, const Region &right) {
+                             [](const Region<T>&left, const Region<T>&right) {
                                return left.rs < right.rs;
                              }
     );
 
     tmp.rs = region.rs + pairdis;
     auto end = upper_bound(candidate_regions_f1.begin(), candidate_regions_f1.end(), tmp,
-                           [](const Region &left, const Region &right) {
+                           [](const Region<T>&left, const Region<T>&right) {
                              return left.rs < right.rs;
                            }
     );
@@ -355,7 +364,8 @@ void Embedding::embed_unmatch_pair(Read &mate1, Read &mate2,
   embed_time += elapsed.count();
 }
 
-Embedding::Embedding() {
+template <class T>
+Embedding<T>::Embedding() {
 #ifdef CGK2_EMBED
   efactor = 2;
 #else
@@ -387,7 +397,8 @@ Embedding::Embedding() {
         hash_eb[BITPOS(j, d, t)] = 1 - rand() % 2;
 }
 
-Embedding::Embedding(const char *fname) {
+template <class T>
+Embedding<T>::Embedding(const char *fname) {
 #ifdef CGK2_EMBED
   efactor = 2;
 #else
@@ -412,6 +423,7 @@ Embedding::Embedding(const char *fname) {
   }
 }
 
-Embedding::~Embedding() {
+template <class T>
+Embedding<T>::~Embedding() {
 }
 

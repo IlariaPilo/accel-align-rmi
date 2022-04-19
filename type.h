@@ -8,19 +8,22 @@ struct Alignment {
   int mismatches;
 };
 
-struct Interval {
-  uint32_t s, e;  // start, end position of the reference match to the whole read
+template <typename T>
+struct array {
+  size_t x;
+  T *ary;
 };
 
-struct Region {
-  uint64_t rs, re;  // start, end position of the reference match to the whole read
+template <typename T>
+struct Region{
+  T rs, re;  // start, end position of the reference match to the whole read
   uint32_t qs, qe;  // start, end position of matched seed in the query (read)
   uint16_t cov;
   uint16_t embed_dist;
   int score;
   std::vector<uint32_t> matched_intervals;  // list of start pos of matched seeds in read that indicate to this region
 
-  bool operator()(Region &X, Region &Y) {
+  bool operator()(Region<T>&X, Region<T>&Y) {
     if (X.rs == Y.rs)
       return X.qs < Y.qs;
     else
@@ -28,15 +31,46 @@ struct Region {
   }
 };
 
-struct Read {
+template <class T>
+struct Read{
   char name[MAX_LEN], qua[MAX_LEN], seq[MAX_LEN], fwd[MAX_LEN], rev[MAX_LEN], rev_str[MAX_LEN], cigar[MAX_LEN];
   int tid, as, nm, best, secBest;
-  uint64_t pos;
+  T pos;
   char strand;
   short mapq, kmer_len; //kmer_step used that find the seed
-  Region best_region;
+  Region<T> best_region;
 
-  friend gzFile &operator>>(gzFile &in, Read &r);
+  friend gzFile &operator>>(gzFile &in, Read<T>&r){
+      char temp[MAX_LEN];
+
+      if (gzgets(in, r.name, MAX_LEN) == NULL)
+        return in;
+      if (gzgets(in, r.seq, MAX_LEN) == NULL)
+        return in;
+      if (gzgets(in, temp, MAX_LEN) == NULL)
+        return in;
+      if (gzgets(in, r.qua, MAX_LEN) == NULL)
+        return in;
+
+      unsigned i = 0;
+      while (i < strlen(r.name)) {
+        if (isspace(r.name[i])) { // isspace(): \t, \n, \v, \f, \r
+          memset(r.name + i, '\0', strlen(r.name) - i);
+          break;
+        }
+        i++;
+      }
+
+      r.qua[strlen(r.qua) - 1] = '\0';
+      r.seq[strlen(r.seq) - 1] = '\0';
+
+      r.tid = r.pos = 0;
+      r.as = std::numeric_limits<int32_t>::min();
+      r.strand = '*';
+
+      return in;
+  };
+
 
   Read() {
     best = INT_MAX;
@@ -45,6 +79,7 @@ struct Read {
 
 };
 
+template <class T>
 class Reference {
  public:
   void load_index(const char *F);
@@ -52,18 +87,14 @@ class Reference {
 
   std::string ref;
   std::vector<std::string> name;
-  std::vector<uint64_t> offset;
+  std::vector<T> offset;
   uint32_t nkeyv;
 
-  uint64_t *keyv, *posv;
-  uint64_t nposv;
+  T *keyv, *posv;
+  T nposv;
 
   ~Reference();
 };
-
-typedef std::tuple<Read *, Read *, int> ReadCnt;
-
-typedef std::tuple<Read *, Read *> ReadPair;
 
 typedef struct {
   uint32_t capacity;

@@ -2,6 +2,9 @@
 #include "accalign.h"
 #include "ksw2.h"
 
+#include "reference.cpp"
+#include "embedding.cpp"
+
 using namespace tbb::flow;
 using namespace std;
 
@@ -46,37 +49,6 @@ static void parse(char seq[], char fwd[], char rev[], char rev_str[]) {
   *(rev_str + len) = '\0';
 }
 
-gzFile &operator>>(gzFile &in, Read &r) {
-  char temp[MAX_LEN];
-
-  if (gzgets(in, r.name, MAX_LEN) == NULL)
-    return in;
-  if (gzgets(in, r.seq, MAX_LEN) == NULL)
-    return in;
-  if (gzgets(in, temp, MAX_LEN) == NULL)
-    return in;
-  if (gzgets(in, r.qua, MAX_LEN) == NULL)
-    return in;
-
-  unsigned i = 0;
-  while (i < strlen(r.name)) {
-    if (isspace(r.name[i])) { // isspace(): \t, \n, \v, \f, \r
-      memset(r.name + i, '\0', strlen(r.name) - i);
-      break;
-    }
-    i++;
-  }
-
-  r.qua[strlen(r.qua) - 1] = '\0';
-  r.seq[strlen(r.seq) - 1] = '\0';
-
-  r.tid = r.pos = 0;
-  r.as = numeric_limits<int32_t>::min();
-  r.strand = '*';
-
-  return in;
-}
-
 void print_usage() {
   cerr << "accalign [options] <ref.fa> [read1.fastq] [read2.fastq]\n";
   cerr << "\t Maximum read length supported is 512\n";
@@ -91,7 +63,22 @@ void print_usage() {
   cerr << "\t-d Disable embedding, extend all candidates from seeding (this mode is super slow, only for benchmark).\n";
 }
 
-void AccAlign::print_stats() {
+static void ksw_gen_simple_mat(int m, int8_t *mat, int8_t a, int8_t b, int8_t sc_ambi) {
+  int i, j;
+  a = a < 0 ? -a : a;
+  b = b > 0 ? -b : b;
+  sc_ambi = sc_ambi > 0 ? -sc_ambi : sc_ambi;
+  for (i = 0; i < m - 1; ++i) {
+    for (j = 0; j < m - 1; ++j)
+      mat[i * m + j] = i == j ? a : b;
+    mat[i * m + m - 1] = sc_ambi;
+  }
+  for (j = 0; j < m; ++j)
+    mat[(m - 1) * m + j] = sc_ambi;
+}
+
+template <class T>
+void AccAlign<T>::print_stats() {
 //#if DBGPRINT
   cerr << "Breakdown:\n" <<
        "Input IO time:\t" << input_io_time / 1000000 << "\n" <<
@@ -113,7 +100,8 @@ void AccAlign::print_stats() {
 //#endif
 }
 
-bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu) {
+template <class T>
+bool AccAlign<T>::fastq(const char *F1, const char *F2, bool enable_gpu) {
 
   bool is_paired = false;
 
@@ -133,12 +121,12 @@ bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu) {
 
   // start CPU and GPU master threads, they consume reads from inputQ
   // dataQ is to re-use
-  tbb::concurrent_bounded_queue<ReadCnt> inputQ;
-  tbb::concurrent_bounded_queue<ReadCnt> outputQ;
-  tbb::concurrent_bounded_queue<ReadPair> dataQ;
+  tbb::concurrent_bounded_queue<std::tuple<Read<T>*, Read<T>*, int>> inputQ;
+  tbb::concurrent_bounded_queue<std::tuple<Read<T>*, Read<T>*, int>> outputQ;
+  tbb::concurrent_bounded_queue<std::tuple<Read<T>*, Read<T>*>> dataQ;
 
-  thread cpu_thread = thread(&AccAlign::cpu_root_fn, this, &inputQ, &outputQ);
-  thread out_thread = thread(&AccAlign::output_root_fn, this, &outputQ, &dataQ);
+  thread cpu_thread = thread(&AccAlign<T>::cpu_root_fn, this, &inputQ, &outputQ);
+  thread out_thread = thread(&AccAlign<T>::output_root_fn, this, &outputQ, &dataQ);
 
   auto start = std::chrono::system_clock::now();
 
@@ -147,17 +135,17 @@ bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu) {
   int batch_size = BATCH_SIZE;
   if (is_paired)
     batch_size /= 2;
-  Read *reads[vec_size];
-  reads[vec_index] = new Read[batch_size];
-  Read *reads2[vec_size];
+  Read<T> *reads[vec_size];
+  reads[vec_index] = new Read<T>[batch_size];
+  Read<T> *reads2[vec_size];
   if (is_paired) {
-    reads2[vec_index] = new Read[batch_size];
+    reads2[vec_index] = new Read<T>[batch_size];
   }
 
   bool neof1 = (!gzeof(in1) && gzgetc(in1) != EOF);
   bool neof2 = (!is_paired || (!gzeof(in2) && gzgetc(in2) != EOF));
   while (vec_index < vec_size && neof1 && neof2) {
-    Read &r = *(reads[vec_index] + nreads_per_vec);
+    Read<T> &r = *(reads[vec_index] + nreads_per_vec);
     in1 >> r;
 
     if (!strlen(r.seq)) {
@@ -165,7 +153,7 @@ bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu) {
     }
 
     if (is_paired) {
-      Read &r2 = *(reads2[vec_index] + nreads_per_vec);
+      Read<T> &r2 = *(reads2[vec_index] + nreads_per_vec);
       in2 >> r2;
 
       if (!strlen(r2.seq)) {
@@ -181,14 +169,14 @@ bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu) {
       if (is_paired)
         inputQ.push(make_tuple(reads[vec_index], reads2[vec_index], batch_size));
       else
-        inputQ.push(make_tuple(reads[vec_index], (Read *) NULL, batch_size));
+        inputQ.push(make_tuple(reads[vec_index], (Read<T> *) NULL, batch_size));
 
       vec_index++;
 
       if (vec_index < vec_size) {
-        reads[vec_index] = new Read[batch_size];
+        reads[vec_index] = new Read<T>[batch_size];
         if (is_paired)
-          reads2[vec_index] = new Read[batch_size];
+          reads2[vec_index] = new Read<T>[batch_size];
       }
 
       total_nreads += nreads_per_vec;
@@ -196,7 +184,7 @@ bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu) {
     }
   }
 
-  ReadPair cur_vec = make_tuple((Read *) NULL, (Read *) NULL);
+  std::tuple<Read<T>*, Read<T>*> cur_vec = make_tuple((Read<T> *) NULL, (Read<T> *) NULL);
 
   // the nb of reads is less than vec_size *BATCH_SIZE, and there are some reads not pushed to inputQ
   if (nreads_per_vec && vec_index < vec_size) {
@@ -204,7 +192,7 @@ bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu) {
     if (is_paired)
       inputQ.push(make_tuple(reads[vec_index], reads2[vec_index], nreads_per_vec));
     else
-      inputQ.push(make_tuple(reads[vec_index], (Read *) NULL, nreads_per_vec));
+      inputQ.push(make_tuple(reads[vec_index], (Read<T>*) NULL, nreads_per_vec));
 
     total_nreads += nreads_per_vec;
   } else {
@@ -212,7 +200,7 @@ bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu) {
     dataQ.pop(cur_vec);
 
     while (neof1 && neof2) {
-      Read &r = *(std::get<0>(cur_vec) + nreads_per_vec);
+      Read<T>&r = *(std::get<0>(cur_vec) + nreads_per_vec);
       in1 >> r;
 
       if (!strlen(r.seq)) {
@@ -220,7 +208,7 @@ bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu) {
       }
 
       if (is_paired) {
-        Read &r2 = *(std::get<1>(cur_vec) + nreads_per_vec);
+        Read<T>&r2 = *(std::get<1>(cur_vec) + nreads_per_vec);
         in2 >> r2;
 
         if (!strlen(r2.seq)) {
@@ -259,7 +247,7 @@ bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu) {
   cerr << "done reading " << total_nreads << " reads from fastq file " << F1 << ", " << F2 << " in " <<
        input_io_time / 1000000.0 << " secs\n";
 
-  ReadCnt sentinel = make_tuple((Read *) NULL, (Read *) NULL, 0);
+  std::tuple<Read<T>*, Read<T>*, int> sentinel = make_tuple((Read<T>*) NULL, (Read<T>*) NULL, 0);
   inputQ.push(sentinel);
 
   int size = vec_index < vec_size ? vec_index : vec_size;
@@ -292,14 +280,15 @@ bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu) {
   return true;
 }
 
-void AccAlign::output_root_fn(tbb::concurrent_bounded_queue<ReadCnt> *outputQ,
-                              tbb::concurrent_bounded_queue<ReadPair> *dataQ) {
+template <class T>
+void AccAlign<T>::output_root_fn(tbb::concurrent_bounded_queue<std::tuple<Read<T>*, Read<T>*, int>> *outputQ,
+                              tbb::concurrent_bounded_queue<std::tuple<Read<T>*, Read<T>*>> *dataQ) {
   cerr << "Extension and output function starting.." << endl;
 
   unsigned nreads = 0;
-  tbb::concurrent_bounded_queue<ReadCnt> *targetQ = outputQ;
+  tbb::concurrent_bounded_queue<std::tuple<Read<T>*, Read<T>*, int>> *targetQ = outputQ;
   do {
-    ReadCnt gpu_reads;
+    std::tuple<Read<T>*, Read<T>*, int> gpu_reads;
     targetQ->pop(gpu_reads);
     nreads = std::get<2>(gpu_reads);
     if (!nreads) {
@@ -312,13 +301,14 @@ void AccAlign::output_root_fn(tbb::concurrent_bounded_queue<ReadCnt> *outputQ,
   cerr << "Extension and output function quitting...\n";
 }
 
+template <class T>
 class Parallel_mapper {
-  Read *all_reads1;
-  Read *all_reads2;
-  AccAlign *acc_obj;
+  Read<T>*all_reads1;
+  Read<T>*all_reads2;
+  AccAlign<T> *acc_obj;
 
  public:
-  Parallel_mapper(Read *_all_reads1, Read *_all_reads2, AccAlign *_acc_obj) :
+  Parallel_mapper(Read<T>*_all_reads1, Read<T>*_all_reads2, AccAlign<T> *_acc_obj) :
       all_reads1(_all_reads1), all_reads2(_all_reads2), acc_obj(_acc_obj) {}
 
   void operator()(const tbb::blocked_range<size_t> &r) const {
@@ -334,14 +324,15 @@ class Parallel_mapper {
   }
 };
 
-void AccAlign::cpu_root_fn(tbb::concurrent_bounded_queue<ReadCnt> *inputQ,
-                           tbb::concurrent_bounded_queue<ReadCnt> *outputQ) {
+template <class T>
+void AccAlign<T>::cpu_root_fn(tbb::concurrent_bounded_queue<std::tuple<Read<T>*, Read<T>*, int>> *inputQ,
+                           tbb::concurrent_bounded_queue<std::tuple<Read<T>*, Read<T>*, int>> *outputQ) {
   cerr << "CPU Root function starting.." << endl;
 
-  tbb::concurrent_bounded_queue<ReadCnt> *targetQ = inputQ;
+  tbb::concurrent_bounded_queue<std::tuple<Read<T>*, Read<T>*, int>> *targetQ = inputQ;
   int nreads = 0, total = 0;
   do {
-    ReadCnt cpu_readcnt;
+    std::tuple<Read<T>*, Read<T>*, int> cpu_readcnt;
     targetQ->pop(cpu_readcnt);
     nreads = std::get<2>(cpu_readcnt);
     total += nreads;
@@ -352,7 +343,7 @@ void AccAlign::cpu_root_fn(tbb::concurrent_bounded_queue<ReadCnt> *inputQ,
 
     tbb::task_scheduler_init init(g_ncpus);
     tbb::parallel_for(tbb::blocked_range<size_t>(0, nreads),
-                      Parallel_mapper(std::get<0>(cpu_readcnt), std::get<1>(cpu_readcnt), this)
+                      Parallel_mapper<T>(std::get<0>(cpu_readcnt), std::get<1>(cpu_readcnt), this)
     );
 
     outputQ->push(cpu_readcnt);
@@ -362,7 +353,8 @@ void AccAlign::cpu_root_fn(tbb::concurrent_bounded_queue<ReadCnt> *inputQ,
   cerr << "CPU Root function quitting.." << endl;
 }
 
-void AccAlign::mark_for_extension(Read &read, char S, Region &cregion) {
+template <class T>
+void AccAlign<T>::mark_for_extension(Read<T>&read, char S, Region<T>&cregion) {
   read.strand = S;
   int rlen = strlen(read.seq);
 
@@ -377,9 +369,10 @@ void AccAlign::mark_for_extension(Read &read, char S, Region &cregion) {
   read.best_region = cregion;
 }
 
-void AccAlign::pigeonhole_query_topcov(char *Q,
+template <class T>
+void AccAlign<T>::pigeonhole_query_topcov(char *Q,
                                        size_t rlen,
-                                       vector<Region> &candidate_regions,
+                                       vector<Region<T>> &candidate_regions,
                                        char S,
                                        int err_threshold,
                                        unsigned max_occ,
@@ -428,9 +421,9 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   if (!ntotal_hits)
     return;
 
-  uint64_t top_pos[nkmers];
+  T top_pos[nkmers];
   int rel_off[nkmers];
-  uint64_t MAX_POS = numeric_limits<uint64_t>::max();
+  T MAX_POS = numeric_limits<T>::max();
 
   start = std::chrono::system_clock::now();
   // initialize top values with first values for each kmer.
@@ -454,25 +447,25 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   posvTime += elapsed.count();
 
   size_t nprocessed = 0;
-  uint64_t last_pos = MAX_POS;
+  T last_pos = MAX_POS;
   uint32_t last_qs = ori_slide_bk; //last query start pos
   int last_cov = 0;
 
   start = std::chrono::system_clock::now();
 
-  vector<Region> unique_regions;
+  vector<Region<T>> unique_regions;
   unique_regions.reserve(ntotal_hits);
   size_t idx = 0;
-  Region r;
+  Region<T>r;
   r.matched_intervals.reserve(nkmers);
-//  Region unique_regions[ntotal_hits];
+//  Region<T>unique_regions[ntotal_hits];
 //  size_t idx = 0;
-//  Region *r = unique_regions + idx;
+//  Region<T>*r = unique_regions + idx;
 
   while (nprocessed < ntotal_hits) {
     //find min
-    uint64_t *min_item = min_element(top_pos, top_pos + nkmers);
-    uint64_t min_pos = *min_item;
+    T *min_item = min_element(top_pos, top_pos + nkmers);
+    T min_pos = *min_item;
     int min_kmer = min_item - top_pos;
 
     if ((!high_freq && e[min_kmer] - b[min_kmer] < max_occ) || high_freq) {
@@ -511,7 +504,7 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
 
     // add next element
     b[min_kmer]++;
-    uint64_t next_pos = b[min_kmer] < e[min_kmer] ? posv[b[min_kmer]] : MAX_POS;
+    T next_pos = b[min_kmer] < e[min_kmer] ? posv[b[min_kmer]] : MAX_POS;
     if (next_pos != MAX_POS) {
       uint32_t shift_pos = rel_off[min_kmer] + ori_slide_bk;
       //TODO: for each chrome, happen to < the start pos
@@ -544,7 +537,7 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   err_threshold = max(err_threshold, max_cov - 1);
   assert(idx <= ntotal_hits);
   for (size_t i = 0; i < idx; i++) {
-    Region &r = unique_regions[i];
+    Region<T>&r = unique_regions[i];
     if (r.cov >= err_threshold) {
       if (r.cov == max_cov)
         best = candidate_regions.size();
@@ -558,9 +551,10 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   hit_count_time += elapsed.count();
 }
 
-void AccAlign::pigeonhole_query_sort(char *Q,
+template <class T>
+void AccAlign<T>::pigeonhole_query_sort(char *Q,
                                      size_t rlen,
-                                     vector<Region> &candidate_regions,
+                                     vector<Region<T>> &candidate_regions,
                                      char S,
                                      unsigned err_threshold,
                                      unsigned kmer_step,
@@ -611,16 +605,16 @@ void AccAlign::pigeonhole_query_sort(char *Q,
   start = std::chrono::system_clock::now();
   // initialize top values with first values for each kmer.
   uint32_t MAX_POS = numeric_limits<uint32_t>::max();
-  vector<Region> regions;
+  vector<Region<T>> regions;
   regions.reserve(ntotal_hits);
   for (unsigned i = 0; i < nkmers; i++) {
     if (b[i] < e[i] && ((!high_freq && e[i] - b[i] < max_occ) || high_freq)) {
 //    if (b[i] < e[i] && e[i] - b[i] < max_occ) {
       for (uint32_t j = b[i]; j < e[i]; j++) {
-        Region r;
+        Region<T>r;
         r.rs = posv[j];
         r.qs = i * kmer_step + ori_slide;
-        r.rs -= min(r.rs, (uint64_t) r.qs);
+        r.rs -= min(r.rs, (T) r.qs);
         regions.push_back(r);
         // rs can't be samller than 0, if insertion before this kmer, set rs to 0 instead of -1
       }
@@ -633,7 +627,7 @@ void AccAlign::pigeonhole_query_sort(char *Q,
 
   start = std::chrono::system_clock::now();
 
-  sort(regions.begin(), regions.end(), Region());
+  sort(regions.begin(), regions.end(), Region<T>());
 
   size_t nprocessed = 0, last_cov = 0;
   uint32_t last_pos = MAX_POS;
@@ -644,7 +638,7 @@ void AccAlign::pigeonhole_query_sort(char *Q,
       last_cov++;
     } else {
       if (last_cov >= err_threshold) {
-        Region r;
+        Region<T>r;
         r.cov = last_cov;
         r.rs = last_pos;
         for (unsigned i = nprocessed - last_cov; i < nprocessed; i++)
@@ -669,7 +663,7 @@ void AccAlign::pigeonhole_query_sort(char *Q,
 
   // we will have the last few positions not processed. check here.
   if (last_cov >= err_threshold && last_pos != MAX_POS) {
-    Region r;
+    Region<T>r;
     r.cov = last_cov;
     r.rs = last_pos;
     for (unsigned i = nprocessed - last_cov; i < nprocessed; i++)
@@ -690,9 +684,10 @@ void AccAlign::pigeonhole_query_sort(char *Q,
   posvTime += elapsed.count();
 }
 
-void AccAlign::pghole_wrapper(Read &R,
-                              vector<Region> &fcandidate_regions,
-                              vector<Region> &rcandidate_regions,
+template <class T>
+void AccAlign<T>::pghole_wrapper(Read<T>&R,
+                              vector<Region<T>> &fcandidate_regions,
+                              vector<Region<T>> &rcandidate_regions,
                               unsigned &fbest,
                               unsigned &rbest) {
   size_t rlen = strlen(R.seq);
@@ -736,9 +731,10 @@ void AccAlign::pghole_wrapper(Read &R,
 
 }
 
-void AccAlign::pigeonhole_query(char *Q,
+template <class T>
+void AccAlign<T>::pigeonhole_query(char *Q,
                                 size_t rlen,
-                                vector<Region> &candidate_regions,
+                                vector<Region<T>> &candidate_regions,
                                 char S,
                                 unsigned &best,
                                 unsigned ori_slide,
@@ -786,7 +782,7 @@ void AccAlign::pigeonhole_query(char *Q,
   if (!ntotal_hits)
     return;
 
-  uint64_t top_pos[nkmers], MAX_POS = numeric_limits<uint64_t>::max();
+  T top_pos[nkmers], MAX_POS = numeric_limits<T>::max();
   int rel_off[nkmers];
 
   start = std::chrono::system_clock::now();
@@ -796,7 +792,7 @@ void AccAlign::pigeonhole_query(char *Q,
       top_pos[i] = posv[b[i]];
       rel_off[i] = i / kmer_step * kmer_window + i % kmer_step;
       uint32_t shift_pos = rel_off[i] + ori_slide;
-      top_pos[i] -= min(top_pos[i], (uint64_t) shift_pos); //pos can't <0, e.g. insertion before this kmer, set 0 instead of -1
+      top_pos[i] -= min(top_pos[i], (T) shift_pos); //pos can't <0, e.g. insertion before this kmer, set 0 instead of -1
     } else {
       top_pos[i] = MAX_POS;
     }
@@ -806,18 +802,18 @@ void AccAlign::pigeonhole_query(char *Q,
   posvTime += elapsed.count();
 
   size_t nprocessed = 0;
-  uint64_t last_pos = MAX_POS;
+  T last_pos = MAX_POS;
   uint32_t last_qs = ori_slide; //last query start pos
   int last_cov = 0;
 
   start = std::chrono::system_clock::now();
 
-  Region r;
+  Region<T>r;
   r.matched_intervals.reserve(nkmers);
   while (nprocessed < ntotal_hits) {
     //find min
-    uint64_t *min_item = min_element(top_pos, top_pos + nkmers);
-    uint64_t min_pos = *min_item;
+    T *min_item = min_element(top_pos, top_pos + nkmers);
+    T min_pos = *min_item;
     int min_kmer = min_item - top_pos;
 
     if ((!high_freq && e[min_kmer] - b[min_kmer] < max_occ) || high_freq) {
@@ -854,10 +850,10 @@ void AccAlign::pigeonhole_query(char *Q,
 
     // add next element
     b[min_kmer]++;
-    uint64_t next_pos = b[min_kmer] < e[min_kmer] ? posv[b[min_kmer]] : MAX_POS;
+    T next_pos = b[min_kmer] < e[min_kmer] ? posv[b[min_kmer]] : MAX_POS;
     if (next_pos != MAX_POS) {
       uint32_t shift_pos = rel_off[min_kmer] + ori_slide;
-      *min_item = next_pos - min(next_pos, (uint64_t) shift_pos);
+      *min_item = next_pos - min(next_pos, (T) shift_pos);
       //pos can't <0, e.g. insertion before this kmer, set 0 instead of -1
     } else
       *min_item = MAX_POS;
@@ -889,9 +885,10 @@ void AccAlign::pigeonhole_query(char *Q,
   hit_count_time += elapsed.count();
 }
 
-void AccAlign::pghole_wrapper_mates(Read &R,
-                                    vector<Region> &fcandidate_regions,
-                                    vector<Region> &rcandidate_regions,
+template <class T>
+void AccAlign<T>::pghole_wrapper_mates(Read<T>&R,
+                                    vector<Region<T>> &fcandidate_regions,
+                                    vector<Region<T>> &rcandidate_regions,
                                     unsigned &fbest,
                                     unsigned &rbest,
                                     unsigned ori_slide,
@@ -912,9 +909,10 @@ void AccAlign::pghole_wrapper_mates(Read &R,
 }
 
 //check by f1r1
-void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
-                                   vector<Region> &region_f1, vector<Region> &region_r1,
-                                   vector<Region> &region_f2, vector<Region> &region_r2,
+template <class T>
+void AccAlign<T>::pghole_wrapper_pair(Read<T>&mate1, Read<T>&mate2,
+                                   vector<Region<T>> &region_f1, vector<Region<T>> &region_r1,
+                                   vector<Region<T>> &region_f2, vector<Region<T>> &region_r2,
                                    unsigned &best_f1, unsigned &best_r1, unsigned &best_f2, unsigned &best_r2,
                                    unsigned &next_f1, unsigned &next_r1, unsigned &next_f2, unsigned &next_r2,
                                    bool *&flag_f1, bool *&flag_r1, bool *&flag_f2, bool *&flag_r2,
@@ -960,8 +958,9 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
   }
 }
 
-void AccAlign::embed_wrapper_pair(Read &R1, Read &R2,
-                                  vector<Region> &candidate_regions_f1, vector<Region> &candidate_regions_r2,
+template <class T>
+void AccAlign<T>::embed_wrapper_pair(Read<T>&R1, Read<T>&R2,
+                                  vector<Region<T>> &candidate_regions_f1, vector<Region<T>> &candidate_regions_r2,
                                   bool flag_f1[], bool flag_r2[], unsigned &best_f1, unsigned &best_r2,
                                   int &best_threshold, int &next_threshold, char strand) {
   const char *ptr_ref = ref.c_str();
@@ -983,8 +982,9 @@ void AccAlign::embed_wrapper_pair(Read &R1, Read &R2,
                                 R2.kmer_len, flag_r2, pairdis, best_threshold, next_threshold, best_f1, best_r2);
 }
 
-void AccAlign::embed_wrapper(Read &R, bool ispe,
-                             vector<Region> &fcandidate_regions, vector<Region> &rcandidate_regions,
+template <class T>
+void AccAlign<T>::embed_wrapper(Read<T>&R, bool ispe,
+                             vector<Region<T>> &fcandidate_regions, vector<Region<T>> &rcandidate_regions,
                              unsigned &fbest, unsigned &fnext, unsigned &rbest, unsigned &rnext,
                              int &best_threshold, int &next_threshold) {
   unsigned nfregions = fcandidate_regions.size();
@@ -1029,7 +1029,8 @@ void AccAlign::embed_wrapper(Read &R, bool ispe,
 
 }
 
-int AccAlign::get_mapq(int best, int secBest) {
+template <class T>
+int AccAlign<T>::get_mapq(int best, int secBest) {
   int mapq;
   if (secBest == 0 && best == 0) {
     mapq = 40;
@@ -1042,7 +1043,8 @@ int AccAlign::get_mapq(int best, int secBest) {
   return mapq;
 }
 
-void AccAlign::map_read(Read &R) {
+template <class T>
+void AccAlign<T>::map_read(Read<T>&R) {
 
   auto start = std::chrono::system_clock::now();
   parse(R.seq, R.fwd, R.rev, R.rev_str);
@@ -1051,7 +1053,7 @@ void AccAlign::map_read(Read &R) {
   parse_time += elapsed.count();
 
   start = std::chrono::system_clock::now();
-  vector<Region> fcandidate_regions, rcandidate_regions;
+  vector<Region<T>> fcandidate_regions, rcandidate_regions;
 
   // first try pigenhole. if we generate any candidates, pass them through
   // lsh. If something comes out, we are done.
@@ -1073,8 +1075,8 @@ void AccAlign::map_read(Read &R) {
   if (extend_all) {
     int max_as = INT_MIN;
     char strand = '+';
-    Region r;
-    for (Region &region: fcandidate_regions) {
+    Region<T>r;
+    for (Region<T>&region: fcandidate_regions) {
       char *s = R.fwd;
       Alignment a;
       score_region(R, s, region, a);
@@ -1084,7 +1086,7 @@ void AccAlign::map_read(Read &R) {
       }
     }
 
-    for (Region &region: rcandidate_regions) {
+    for (Region<T>&region: rcandidate_regions) {
       char *s = R.rev;
       Alignment a;
       score_region(R, s, region, a);
@@ -1152,8 +1154,9 @@ void AccAlign::map_read(Read &R) {
 
 }
 
-void AccAlign::extend_pair(Read &mate1, Read &mate2,
-                           vector<Region> &candidate_regions_f1, vector<Region> &candidate_regions_r2,
+template <class T>
+void AccAlign<T>::extend_pair(Read<T>&mate1, Read<T>&mate2,
+                           vector<Region<T>> &candidate_regions_f1, vector<Region<T>> &candidate_regions_r2,
                            bool flag_f1[], bool flag_r2[], unsigned &best_f1, unsigned &best_r2,
                            int &best_threshold, int &next_threshold, char strand) {
   char *seq1, *seq2;
@@ -1171,7 +1174,7 @@ void AccAlign::extend_pair(Read &mate1, Read &mate2,
       continue;
     }
 
-    Region &region = candidate_regions_f1[i];
+    Region<T>&region = candidate_regions_f1[i];
     Alignment a;
     int rs_bk = region.rs;
     score_region(mate1, seq1, region, a);
@@ -1184,23 +1187,23 @@ void AccAlign::extend_pair(Read &mate1, Read &mate2,
       continue;
     }
 
-    Region &region = candidate_regions_r2[i];
+    Region<T>&region = candidate_regions_r2[i];
     Alignment a;
     int rs_bk = region.rs;
     score_region(mate2, seq2, region, a);
     region.rs = rs_bk; // sore_region will justify the start pos, convert back, because the later itr need it
 
-    Region tmp;
+    Region<T>tmp;
     tmp.rs = region.rs < pairdis ? 0 : region.rs - pairdis;
     auto start = lower_bound(candidate_regions_f1.begin(), candidate_regions_f1.end(), tmp,
-                             [](const Region &left, const Region &right) {
+                             [](const Region<T>&left, const Region<T>&right) {
                                return left.rs < right.rs;
                              }
     );
 
     tmp.rs = region.rs + pairdis;
     auto end = upper_bound(candidate_regions_f1.begin(), candidate_regions_f1.end(), tmp,
-                           [](const Region &left, const Region &right) {
+                           [](const Region<T>&left, const Region<T>&right) {
                              return left.rs < right.rs;
                            }
     );
@@ -1222,7 +1225,8 @@ void AccAlign::extend_pair(Read &mate1, Read &mate2,
 //  next_threshold = -next_threshold;
 }
 
-void AccAlign::map_paired_read(Read &mate1, Read &mate2) {
+template <class T>
+void AccAlign<T>::map_paired_read(Read<T>&mate1, Read<T>&mate2) {
 
   auto start = std::chrono::system_clock::now();
   parse(mate1.seq, mate1.fwd, mate1.rev, mate1.rev_str);
@@ -1232,7 +1236,7 @@ void AccAlign::map_paired_read(Read &mate1, Read &mate2) {
   parse_time += elapsed.count();
 
   start = std::chrono::system_clock::now();
-  vector<Region> region_f1, region_r1, region_f2, region_r2;
+  vector<Region<T>> region_f1, region_r1, region_f2, region_r2;
   unsigned best_f1 = 0, best_r1 = 0, best_f2 = 0, best_r2 = 0;
   unsigned next_f1 = 0, next_r1 = 0, next_f2 = 0, next_r2 = 0;
   bool *flag_f1 = nullptr, *flag_r1 = nullptr, *flag_f2 = nullptr, *flag_r2 = nullptr;
@@ -1321,7 +1325,8 @@ void AccAlign::map_paired_read(Read &mate1, Read &mate2) {
   mapqTime += elapsed.count();
 }
 
-void AccAlign::print_paired_sam(Read &R, Read &R2) {
+template <class T>
+void AccAlign<T>::print_paired_sam(Read<T>&R, Read<T>&R2) {
   auto start = std::chrono::system_clock::now();
 
   stringstream ss;
@@ -1429,7 +1434,8 @@ void AccAlign::print_paired_sam(Read &R, Read &R2) {
   sam_time += elapsed.count();
 }
 
-void AccAlign::snprintf_pair_sam(Read &R, string *s, Read &R2, string *s2) {
+template <class T>
+void AccAlign<T>::snprintf_pair_sam(Read<T>&R, string *s, Read<T>&R2, string *s2) {
   auto start = std::chrono::system_clock::now();
 
   // 60 is the approximate length for all int
@@ -1582,7 +1588,8 @@ void AccAlign::snprintf_pair_sam(Read &R, string *s, Read &R2, string *s2) {
   sam_pre_time += elapsed.count();
 }
 
-void AccAlign::print_sam(Read &R) {
+template <class T>
+void AccAlign<T>::print_sam(Read<T>&R) {
   auto start = std::chrono::system_clock::now();
 
   stringstream ss;
@@ -1622,7 +1629,8 @@ void AccAlign::print_sam(Read &R) {
   sam_pre_time += elapsed.count();
 }
 
-void AccAlign::snprintf_sam(Read &R, string *s) {
+template <class T>
+void AccAlign<T>::snprintf_sam(Read<T>&R, string *s) {
   auto start = std::chrono::system_clock::now();
 
   // 50 is the approximate length for all int
@@ -1661,7 +1669,8 @@ void AccAlign::snprintf_sam(Read &R, string *s) {
   sam_pre_time += elapsed.count();
 }
 
-void AccAlign::out_sam(string *s) {
+template <class T>
+void AccAlign<T>::out_sam(string *s) {
   auto start = std::chrono::system_clock::now();
   {
     if (sam_name.length()) {
@@ -1675,13 +1684,14 @@ void AccAlign::out_sam(string *s) {
   sam_out_time += elapsed.count();
 }
 
+template <class T>
 class Tbb_aligner {
-  Read *all_reads;
+  Read<T>*all_reads;
   string *sams;
-  AccAlign *acc_obj;
+  AccAlign<T> *acc_obj;
 
  public:
-  Tbb_aligner(Read *_all_reads, string *_sams, AccAlign *_acc_obj) :
+  Tbb_aligner(Read<T>*_all_reads, string *_sams, AccAlign<T> *_acc_obj) :
       all_reads(_all_reads), sams(_sams), acc_obj(_acc_obj) {}
 
   void operator()(const tbb::blocked_range<size_t> &r) const {
@@ -1697,14 +1707,15 @@ class Tbb_aligner {
   }
 };
 
+template <class T>
 class Tbb_aligner_paired {
-  Read *all_reads;
-  Read *all_reads2;
+  Read<T>*all_reads;
+  Read<T>*all_reads2;
   string *sams;
-  AccAlign *acc_obj;
+  AccAlign<T> *acc_obj;
 
  public:
-  Tbb_aligner_paired(Read *_all_reads, Read *_all_reads2, string *_sams, AccAlign *_acc_obj) :
+  Tbb_aligner_paired(Read<T>*_all_reads, Read<T>*_all_reads2, string *_sams, AccAlign<T> *_acc_obj) :
       all_reads(_all_reads), all_reads2(_all_reads2), sams(_sams), acc_obj(_acc_obj) {}
 
   void operator()(const tbb::blocked_range<size_t> &r) const {
@@ -1728,14 +1739,15 @@ class Tbb_aligner_paired {
   }
 };
 
-void AccAlign::align_wrapper(int tid, int soff, int eoff, Read *ptlread, Read *ptlread2,
-                             tbb::concurrent_bounded_queue<ReadPair> *dataQ) {
+template <class T>
+void AccAlign<T>::align_wrapper(int tid, int soff, int eoff, Read<T>*ptlread, Read<T>*ptlread2,
+                             tbb::concurrent_bounded_queue<std::tuple<Read<T>*, Read<T>*>> *dataQ) {
 
   if (!ptlread2) {
     // single-end read alignment
     string sams[eoff];
     tbb::task_scheduler_init init(g_ncpus);
-    tbb::parallel_for(tbb::blocked_range<size_t>(soff, eoff), Tbb_aligner(ptlread, sams, this));
+    tbb::parallel_for(tbb::blocked_range<size_t>(soff, eoff), Tbb_aligner<T>(ptlread, sams, this));
 
     auto start = std::chrono::system_clock::now();
     for (int i = soff; i < eoff; i++) {
@@ -1745,7 +1757,7 @@ void AccAlign::align_wrapper(int tid, int soff, int eoff, Read *ptlread, Read *p
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     sam_time += elapsed.count();
 
-    dataQ->push(make_tuple(ptlread, (Read *) NULL));
+    dataQ->push(make_tuple(ptlread, (Read<T>*) NULL));
   }
 //  else {
 //    string sams[2 * eoff];
@@ -1764,22 +1776,11 @@ void AccAlign::align_wrapper(int tid, int soff, int eoff, Read *ptlread, Read *p
 //  }
 }
 
-static void ksw_gen_simple_mat(int m, int8_t *mat, int8_t a, int8_t b, int8_t sc_ambi) {
-  int i, j;
-  a = a < 0 ? -a : a;
-  b = b > 0 ? -b : b;
-  sc_ambi = sc_ambi > 0 ? -sc_ambi : sc_ambi;
-  for (i = 0; i < m - 1; ++i) {
-    for (j = 0; j < m - 1; ++j)
-      mat[i * m + j] = i == j ? a : b;
-    mat[i * m + m - 1] = sc_ambi;
-  }
-  for (j = 0; j < m; ++j)
-    mat[(m - 1) * m + j] = sc_ambi;
-}
+
 
 //rectify_start_pos at the end of map
-void AccAlign::rectify_start_pos(char *strand, Region &region, unsigned rlen) {
+template <class T>
+void AccAlign<T>::rectify_start_pos(char *strand, Region<T>&region, unsigned rlen) {
   //embed first kmer of read
   int elen = kmer_len * embedding->efactor;
   char embeddedQ[elen];
@@ -1836,7 +1837,8 @@ static void append_cigar(Extension *&rp, uint32_t n_cigar, uint32_t *cigar) {
   }
 }
 
-void AccAlign::score_region(Read &r, char *qseq, Region &region,
+template <class T>
+void AccAlign<T>::score_region(Read<T>&r, char *qseq, Region<T>&region,
                             Alignment &a) {
   unsigned qlen = strlen(r.seq);
 
@@ -1968,7 +1970,8 @@ void AccAlign::score_region(Read &r, char *qseq, Region &region,
 }
 
 //determine chromo id
-int AccAlign::get_tid(Read &R) {
+template <class T>
+int AccAlign<T>::get_tid(Read<T>&R) {
   int tid = R.pos / (offset[1] - offset[0]);
   if (R.pos >= offset[tid] && (tid == (int) name.size() - 1 || R.pos < offset[tid + 1])) {
     return tid;
@@ -1990,7 +1993,8 @@ int AccAlign::get_tid(Read &R) {
   return INT_MAX;
 }
 
-void AccAlign::save_region(Read &R, size_t rlen, Region &region,
+template <class T>
+void AccAlign<T>::save_region(Read<T>&R, size_t rlen, Region<T>&region,
                            Alignment &a) {
   if (!enable_extension || !region.embed_dist || region.embed_dist == 1) {
     R.pos = region.rs;
@@ -2018,7 +2022,8 @@ void AccAlign::save_region(Read &R, size_t rlen, Region &region,
   //    offset[R.tid] + 1 << " for read " << R.name << endl;
 }
 
-void AccAlign::align_read(Read &R) {
+template <class T>
+void AccAlign<T>::align_read(Read<T>&R) {
   auto start = std::chrono::system_clock::now();
 
   if (R.strand == '*') {
@@ -2028,7 +2033,7 @@ void AccAlign::align_read(Read &R) {
     return;
   }
 
-  Region region = R.best_region;
+  Region<T>region = R.best_region;
   char *s = R.strand == '+' ? R.fwd : R.rev;
 
   Alignment a;
@@ -2041,13 +2046,14 @@ void AccAlign::align_read(Read &R) {
   sw_time += elapsed.count();
 }
 
-void AccAlign::wfa_align_read(Read &R) {
+template <class T>
+void AccAlign<T>::wfa_align_read(Read<T>&R) {
   auto start = std::chrono::system_clock::now();
 
   if (R.strand == '*')
     return;
 
-  Region region = R.best_region;
+  Region<T>region = R.best_region;
   size_t rlen = strlen(R.seq);
   char *text = R.strand == '+' ? R.fwd : R.rev;
   const char *pattern = ref.c_str() + region.rs;
@@ -2122,7 +2128,8 @@ void AccAlign::wfa_align_read(Read &R) {
   sw_time += elapsed.count();
 }
 
-bool AccAlign::pairdis_filter(vector<Region> &in_regions1, vector<Region> &in_regions2,
+template <class T>
+bool AccAlign<T>::pairdis_filter(vector<Region<T>> &in_regions1, vector<Region<T>> &in_regions2,
                               bool flag1[], bool flag2[],
                               unsigned &best1, unsigned &next1, unsigned &best2, unsigned &next2) {
   unsigned sum_best = 0, sum_next = 0;
@@ -2132,17 +2139,17 @@ bool AccAlign::pairdis_filter(vector<Region> &in_regions1, vector<Region> &in_re
   bool has_pair = false;
 
   for (unsigned i = 0; i < in_regions1.size(); i++) {
-    Region tmp;
+    Region<T>tmp;
     tmp.rs = in_regions1[i].rs - pairdis;
     int start = lower_bound(in_regions2.begin(), in_regions2.end(), tmp,
-                            [](const Region &left, const Region &right) {
+                            [](const Region<T>&left, const Region<T>&right) {
                               return left.rs < right.rs;
                             }
     ) - in_regions2.begin();
 
     tmp.rs = in_regions1[i].rs + pairdis;
     int end = upper_bound(in_regions2.begin(), in_regions2.end(), tmp,
-                          [](const Region &left, const Region &right) {
+                          [](const Region<T>&left, const Region<T>&right) {
                             return left.rs < right.rs;
                           }
     ) - in_regions2.begin();
@@ -2170,7 +2177,8 @@ bool AccAlign::pairdis_filter(vector<Region> &in_regions1, vector<Region> &in_re
   return has_pair;
 }
 
-void AccAlign::sam_header(void) {
+template <class T>
+void AccAlign<T>::sam_header(void) {
   ostringstream so;
 
   so << "@HD\tVN:1.3\tSO:coordinate\n";
@@ -2184,7 +2192,8 @@ void AccAlign::sam_header(void) {
     cout << so.str();
 }
 
-void AccAlign::open_output(string &out_file) {
+template <class T>
+void AccAlign<T>::open_output(string &out_file) {
   sam_name = out_file;
 
   if (out_file.length()) {
@@ -2198,14 +2207,16 @@ void AccAlign::open_output(string &out_file) {
   sam_header();
 }
 
-void AccAlign::close_output() {
+template <class T>
+void AccAlign<T>::close_output() {
   if (sam_name.length()) {
     cerr << "Closing output file " << sam_name << endl;
     sam_stream.close();
   }
 }
 
-AccAlign::AccAlign(Reference &r) :
+template <class T>
+AccAlign<T>::AccAlign(Reference<T> &r) :
     ref(r.ref), name(r.name),
     offset(r.offset),
     keyv(r.keyv), posv(r.posv) {
@@ -2217,49 +2228,52 @@ AccAlign::AccAlign(Reference &r) :
   vpair_sort_count = 0;
 
   if (g_embed_file.size())
-    embedding = new Embedding(g_embed_file.c_str());
+    embedding = new Embedding<T>(g_embed_file.c_str());
   else
-    embedding = new Embedding;
+    embedding = new Embedding<T>;
 }
 
-AccAlign::~AccAlign() {
+template <class T>
+AccAlign<T>::~AccAlign() {
   delete embedding;
 }
 
+template <class T>
 struct tbb_map {
-  AccAlign *accalign;
+  AccAlign<T> *accalign;
 
  public:
-  tbb_map(AccAlign *obj) : accalign(obj) {}
+  tbb_map(AccAlign<T> *obj) : accalign(obj) {}
 
-  Read *operator()(Read *r) {
+  Read<T>*operator()(Read<T>*r) {
     accalign->map_read(*r);
     return r;
   }
 
-  ReadPair operator()(ReadPair p) {
-    Read *mate1 = std::get<0>(p);
-    Read *mate2 = std::get<1>(p);
+  std::tuple<Read<T>*, Read<T>*> operator()(std::tuple<Read<T>*, Read<T>*> p) {
+    Read<T>*mate1 = std::get<0>(p);
+    Read<T>*mate2 = std::get<1>(p);
     accalign->map_paired_read(*mate1, *mate2);
 
     return p;
   }
 };
 
+template <class T>
 struct tbb_align {
-  AccAlign *accalign;
+  AccAlign<T> *accalign;
 
  public:
-  tbb_align(AccAlign *obj) : accalign(obj) {}
+  tbb_align(AccAlign<T> *obj) : accalign(obj) {}
 
-  Read *operator()(Read *r) {
+  Read<T>*operator()(Read<T>*r) {
     accalign->align_read(*r);
     return r;
   }
 
-  ReadPair operator()(ReadPair p) {
-    Read *mate1 = std::get<0>(p);
-    Read *mate2 = std::get<1>(p);
+  std::tuple<Read<T>*, Read<T>*> operator()(std::tuple<Read<T>*, Read<T>*> p) {
+    Read<T>*mate1 = std::get<0>(p);
+    Read<T>*mate2 = std::get<1>(p);
     accalign->align_read(*mate1);
     accalign->align_read(*mate2);
 
@@ -2271,21 +2285,22 @@ struct tbb_align {
   }
 };
 
+template <class T>
 struct tbb_score {
-  AccAlign *accalign;
+  AccAlign<T> *accalign;
 
  public:
-  tbb_score(AccAlign *obj) : accalign(obj) {}
+  tbb_score(AccAlign<T> *obj) : accalign(obj) {}
 
-  continue_msg operator()(Read *r) {
+  continue_msg operator()(Read<T>*r) {
     accalign->print_sam(*r);
     delete r;
     return continue_msg();
   }
 
-  continue_msg operator()(ReadPair p) {
-    Read *mate1 = std::get<0>(p);
-    Read *mate2 = std::get<1>(p);
+  continue_msg operator()(std::tuple<Read<T>*, Read<T>*> p) {
+    Read<T>*mate1 = std::get<0>(p);
+    Read<T>*mate2 = std::get<1>(p);
     accalign->print_paired_sam(*mate1, *mate2);
     delete mate1;
     delete mate2;
@@ -2294,7 +2309,8 @@ struct tbb_score {
   }
 };
 
-bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
+template <class T>
+bool AccAlign<T>::tbb_fastq(const char *F1, const char *F2) {
   gzFile in1 = gzopen(F1, "rt");
   if (in1 == Z_NULL)
     return false;
@@ -2316,7 +2332,7 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
 //  if (!is_paired) {
 //    graph g;
 //
-//    source_node < Read * > input_node(g, [&](Read *&r) -> bool {
+//    source_node < Read<T>* > input_node(g, [&](Read<T>*&r) -> bool {
 //      auto start = std::chrono::system_clock::now();
 //
 //      if (gzeof(in1) || (gzgetc(in1) == EOF))
@@ -2337,10 +2353,10 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
 //    }, false);
 //
 //    int max_objects = 10000000;
-//    limiter_node < Read * > lnode(g, max_objects);
-//    function_node < Read * , Read * > map_node(g, unlimited, tbb_map(this));
-//    function_node < Read * , Read * > align_node(g, unlimited, tbb_align(this));
-//    function_node < Read * , continue_msg > score_node(g, 1, tbb_score(this));
+//    limiter_node < Read<T>* > lnode(g, max_objects);
+//    function_node < Read<T>* , Read<T>* > map_node(g, unlimited, tbb_map(this));
+//    function_node < Read<T>* , Read<T>* > align_node(g, unlimited, tbb_align(this));
+//    function_node < Read<T>* , continue_msg > score_node(g, 1, tbb_score(this));
 //
 //    make_edge(score_node, lnode.decrement);
 //    make_edge(align_node, score_node);
@@ -2352,7 +2368,7 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
 //  } else {
   if (is_paired) {
     graph g;
-    source_node<ReadPair> input_node(g, [&](ReadPair &rp) -> bool {
+    source_node<std::tuple<Read<T>*, Read<T>*>> input_node(g, [&](std::tuple<Read<T>*, Read<T>*> &rp) -> bool {
       auto start = std::chrono::system_clock::now();
 
       bool end1 = gzgetc(in1) == EOF;
@@ -2360,13 +2376,13 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
       if (gzeof(in1) || end1 || end2)
         return false;
 
-      Read *r = new Read;
+      Read<T>*r = new Read<T>;
       in1 >> *r;
       if (!strlen(r->seq))
         return false;
       get<0>(rp) = r;
 
-      Read *r2 = new Read;
+      Read<T>*r2 = new Read<T>;
       in2 >> *r2;
       if (!strlen(r2->seq))
         return false;
@@ -2380,10 +2396,10 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
     }, false);
 
     int max_objects = 1000000;
-    limiter_node<ReadPair> lnode(g, max_objects);
-    function_node<ReadPair, ReadPair> map_node(g, unlimited, tbb_map(this));
-    function_node<ReadPair, ReadPair> align_node(g, unlimited, tbb_align(this));
-    function_node<ReadPair, continue_msg> score_node(g, 1, tbb_score(this));
+    limiter_node<std::tuple<Read<T>*, Read<T>*>> lnode(g, max_objects);
+    function_node<std::tuple<Read<T>*, Read<T>*>, std::tuple<Read<T>*, Read<T>*>> map_node(g, unlimited, tbb_map<T>(this));
+    function_node<std::tuple<Read<T>*, Read<T>*>, std::tuple<Read<T>*, Read<T>*>> align_node(g, unlimited, tbb_align<T>(this));
+    function_node<std::tuple<Read<T>*, Read<T>*>, continue_msg> score_node(g, 1, tbb_score<T>(this));
 
     make_edge(score_node, lnode.decrement);
     make_edge(align_node, score_node);
@@ -2408,6 +2424,7 @@ int main(int ac, char **av) {
 
   int opn = 1;
   int kmer_temp = 0;
+  bool large_genome = false;
   while (opn < ac) {
     bool flag = false;
     if (av[opn][0] == '-') {
@@ -2451,6 +2468,10 @@ int main(int ac, char **av) {
         extend_all = true;
         opn += 1;
         flag = true;
+      } else if (av[opn][1] == 'L') {
+        large_genome = true;
+        opn += 1;
+        flag = true;
       } else {
         print_usage();
       }
@@ -2467,41 +2488,75 @@ int main(int ac, char **av) {
 
   tbb::task_scheduler_init init(g_ncpus);
   make_code();
-
-  // load reference once
-  Reference *r = new Reference(av[opn]);
-  opn++;
   if (enable_extension && !enable_wfa_extension)
     ksw_gen_simple_mat(5, mat, SC_MCH, SC_MIS, SC_AMBI);
 
-  size_t total_begin = time(NULL);
-
-  auto start = std::chrono::system_clock::now();
-
-  AccAlign f(*r);
-  f.open_output(g_out);
-
+  const char *ref_ptr = av[opn++];
+  const char *f1_ptr = nullptr, *f2_ptr = nullptr;
   if (opn == ac - 1) {
-    f.fastq(av[opn], "\0", false);
-//    f.tbb_fastq(av[opn], "\0");
+    f1_ptr = av[opn];
   } else if (opn == ac - 2) {
-//    f.fastq(av[opn], av[opn + 1], false);
-    f.tbb_fastq(av[opn], av[opn + 1]);
+    f2_ptr = av[opn+1];
   } else {
     print_usage();
     return 0;
   }
 
-  auto end = std::chrono::system_clock::now();
-  auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  cerr << "Time to align: " << elapsed.count() / 1000 << " secs\n";
+  if (large_genome) {
+    // load reference once
+    Reference<uint64_t> *r = new Reference<uint64_t>(ref_ptr);
 
-  f.print_stats();
-  f.close_output();
+    size_t total_begin = time(NULL);
+    auto start = std::chrono::system_clock::now();
 
-  delete r;
+    AccAlign<uint64_t> f(*r);
+    f.open_output(g_out);
 
-  cerr << "Total time: " << (time(NULL) - total_begin) << " secs\n";
+    if (f2_ptr == nullptr) {
+      f.fastq(f1_ptr, "\0", false);
+//    f.tbb_fastq(av[opn], "\0");
+    } else {
+//    f.fastq(av[opn], av[opn + 1], false);
+      f.tbb_fastq(f1_ptr, f2_ptr);
+    }
+
+    auto end = std::chrono::system_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    cerr << "Time to align: " << elapsed.count() / 1000 << " secs\n";
+
+    f.print_stats();
+    f.close_output();
+    delete r;
+
+    cerr << "Total time: " << (time(NULL) - total_begin) << " secs\n";
+  } else {
+    // load reference once
+    Reference<uint32_t> *r = new Reference<uint32_t>(ref_ptr);
+
+    size_t total_begin = time(NULL);
+    auto start = std::chrono::system_clock::now();
+
+    AccAlign<uint32_t> f(*r);
+    f.open_output(g_out);
+
+    if (f2_ptr == nullptr) {
+      f.fastq(f1_ptr, "\0", false);
+//    f.tbb_fastq(av[opn], "\0");
+    } else {
+//    f.fastq(av[opn], av[opn + 1], false);
+      f.tbb_fastq(f1_ptr, f2_ptr);
+    }
+
+    auto end = std::chrono::system_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    cerr << "Time to align: " << elapsed.count() / 1000 << " secs\n";
+
+    f.print_stats();
+    f.close_output();
+    delete r;
+
+    cerr << "Total time: " << (time(NULL) - total_begin) << " secs\n";
+  }
 
   return 0;
 }

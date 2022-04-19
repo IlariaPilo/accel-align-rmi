@@ -14,7 +14,8 @@ class RefParser {
   }
 };
 
-void Reference::load_index(const char *F) {
+template <class T>
+void Reference<T>::load_index(const char *F) {
   string fn = string(F) + ".hash";
 
   cerr << "loading hashtable from " << fn << endl;
@@ -24,18 +25,18 @@ void Reference::load_index(const char *F) {
     cerr << "Unable to open index file " << fn << endl;
     exit(0);
   }
-  fi.read((char *) &nposv, sizeof(uint64_t));
+  fi.read((char *) &nposv, sizeof(T));
   fi.close();
   nkeyv = MOD + 1;
 
-  cerr << "Mapping keyv of size: " << nkeyv * sizeof(uint64_t)<<
-       " and posv of size " << (size_t) nposv * sizeof(uint64_t) <<
+  cerr << "Mapping keyv of size: " << nkeyv * sizeof(T)<<
+       " and posv of size " << (size_t) nposv * sizeof(T) <<
        " from index file " << fn << endl;
   cerr << "Mapping nkeyv : " << nkeyv <<
        " and nposv " << (size_t) nposv <<
        " from index file " << fn << endl;
-  size_t posv_sz = (size_t) nposv * sizeof(uint64_t);
-  size_t keyv_sz = (size_t) nkeyv * sizeof(uint64_t);
+  size_t posv_sz = (size_t) nposv * sizeof(T);
+  size_t keyv_sz = (size_t) nkeyv * sizeof(T);
   int fd = open(fn.c_str(), O_RDONLY);
 
 #if __linux__
@@ -51,15 +52,16 @@ void Reference::load_index(const char *F) {
 #define MMAP_FLAGS MAP_PRIVATE
 #endif
 
-  char *base = reinterpret_cast<char *>(mmap(NULL, sizeof(uint64_t) + posv_sz + keyv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
+  char *base = reinterpret_cast<char *>(mmap(NULL, sizeof(T) + posv_sz + keyv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
   assert(base != MAP_FAILED);
-  posv = (uint64_t * )(base + sizeof(uint64_t));
+  posv = (T *)(base + sizeof(T));
   keyv = posv + nposv;
   cerr << "Mapping done" << endl;
   cerr << "done loading hashtable\n";
 }
 
-Reference::Reference(const char *F) {
+template <class T>
+Reference<T>::Reference(const char *F) {
   auto start = std::chrono::system_clock::now();
 
   // Start index load in parallel
@@ -149,10 +151,11 @@ Reference::Reference(const char *F) {
   cerr << "Setup reference in " << elapsed.count() / 1000000 << " secs\n";
 }
 
-Reference::~Reference() {
-  size_t posv_sz = (size_t) nposv * sizeof(uint64_t);
-  size_t keyv_sz = (size_t) nkeyv * sizeof(uint64_t);
-  char *base = (char *) posv - sizeof(uint64_t);
+template <class T>
+Reference<T>::~Reference() {
+  size_t posv_sz = (size_t) nposv * sizeof(T);
+  size_t keyv_sz = (size_t) nkeyv * sizeof(T);
+  char *base = (char *) posv - sizeof(T);
   int r = munmap(base, posv_sz + keyv_sz);
   assert(r == 0);
 }
