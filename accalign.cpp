@@ -705,7 +705,25 @@ void AccAlign::pghole_wrapper(Read &R,
   unsigned ori_slide = 0;
 
   unsigned slide = kmer_len < rlen - kmer_len ? kmer_len : rlen - kmer_len;
-  mm(R.fwd, rlen, 2, fcandidate_regions, rcandidate_regions, fbest, rbest);
+  int err_threshold = 2;
+
+  mm128_v mv = {0,0,0};
+  void *km = nullptr;
+
+  // cal minimizer
+  auto start = std::chrono::system_clock::now();
+  mm_sketch(km, R.fwd, rlen, mi->w, mi->k, 0, mi->flag&MM_I_HPC, &mv);
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  mm_cal += elapsed.count();
+
+  int32_t mid_occ = 1000;
+  fetch_candidates(mv, mid_occ, rlen, err_threshold, fcandidate_regions,rcandidate_regions, fbest,  rbest);
+
+  if (!fcandidate_regions.size() && !rcandidate_regions.size()){
+    mid_occ = 5000;
+    fetch_candidates(mv, mid_occ, rlen, err_threshold, fcandidate_regions,rcandidate_regions, fbest,  rbest);
+  }
 
 //  // MAX_OCC, cov >= 2
 ////  while (kmer_step > 0 && !nfregions && !nrregions) {
@@ -760,12 +778,14 @@ void AccAlign::merge_interval(Region &r, uint32_t last_q_pos, int32_t k){
 //where lastPos is the position of the last base of the i-th minimizer,
 //and strand indicates whether the minimizer comes from the top or the bottom strand.
 
-inline uint64_t AccAlign::normalize_pos(uint64_t cr, uint32_t q_pos){
-  uint32_t pos = (cr & 0x00000000ffffffff) >> 1;
-  pos = pos > q_pos ? pos - q_pos : 0;
-
-  uint64_t normalized = (uint64_t) (cr & 0xffffffff00000000) | (uint32_t) pos << 1 | (cr & 1);
-
+inline uint64_t AccAlign::normalize_pos(uint64_t cr, uint32_t q_pos, int k, int rlen){
+  uint64_t normalized;
+  if ((cr & 1)  == (q_pos & 1 ))  //fwd
+    normalized = (cr - q_pos) & (~(1<<0)); //set last bit to 0
+  else{
+    uint32_t rev_shift = rlen - 1 - (q_pos >> 1) + k-1 ;
+    normalized = (cr - (rev_shift << 1)) | 1; //set last bit to 1
+  }
   return normalized;
 }
 
@@ -850,6 +870,9 @@ static mm128_t *collect_seed_hits_heap(void *km, const mm_mapopt_t *opt, int max
 
 void AccAlign::collect_seed_hits_priorityqueue(int n_m0, int64_t n_a, size_t rlen, int err_threshold, mm_seed_t* m, vector<Region> &candidate_regions,
                                                vector<Region> &rcandidate_regions, unsigned &best, unsigned &rbest){
+  if (!n_a)
+    return;
+
   //merge pos
   int max_cov = 0, last_cov = 0;
   size_t ntotal_hits = 0;
@@ -857,9 +880,11 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0, int64_t n_a, size_t rle
   memset(idx, 0, sizeof(size_t)*n_m0);
   uint64_t top_pos[n_m0], MAX_POS = numeric_limits<uint64_t>::max();
 
+  int32_t k = mi->k;
+
   for (size_t i = 0; i < n_m0; ++i){
     ntotal_hits += m[i].n;
-    top_pos[i] = normalize_pos(m[i].cr[0], m[i].q_pos);
+    top_pos[i] = normalize_pos(m[i].cr[0], m[i].q_pos, k, rlen);
   }
   assert(ntotal_hits == n_a);
 
@@ -867,7 +892,6 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0, int64_t n_a, size_t rle
   uint64_t last_pos = MAX_POS, last_q_pos = 0; //last query start pos
 
   Region r;
-  int32_t k = mi->k;
   int max_interval = rlen / k;
   r.matched_intervals.reserve(max_interval);
 
@@ -890,7 +914,7 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0, int64_t n_a, size_t rle
         r.qe = r.matched_intervals[0].e;
         r.rs = get_global_pos(last_pos);
 
-        if ((last_pos&1) == (last_q_pos & 1)){ //fwd
+        if (!(last_pos&1)){ //fwd
           if (last_cov >= max_cov) {
             max_cov = last_cov;
             best = candidate_regions.size();
@@ -916,7 +940,7 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0, int64_t n_a, size_t rle
     idx[min_kmer]++;
     if (idx[min_kmer] < m[min_kmer].n){ // still has pos in this seed
       uint64_t next_pos = m[min_kmer].cr[idx[min_kmer]];
-      *min_item = normalize_pos(next_pos, m[min_kmer].q_pos);
+      *min_item = normalize_pos(next_pos, m[min_kmer].q_pos, k, rlen);
     } else
       *min_item = MAX_POS;  // all the pos in this seed have been merged
 
@@ -932,7 +956,7 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0, int64_t n_a, size_t rle
       r.qe = r.matched_intervals[0].e;
       r.rs = get_global_pos(last_pos);
 
-      if ((last_pos&1) == (last_q_pos & 1)){ //fwd
+      if (!(last_pos&1)){ //fwd
         if (last_cov >= max_cov) {
           max_cov = last_cov;
           best = candidate_regions.size();
@@ -951,24 +975,16 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0, int64_t n_a, size_t rle
   }
 }
 
+void AccAlign::fetch_candidates(mm128_v &mv, int32_t mid_occ, size_t rlen, int err_threshold,
+                                vector<Region> &fcandidate_regions, vector<Region> &rcandidate_regions,
+                                unsigned &fbest, unsigned &rbest){
+  // fetch the position
+  auto start = std::chrono::system_clock::now();
 
-void AccAlign::mm(char *Q, size_t rlen, int err_threshold,
-                  vector<Region> &fcandidate_regions, vector<Region> &rcandidate_regions,
-                  unsigned &fbest, unsigned &rbest){
-  mm128_v mv = {0,0,0};
   void *km = nullptr;
 
-  // cal minimizer
-  auto start = std::chrono::system_clock::now();
-  mm_sketch(km, Q, rlen, mi->w, mi->k, 0, mi->flag&MM_I_HPC, &mv);
-  auto end = std::chrono::system_clock::now();
-  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-  mm_cal += elapsed.count();
-
-  // fetch the position
-  start = std::chrono::system_clock::now();
-
-  int32_t mid_occ = 1000, max_max_occ = 4095, occ_dist = 500;
+  // ignore the mm has more than mid_occ hits
+  int32_t max_max_occ = 4095, occ_dist = 500;
   float q_occ_frac = 0.02;
   int n_m0, rep_len, n_mini_pos;
   int64_t n_a;
@@ -986,8 +1002,8 @@ void AccAlign::mm(char *Q, size_t rlen, int err_threshold,
 ////  else a = collect_seed_hits(b->km, opt, opt->mid_occ, mi, qname, &mv, qlen_sum, &n_a, &rep_len, &n_mini_pos, &mini_pos);
 //
 //
-  end = std::chrono::system_clock::now();
-  elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
   mm_fetch += elapsed.count();
 
   // merge sorted hits
@@ -997,6 +1013,44 @@ void AccAlign::mm(char *Q, size_t rlen, int err_threshold,
   elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
   mm_hit_cnt+= elapsed.count();
 }
+
+
+//void AccAlign::mm(char *Q, size_t rlen, int err_threshold,
+//                  vector<Region> &fcandidate_regions, vector<Region> &rcandidate_regions,
+//                  unsigned &fbest, unsigned &rbest){
+//  mm128_v mv = {0,0,0};
+//  void *km = nullptr;
+//
+//  // cal minimizer
+//  auto start = std::chrono::system_clock::now();
+//  mm_sketch(km, Q, rlen, mi->w, mi->k, 0, mi->flag&MM_I_HPC, &mv);
+//  auto end = std::chrono::system_clock::now();
+//  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+//  mm_cal += elapsed.count();
+//
+//  fetch_candidates(mv, int32_t mid_occ, size_t rlen, int err_threshold,
+//      vector<Region> &fcandidate_regions, vector<Region> &rcandidate_regions,
+//      unsigned &fbest, unsigned &rbest)
+//
+//
+//
+//
+//  if (!fcandidate_regions.size() && !rcandidate_regions.size()){
+//    mid_occ = 5000;
+//    start = std::chrono::system_clock::now();
+//    m = mm_collect_matches(km, &n_m0, rlen, mid_occ, max_max_occ, occ_dist,
+//                           mi, &mv, &n_a, &rep_len, &n_mini_pos, &mini_pos);
+//    end = std::chrono::system_clock::now();
+//    elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+//    mm_fetch += elapsed.count();
+//
+//    start = std::chrono::system_clock::now();
+//    collect_seed_hits_priorityqueue(n_m0, n_a, rlen, err_threshold,  m, fcandidate_regions, rcandidate_regions, fbest, rbest);
+//    end = std::chrono::system_clock::now();
+//    elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+//    mm_hit_cnt+= elapsed.count();
+//  }
+//}
 
 void AccAlign::pigeonhole_query(char *Q,
                                 size_t rlen,
@@ -1184,39 +1238,89 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
 
   bool high_freq_1 = false, high_freq_2 = false; //read is from high repetitive region
   int mac_occ_1 = MAX_OCC, mac_occ_2 = MAX_OCC;
+//  mm(mate1.fwd, min_rlen, 2, region_f1, region_r1, best_f1, best_r1);
+//  mm(mate2.fwd, min_rlen, 2, region_f2, region_r2, best_f2, best_r2);
+//
+  mm128_v mv1 = {0,0,0};
+  mm128_v mv2 = {0,0,0};
+  void *km = nullptr;
+  int err_threshold = 2;
 
-  while (slide1 < slide && slide2 < slide) {
-//  while (kmer_step1 > 0 && kmer_step2 > 0) {
-    if (has_f1r2 || has_r1f2)
-      break;
+  // cal minimizer
+  auto start = std::chrono::system_clock::now();
+  mm_sketch(km, mate1.fwd, min_rlen, mi->w, mi->k, 0, mi->flag&MM_I_HPC, &mv1);
+  mm_sketch(km, mate2.fwd, min_rlen, mi->w, mi->k, 0, mi->flag&MM_I_HPC, &mv2);
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  mm_cal += elapsed.count();
 
-    pghole_wrapper_mates(mate1, region_f1, region_r1, best_f1, best_r1, slide1, kmer_step1, mac_occ_1, high_freq_1);
-    pghole_wrapper_mates(mate2, region_f2, region_r2, best_f2, best_r2, slide2, kmer_step2, mac_occ_2, high_freq_2);
+  int32_t mid_occ = 1000;
+  fetch_candidates(mv1, mid_occ, min_rlen, err_threshold, region_f1, region_r1, best_f1, best_r1);
+  fetch_candidates(mv2, mid_occ, min_rlen, err_threshold, region_f2, region_r2, best_f2, best_r2);
 
-    // filter based on pairdis
+  // filter based on pairdis
+  flag_f1 = new bool[region_f1.size()]();
+  flag_r1 = new bool[region_r1.size()]();
+  flag_f2 = new bool[region_f2.size()]();
+  flag_r2 = new bool[region_r2.size()]();
+  has_f1r2 = pairdis_filter(region_f1, region_r2, flag_f1, flag_r2, best_f1, next_f1, best_r2, next_r2);
+  has_r1f2 = pairdis_filter(region_r1, region_f2, flag_r1, flag_f2, best_r1, next_r1, best_f2, next_f2);
+
+  if (!has_f1r2 && !has_r1f2){
+    region_f1.clear();
+    region_f2.clear();
+    region_r1.clear();
+    region_r2.clear();
+    delete[] flag_f1;
+    delete[] flag_r1;
+    delete[] flag_f2;
+    delete[] flag_r2;
+
+    mid_occ = 5000;
+    fetch_candidates(mv1, mid_occ, min_rlen, err_threshold, region_f1, region_r1, best_f1, best_r1);
+    fetch_candidates(mv2, mid_occ, min_rlen, err_threshold, region_f2, region_r2, best_f2, best_r2);
+
     flag_f1 = new bool[region_f1.size()]();
     flag_r1 = new bool[region_r1.size()]();
     flag_f2 = new bool[region_f2.size()]();
     flag_r2 = new bool[region_r2.size()]();
     has_f1r2 = pairdis_filter(region_f1, region_r2, flag_f1, flag_r2, best_f1, next_f1, best_r2, next_r2);
     has_r1f2 = pairdis_filter(region_r1, region_f2, flag_r1, flag_f2, best_r1, next_r1, best_f2, next_f2);
-
-    if (!has_f1r2 && !has_r1f2) {
-      region_f1.clear();
-      region_f2.clear();
-      region_r1.clear();
-      region_r2.clear();
-      delete[] flag_f1;
-      delete[] flag_r1;
-      delete[] flag_f2;
-      delete[] flag_r2;
-    }
-
-    slide1++;
-    slide2++;
-//    kmer_step1 /= 2;
-//    kmer_step2 /= 2;
   }
+
+//
+//  while (slide1 < slide && slide2 < slide) {
+////  while (kmer_step1 > 0 && kmer_step2 > 0) {
+//    if (has_f1r2 || has_r1f2)
+//      break;
+//
+//    pghole_wrapper_mates(mate1, region_f1, region_r1, best_f1, best_r1, slide1, kmer_step1, mac_occ_1, high_freq_1);
+//    pghole_wrapper_mates(mate2, region_f2, region_r2, best_f2, best_r2, slide2, kmer_step2, mac_occ_2, high_freq_2);
+//
+//    // filter based on pairdis
+//    flag_f1 = new bool[region_f1.size()]();
+//    flag_r1 = new bool[region_r1.size()]();
+//    flag_f2 = new bool[region_f2.size()]();
+//    flag_r2 = new bool[region_r2.size()]();
+//    has_f1r2 = pairdis_filter(region_f1, region_r2, flag_f1, flag_r2, best_f1, next_f1, best_r2, next_r2);
+//    has_r1f2 = pairdis_filter(region_r1, region_f2, flag_r1, flag_f2, best_r1, next_r1, best_f2, next_f2);
+//
+//    if (!has_f1r2 && !has_r1f2) {
+//      region_f1.clear();
+//      region_f2.clear();
+//      region_r1.clear();
+//      region_r2.clear();
+//      delete[] flag_f1;
+//      delete[] flag_r1;
+//      delete[] flag_f2;
+//      delete[] flag_r2;
+//    }
+//
+//    slide1++;
+//    slide2++;
+////    kmer_step1 /= 2;
+////    kmer_step2 /= 2;
+//  }
 }
 
 void AccAlign::embed_wrapper_pair(Read &R1, Read &R2,
@@ -1253,10 +1357,10 @@ void AccAlign::embed_wrapper(Read &R, bool ispe,
   // for single-end mapping, we better have things sorted by coverage. for
   // paired end, it is possible for a region with high cov to be eliminated if
   // no pairs are found
-  if (!ispe && nfregions > 1)
-    assert(fcandidate_regions[0].cov >= fcandidate_regions[1].cov);
-  if (!ispe && nrregions > 1)
-    assert(rcandidate_regions[0].cov >= rcandidate_regions[1].cov);
+//  if (!ispe && nfregions > 1)
+//    assert(fcandidate_regions[0].cov >= fcandidate_regions[1].cov);
+//  if (!ispe && nrregions > 1)
+//    assert(rcandidate_regions[0].cov >= rcandidate_regions[1].cov);
   vpair_sort_count += nfregions + nrregions;
 
   // pass the one with the highest coverage in first
@@ -1316,7 +1420,7 @@ void AccAlign::map_read(Read &R) {
   // lsh. If something comes out, we are done.
   // XXX: On experimentation, it was found that using pigeonhole filtering
   // produces wrong results and invalid mappings when errors are too large.
-  unsigned fbest, rbest;
+  unsigned fbest = 0, rbest = 0;
   pghole_wrapper(R, fcandidate_regions, rcandidate_regions, fbest, rbest);
   unsigned nfregions = fcandidate_regions.size();
   unsigned nrregions = rcandidate_regions.size();
