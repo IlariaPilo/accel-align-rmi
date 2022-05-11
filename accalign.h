@@ -69,7 +69,7 @@ class AccAlign {
   void mm(char *Q, size_t rlen, int err_threshold, vector<Region> &fcandidate_regions, vector<Region> &rcandidate_regions,
                     unsigned &fbest, unsigned &rbest);
   inline uint32_t get_global_pos(uint64_t cr);
-  inline uint64_t normalize_pos(uint64_t cr, uint32_t q_pos);
+  inline uint64_t normalize_pos(uint64_t cr, uint32_t q_pos, int k, int rlen);
 
  public:
   uint32_t *keyv, *posv;
@@ -95,6 +95,9 @@ class AccAlign {
   void merge_interval(Region &r, uint32_t last_q_pos, int32_t k);
   void collect_seed_hits_priorityqueue(int n_m0, int64_t n_a, size_t rlen, int err_threshold, mm_seed_t* m, vector<Region> &candidate_regions,
                                                  vector<Region> &rcandidate_regions, unsigned &best, unsigned &rbest);
+  void fetch_candidates(mm128_v &mv, int32_t mid_occ, size_t rlen, int err_threshold,
+                        vector<Region> &fcandidate_regions, vector<Region> &rcandidate_regions,
+                        unsigned &fbest, unsigned &rbest);
   AccAlign(Reference &r);
   ~AccAlign();
 };
