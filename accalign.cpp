@@ -707,23 +707,25 @@ void AccAlign::pghole_wrapper(Read &R,
   unsigned slide = kmer_len < rlen - kmer_len ? kmer_len : rlen - kmer_len;
   int err_threshold = 2;
 
-  mm128_v mv = {0,0,0};
+  mm128_v mv = {0, 0, 0};
   void *km = nullptr;
 
   // cal minimizer
   auto start = std::chrono::system_clock::now();
-  mm_sketch(km, R.fwd, rlen, mi->w, mi->k, 0, mi->flag&MM_I_HPC, &mv);
+  mm_sketch(km, R.fwd, rlen, mi->w, mi->k, 0, mi->flag & MM_I_HPC, &mv);
   auto end = std::chrono::system_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
   mm_cal += elapsed.count();
 
   int32_t mid_occ = 1000;
-  fetch_candidates(mv, mid_occ, rlen, err_threshold, fcandidate_regions,rcandidate_regions, fbest,  rbest);
+  fetch_candidates(mv, mid_occ, rlen, err_threshold, fcandidate_regions, rcandidate_regions, fbest, rbest);
 
-  if (!fcandidate_regions.size() && !rcandidate_regions.size()){
+  if (!fcandidate_regions.size() && !rcandidate_regions.size()) {
     mid_occ = 5000;
-    fetch_candidates(mv, mid_occ, rlen, err_threshold, fcandidate_regions,rcandidate_regions, fbest,  rbest);
+    fetch_candidates(mv, mid_occ, rlen, err_threshold, fcandidate_regions, rcandidate_regions, fbest, rbest);
   }
+
+  delete mv.a;
 
 //  // MAX_OCC, cov >= 2
 ////  while (kmer_step > 0 && !nfregions && !nrregions) {
@@ -758,12 +760,12 @@ void AccAlign::pghole_wrapper(Read &R,
 
 }
 
-void AccAlign::merge_interval(Region &r, uint32_t last_q_pos, int32_t k){
+void AccAlign::merge_interval(Region &r, uint32_t last_q_pos, int32_t k) {
   last_q_pos = (last_q_pos >> 1) - k + 1; //q_pos format: pos << 1 | z
   vector<Interval> &match_interval = r.matched_intervals;
 
-  for (Interval &interval: match_interval){
-    if (last_q_pos >= interval.s && last_q_pos <= interval.e){
+  for (Interval &interval: match_interval) {
+    if (last_q_pos >= interval.s && last_q_pos <= interval.e) {
       interval.e = last_q_pos + k;
       return;
     }
@@ -778,18 +780,29 @@ void AccAlign::merge_interval(Region &r, uint32_t last_q_pos, int32_t k){
 //where lastPos is the position of the last base of the i-th minimizer,
 //and strand indicates whether the minimizer comes from the top or the bottom strand.
 
-inline uint64_t AccAlign::normalize_pos(uint64_t cr, uint32_t q_pos, int k, int rlen){
+inline uint64_t AccAlign::normalize_pos(uint64_t cr, uint32_t q_pos, int k, int rlen) {
   uint64_t normalized;
-  if ((cr & 1)  == (q_pos & 1 ))  //fwd
-    normalized = (cr - q_pos) & (~(1<<0)); //set last bit to 0
-  else{
-    uint32_t rev_shift = rlen - 1 - (q_pos >> 1) + k-1 ;
-    normalized = (cr - (rev_shift << 1)) | 1; //set last bit to 1
+  uint32_t rid = (cr & 0xffffffff00000000) >> 32;
+  uint32_t pos = (cr & 0x00000000ffffffff) >> 1;
+
+  if ((cr & 1) == (q_pos & 1)) {
+    //fwd, set last bit to 0
+    if (pos > q_pos >> 1)
+      normalized = (cr - q_pos) & (~(1 << 0));
+    else
+      normalized = rid << 32;
+  } else {
+    //rev, set last bit to 1
+    uint32_t rev_shift = rlen - 1 - (q_pos >> 1) + k - 1;
+    if (pos > rev_shift)
+      normalized = (cr - (rev_shift << 1)) | 1;
+    else
+      normalized = rid << 32 | 1;
   }
   return normalized;
 }
 
-inline uint32_t AccAlign::get_global_pos(uint64_t cr){
+inline uint32_t AccAlign::get_global_pos(uint64_t cr) {
   uint32_t rid = (cr & 0xffffffff00000000) >> 32;
   uint32_t pos = (cr & 0x00000000ffffffff) >> 1;
   uint32_t g_pos = offset[rid] + pos;
@@ -800,52 +813,71 @@ inline uint32_t AccAlign::get_global_pos(uint64_t cr){
 #include "ksort.h"
 #define heap_lt(a, b) ((a).x > (b).x)
 KSORT_INIT(heap, mm128_t, heap_lt)
-static mm128_t *collect_seed_hits_heap(void *km, const mm_mapopt_t *opt, int max_occ, const mm_idx_t *mi, const char *qname, const mm128_v *mv, int qlen, int64_t *n_a, int *rep_len,
-                                       int *n_mini_pos, uint64_t **mini_pos)
-{
+static mm128_t *collect_seed_hits_heap(void *km,
+                                       const mm_mapopt_t *opt,
+                                       int max_occ,
+                                       const mm_idx_t *mi,
+                                       const char *qname,
+                                       const mm128_v *mv,
+                                       int qlen,
+                                       int64_t *n_a,
+                                       int *rep_len,
+                                       int *n_mini_pos,
+                                       uint64_t **mini_pos) {
   int i, n_m, heap_size = 0;
   int64_t j, n_for = 0, n_rev = 0;
   mm_seed_t *m;
   mm128_t *a, *heap;
 
-  m = mm_collect_matches(km, &n_m, qlen, max_occ, opt->max_max_occ, opt->occ_dist, mi, mv, n_a, rep_len, n_mini_pos, mini_pos);
+  m = mm_collect_matches(km,
+                         &n_m,
+                         qlen,
+                         max_occ,
+                         opt->max_max_occ,
+                         opt->occ_dist,
+                         mi,
+                         mv,
+                         n_a,
+                         rep_len,
+                         n_mini_pos,
+                         mini_pos);
 
   fprintf(stderr, "\n hahaha: %d, %d", n_m, *n_a);
 
-  heap = (mm128_t*)kmalloc(km, n_m * sizeof(mm128_t));
-  a = (mm128_t*)kmalloc(km, *n_a * sizeof(mm128_t));
+  heap = (mm128_t *) kmalloc(km, n_m * sizeof(mm128_t));
+  a = (mm128_t *) kmalloc(km, *n_a * sizeof(mm128_t));
 
   for (i = 0, heap_size = 0; i < n_m; ++i) {
     if (m[i].n > 0) {
       heap[heap_size].x = m[i].cr[0];
-      heap[heap_size].y = (uint64_t)i<<32;
+      heap[heap_size].y = (uint64_t) i << 32;
       ++heap_size;
     }
   }
   ks_heapmake_heap(heap_size, heap);
   while (heap_size > 0) {
-    mm_seed_t *q = &m[heap->y>>32];
+    mm_seed_t *q = &m[heap->y >> 32];
     mm128_t *p;
     uint64_t r = heap->x;
-    int32_t is_self, rpos = (uint32_t)r >> 1;
+    int32_t is_self, rpos = (uint32_t) r >> 1;
 //    if (!skip_seed(opt->flag, r, q, qname, qlen, mi, &is_self)) {
-      if ((r&1) == (q->q_pos&1)) { // forward strand
-        p = &a[n_for++];
-        p->x = (r&0xffffffff00000000ULL) | rpos;
-        p->y = (uint64_t)q->q_span << 32 | q->q_pos >> 1;
-      } else { // reverse strand
-        p = &a[(*n_a) - (++n_rev)];
-        p->x = 1ULL<<63 | (r&0xffffffff00000000ULL) | rpos;
-        p->y = (uint64_t)q->q_span << 32 | (qlen - ((q->q_pos>>1) + 1 - q->q_span) - 1);
-      }
-      p->y |= (uint64_t)q->seg_id << MM_SEED_SEG_SHIFT;
-      if (q->is_tandem) p->y |= MM_SEED_TANDEM;
-      if (is_self) p->y |= MM_SEED_SELF;
+    if ((r & 1) == (q->q_pos & 1)) { // forward strand
+      p = &a[n_for++];
+      p->x = (r & 0xffffffff00000000ULL) | rpos;
+      p->y = (uint64_t) q->q_span << 32 | q->q_pos >> 1;
+    } else { // reverse strand
+      p = &a[(*n_a) - (++n_rev)];
+      p->x = 1ULL << 63 | (r & 0xffffffff00000000ULL) | rpos;
+      p->y = (uint64_t) q->q_span << 32 | (qlen - ((q->q_pos >> 1) + 1 - q->q_span) - 1);
+    }
+    p->y |= (uint64_t) q->seg_id << MM_SEED_SEG_SHIFT;
+    if (q->is_tandem) p->y |= MM_SEED_TANDEM;
+    if (is_self) p->y |= MM_SEED_SELF;
 //    }
     // update the heap
-    if ((uint32_t)heap->y < q->n - 1) {
+    if ((uint32_t) heap->y < q->n - 1) {
       ++heap[0].y;
-      heap[0].x = m[heap[0].y>>32].cr[(uint32_t)heap[0].y];
+      heap[0].x = m[heap[0].y >> 32].cr[(uint32_t) heap[0].y];
     } else {
       heap[0] = heap[heap_size - 1];
       --heap_size;
@@ -856,7 +888,7 @@ static mm128_t *collect_seed_hits_heap(void *km, const mm_mapopt_t *opt, int max
   kfree(km, heap);
 
   // reverse anchors on the reverse strand, as they are in the descending order
-  for (j = 0; j < n_rev>>1; ++j) {
+  for (j = 0; j < n_rev >> 1; ++j) {
     mm128_t t = a[(*n_a) - 1 - j];
     a[(*n_a) - 1 - j] = a[(*n_a) - (n_rev - j)];
     a[(*n_a) - (n_rev - j)] = t;
@@ -868,8 +900,15 @@ static mm128_t *collect_seed_hits_heap(void *km, const mm_mapopt_t *opt, int max
   return a;
 }
 
-void AccAlign::collect_seed_hits_priorityqueue(int n_m0, int64_t n_a, size_t rlen, int err_threshold, mm_seed_t* m, vector<Region> &candidate_regions,
-                                               vector<Region> &rcandidate_regions, unsigned &best, unsigned &rbest){
+void AccAlign::collect_seed_hits_priorityqueue(int n_m0,
+                                               int64_t n_a,
+                                               size_t rlen,
+                                               int err_threshold,
+                                               mm_seed_t *m,
+                                               vector<Region> &candidate_regions,
+                                               vector<Region> &rcandidate_regions,
+                                               unsigned &best,
+                                               unsigned &rbest) {
   if (!n_a)
     return;
 
@@ -877,12 +916,12 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0, int64_t n_a, size_t rle
   int max_cov = 0, last_cov = 0;
   size_t ntotal_hits = 0;
   size_t idx[n_m0];
-  memset(idx, 0, sizeof(size_t)*n_m0);
+  memset(idx, 0, sizeof(size_t) * n_m0);
   uint64_t top_pos[n_m0], MAX_POS = numeric_limits<uint64_t>::max();
 
   int32_t k = mi->k;
 
-  for (size_t i = 0; i < n_m0; ++i){
+  for (size_t i = 0; i < n_m0; ++i) {
     ntotal_hits += m[i].n;
     top_pos[i] = normalize_pos(m[i].cr[0], m[i].q_pos, k, rlen);
   }
@@ -914,14 +953,14 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0, int64_t n_a, size_t rle
         r.qe = r.matched_intervals[0].e;
         r.rs = get_global_pos(last_pos);
 
-        if (!(last_pos&1)){ //fwd
+        if (!(last_pos & 1)) { //fwd
           if (last_cov >= max_cov) {
             max_cov = last_cov;
             best = candidate_regions.size();
           }
           assert(r.rs < MAX_POS);
           candidate_regions.push_back(move(r));
-        }else{ //rev
+        } else { //rev
           if (last_cov >= max_cov) {
             max_cov = last_cov;
             rbest = rcandidate_regions.size();
@@ -938,7 +977,7 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0, int64_t n_a, size_t rle
 
     // add next element
     idx[min_kmer]++;
-    if (idx[min_kmer] < m[min_kmer].n){ // still has pos in this seed
+    if (idx[min_kmer] < m[min_kmer].n) { // still has pos in this seed
       uint64_t next_pos = m[min_kmer].cr[idx[min_kmer]];
       *min_item = normalize_pos(next_pos, m[min_kmer].q_pos, k, rlen);
     } else
@@ -956,14 +995,14 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0, int64_t n_a, size_t rle
       r.qe = r.matched_intervals[0].e;
       r.rs = get_global_pos(last_pos);
 
-      if (!(last_pos&1)){ //fwd
+      if (!(last_pos & 1)) { //fwd
         if (last_cov >= max_cov) {
           max_cov = last_cov;
           best = candidate_regions.size();
         }
         assert(r.rs < MAX_POS);
         candidate_regions.push_back(move(r));
-      }else{ //rev
+      } else { //rev
         if (last_cov >= max_cov) {
           max_cov = last_cov;
           rbest = rcandidate_regions.size();
@@ -977,7 +1016,7 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0, int64_t n_a, size_t rle
 
 void AccAlign::fetch_candidates(mm128_v &mv, int32_t mid_occ, size_t rlen, int err_threshold,
                                 vector<Region> &fcandidate_regions, vector<Region> &rcandidate_regions,
-                                unsigned &fbest, unsigned &rbest){
+                                unsigned &fbest, unsigned &rbest) {
   // fetch the position
   auto start = std::chrono::system_clock::now();
 
@@ -1008,10 +1047,21 @@ void AccAlign::fetch_candidates(mm128_v &mv, int32_t mid_occ, size_t rlen, int e
 
   // merge sorted hits
   start = std::chrono::system_clock::now();
-  collect_seed_hits_priorityqueue(n_m0, n_a, rlen, err_threshold,  m, fcandidate_regions, rcandidate_regions, fbest, rbest);
+  collect_seed_hits_priorityqueue(n_m0,
+                                  n_a,
+                                  rlen,
+                                  err_threshold,
+                                  m,
+                                  fcandidate_regions,
+                                  rcandidate_regions,
+                                  fbest,
+                                  rbest);
   end = std::chrono::system_clock::now();
   elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-  mm_hit_cnt+= elapsed.count();
+  mm_hit_cnt += elapsed.count();
+
+  kfree(km, m);
+  kfree(km, mini_pos);
 }
 
 
@@ -1241,15 +1291,15 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
 //  mm(mate1.fwd, min_rlen, 2, region_f1, region_r1, best_f1, best_r1);
 //  mm(mate2.fwd, min_rlen, 2, region_f2, region_r2, best_f2, best_r2);
 //
-  mm128_v mv1 = {0,0,0};
-  mm128_v mv2 = {0,0,0};
+  mm128_v mv1 = {0, 0, 0};
+  mm128_v mv2 = {0, 0, 0};
   void *km = nullptr;
   int err_threshold = 2;
 
   // cal minimizer
   auto start = std::chrono::system_clock::now();
-  mm_sketch(km, mate1.fwd, min_rlen, mi->w, mi->k, 0, mi->flag&MM_I_HPC, &mv1);
-  mm_sketch(km, mate2.fwd, min_rlen, mi->w, mi->k, 0, mi->flag&MM_I_HPC, &mv2);
+  mm_sketch(km, mate1.fwd, min_rlen, mi->w, mi->k, 0, mi->flag & MM_I_HPC, &mv1);
+  mm_sketch(km, mate2.fwd, min_rlen, mi->w, mi->k, 0, mi->flag & MM_I_HPC, &mv2);
   auto end = std::chrono::system_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
   mm_cal += elapsed.count();
@@ -1266,7 +1316,7 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
   has_f1r2 = pairdis_filter(region_f1, region_r2, flag_f1, flag_r2, best_f1, next_f1, best_r2, next_r2);
   has_r1f2 = pairdis_filter(region_r1, region_f2, flag_r1, flag_f2, best_r1, next_r1, best_f2, next_f2);
 
-  if (!has_f1r2 && !has_r1f2){
+  if (!has_f1r2 && !has_r1f2) {
     region_f1.clear();
     region_f2.clear();
     region_r1.clear();
@@ -1287,6 +1337,9 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
     has_f1r2 = pairdis_filter(region_f1, region_r2, flag_f1, flag_r2, best_f1, next_f1, best_r2, next_r2);
     has_r1f2 = pairdis_filter(region_r1, region_f2, flag_r1, flag_f2, best_r1, next_r1, best_f2, next_f2);
   }
+
+  kfree(km, mv1.a);
+  kfree(km, mv2.a);
 
 //
 //  while (slide1 < slide && slide2 < slide) {
@@ -2220,9 +2273,10 @@ void AccAlign::score_region(Read &r, char *qseq, Region &region,
 
     uint32_t qs, qe, qs0, qe0, rs, re, rs0, re0, l;
     uint32_t beginclip = 0, endclip = 0;
+    uint32_t match_len = region.matched_intervals[0].e - region.matched_intervals[0].s;
     qs = region.qs;
-//    assert(region.qs == region.matched_intervals[0]);
-    qe = qs + kmer_len;
+    qe = region.qe;
+    assert(qe - qs == match_len);
     rs = region.rs + qs;
     re = region.rs + qe;
     l = qs;
@@ -2260,9 +2314,9 @@ void AccAlign::score_region(Read &r, char *qseq, Region &region,
 
 
     // matched seed
-    uint32_t cigar_m[] = {kmer_len << 4};
+    uint32_t cigar_m[] = {match_len << 4};
     append_cigar(extension, 1, cigar_m);
-    for (unsigned j = 0; j < kmer_len; ++j) {
+    for (unsigned j = 0; j < match_len; ++j) {
       extension->dp_score += qseq[qs + j] == ref.c_str()[raw_rs + qs + j] ? SC_MCH : -SC_MIS;
     }
 
@@ -2346,7 +2400,8 @@ int AccAlign::get_tid(Read &R) {
     while (tid < (int) name.size()) {
       if (R.pos < offset[tid + 1]) {
         return tid;
-      }++tid;
+      }
+      ++tid;
     }
   }
 
@@ -2370,7 +2425,10 @@ void AccAlign::save_region(Read &R, size_t rlen, Region &region,
 
   R.tid = get_tid(R);
 
-  if (R.tid + 1 < (int) name.size() && R.pos + rlen/2 > offset[R.tid + 1]){
+  if (R.tid == INT_MAX) { //out of the largest pos
+    R.pos = offset.back() - offset[offset.size() - 2] - rlen;
+    R.tid = name.size() - 1;
+  } else if (R.tid + 1 < (int) name.size() && R.pos + rlen / 2 > offset[R.tid + 1]) {
     //reach the end of chromo, switch to next
     R.pos = 1;
     R.tid += 1;
@@ -2572,7 +2630,7 @@ AccAlign::AccAlign(Reference &r) :
     ref(r.ref), name(r.name),
     offset(r.offset),
     keyv(r.keyv), posv(r.posv),
-    mi(r.mi){
+    mi(r.mi) {
 
   input_io_time = parse_time = 0;
   seeding_time = hit_count_time = 0;
