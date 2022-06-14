@@ -1338,6 +1338,52 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
     has_r1f2 = pairdis_filter(region_r1, region_f2, flag_r1, flag_f2, best_r1, next_r1, best_f2, next_f2);
   }
 
+  if (!has_f1r2 && !has_r1f2) {
+    err_threshold = 1;
+    region_f1.clear();
+    region_f2.clear();
+    region_r1.clear();
+    region_r2.clear();
+    delete[] flag_f1;
+    delete[] flag_r1;
+    delete[] flag_f2;
+    delete[] flag_r2;
+
+    mid_occ = 1000;
+    fetch_candidates(mv1, mid_occ, min_rlen, err_threshold, region_f1, region_r1, best_f1, best_r1);
+    fetch_candidates(mv2, mid_occ, min_rlen, err_threshold, region_f2, region_r2, best_f2, best_r2);
+
+    // filter based on pairdis
+    flag_f1 = new bool[region_f1.size()]();
+    flag_r1 = new bool[region_r1.size()]();
+    flag_f2 = new bool[region_f2.size()]();
+    flag_r2 = new bool[region_r2.size()]();
+    has_f1r2 = pairdis_filter(region_f1, region_r2, flag_f1, flag_r2, best_f1, next_f1, best_r2, next_r2);
+    has_r1f2 = pairdis_filter(region_r1, region_f2, flag_r1, flag_f2, best_r1, next_r1, best_f2, next_f2);
+
+    if (!has_f1r2 && !has_r1f2) {
+      region_f1.clear();
+      region_f2.clear();
+      region_r1.clear();
+      region_r2.clear();
+      delete[] flag_f1;
+      delete[] flag_r1;
+      delete[] flag_f2;
+      delete[] flag_r2;
+
+      mid_occ = 5000;
+      fetch_candidates(mv1, mid_occ, min_rlen, err_threshold, region_f1, region_r1, best_f1, best_r1);
+      fetch_candidates(mv2, mid_occ, min_rlen, err_threshold, region_f2, region_r2, best_f2, best_r2);
+
+      flag_f1 = new bool[region_f1.size()]();
+      flag_r1 = new bool[region_r1.size()]();
+      flag_f2 = new bool[region_f2.size()]();
+      flag_r2 = new bool[region_r2.size()]();
+      has_f1r2 = pairdis_filter(region_f1, region_r2, flag_f1, flag_r2, best_f1, next_f1, best_r2, next_r2);
+      has_r1f2 = pairdis_filter(region_r1, region_f2, flag_r1, flag_f2, best_r1, next_r1, best_f2, next_f2);
+    }
+  }
+
   kfree(km, mv1.a);
   kfree(km, mv2.a);
 
@@ -1670,8 +1716,20 @@ void AccAlign::map_paired_read(Read &mate1, Read &mate2) {
   seeding_time += elapsed.count();
 
   if (!has_f1r2 && !has_r1f2) {
-    mate1.strand = '*';
-    mate2.strand = '*';
+    map_read(mate1);
+    map_read(mate2);
+    if (mate1.strand == '*' && mate2.strand == '*')
+      return;
+    else if ((mate1.strand != '*' && mate2.strand != '*' && mate1.best_region.embed_dist < mate2.best_region.embed_dist)
+    || mate2.strand == '*'){
+      mate2.strand = '*';
+      mate2.force_align = true;
+      mate2.pos = mate1.best_region.rs;
+    }else{
+      mate1.strand = '*';
+      mate1.force_align = true;
+      mate1.pos = mate2.best_region.rs;
+    }
     return;
   }
 
@@ -1737,6 +1795,10 @@ void AccAlign::map_paired_read(Read &mate1, Read &mate2) {
   mapqTime += elapsed.count();
 }
 
+inline bool unfill(Read &R) {
+  return  R.strand == '*' && (!R.force_align);
+}
+
 void AccAlign::print_paired_sam(Read &R, Read &R2) {
   auto start = std::chrono::system_clock::now();
 
@@ -1762,10 +1824,10 @@ void AccAlign::print_paired_sam(Read &R, Read &R2) {
   flag |= 0x40;
   ss << flag;
 
-  ss << '\t' << (strand1 == '*' ? "*" : name[R.tid]);
-  ss << '\t' << (strand1 == '*' ? 0 : R.pos);
-  ss << '\t' << (strand1 == '*' ? 0 : (int) R.mapq);
-  ss << '\t' << (strand1 == '*' ? "*" : R.cigar) << '\t';
+  ss << '\t' << (unfill(R) ? "*" : name[R.tid]);
+  ss << '\t' << (unfill(R) ? 0 : R.pos);
+  ss << '\t' << (unfill(R) ? 0 : (int) R.mapq);
+  ss << '\t' << (unfill(R) ? "*" : R.cigar) << '\t';
 
   if (R.strand == '*' || R2.strand == '*')
     ss << '*';
@@ -1810,10 +1872,10 @@ void AccAlign::print_paired_sam(Read &R, Read &R2) {
   flag |= 0x80;
 
   ss << flag;
-  ss << '\t' << (strand2 == '*' ? "*" : name[R2.tid]);
-  ss << '\t' << (strand2 == '*' ? 0 : R2.pos);
-  ss << '\t' << (strand2 == '*' ? 0 : (int) R2.mapq);
-  ss << '\t' << (strand2 == '*' ? "*" : R2.cigar) << '\t';
+  ss << '\t' << (unfill(R2) ? "*" : name[R2.tid]);
+  ss << '\t' << (unfill(R2) ? 0 : R2.pos);
+  ss << '\t' << (unfill(R2) ? 0 : (int) R2.mapq);
+  ss << '\t' << (unfill(R2) ? "*" : R2.cigar) << '\t';
 
   if (R.strand == '*' || R2.strand == '*')
     ss << '*';
@@ -2442,8 +2504,26 @@ void AccAlign::save_region(Read &R, size_t rlen, Region &region,
 void AccAlign::align_read(Read &R) {
   auto start = std::chrono::system_clock::now();
 
+  size_t rlen = strlen(R.seq);
+
   if (R.strand == '*') {
-    R.tid = R.pos = R.mapq = R.nm = R.as = 0;
+    if (R.force_align){
+      R.tid = get_tid(R);
+
+      if (R.tid == INT_MAX) { //out of the largest pos
+        R.pos = offset.back() - offset[offset.size() - 2] - rlen;
+        R.tid = name.size() - 1;
+      } else if (R.tid + 1 < (int) name.size() && R.pos + rlen / 2 > offset[R.tid + 1]) {
+        //reach the end of chromo, switch to next
+        R.pos = 1;
+        R.tid += 1;
+      } else
+        R.pos = R.pos - offset[R.tid] + 1;
+    }else {
+      R.tid = R.pos = 0;
+    }
+
+    R.mapq = R.nm = R.as = 0;
     R.cigar[0] = '*';
     R.cigar[1] = '\0';
     return;
@@ -2453,7 +2533,6 @@ void AccAlign::align_read(Read &R) {
   char *s = R.strand == '+' ? R.fwd : R.rev;
 
   Alignment a;
-  size_t rlen = strlen(R.seq);
   score_region(R, s, region, a);
   save_region(R, rlen, region, a);
 
@@ -2685,9 +2764,11 @@ struct tbb_align {
     accalign->align_read(*mate1);
     accalign->align_read(*mate2);
 
-    int mapq_pe = mate1->mapq > mate2->mapq ? mate1->mapq : mate2->mapq;
-    if (mate1->mapq < mapq_pe) mate1->mapq = (int) (.2f * mate1->mapq + .8f * mapq_pe + .499f);
-    if (mate2->mapq < mapq_pe) mate2->mapq = (int) (.2f * mate2->mapq + .8f * mapq_pe + .499f);
+    if (!mate1->force_align && !mate2->force_align){
+      int mapq_pe = mate1->mapq > mate2->mapq ? mate1->mapq : mate2->mapq;
+      if (mate1->mapq < mapq_pe) mate1->mapq = (int) (.2f * mate1->mapq + .8f * mapq_pe + .499f);
+      if (mate2->mapq < mapq_pe) mate2->mapq = (int) (.2f * mate2->mapq + .8f * mapq_pe + .499f);
+    }
 
     return p;
   }
