@@ -57,22 +57,7 @@ void Reference::load_index(const char *F) {
 
 }
 
-Reference::Reference(const char *F) {
-  auto start = std::chrono::system_clock::now();
-
-  // Start index load in parallel
-//  thread t(&Reference::load_index, this, F);
-
-  int n_threads = 3;
-
-  mm_idxopt_t ipt;
-  mm_idxopt_init(&ipt);
-  string fn = string(F) + ".hash";
-  const char* fnw = fn.c_str();
-
-  mm_idx_reader_t *idx_rdr = mm_idx_reader_open(fnw, &ipt, nullptr);
-  mi = mm_idx_reader_read(idx_rdr, n_threads);
-
+void Reference::load_reference(const char *F){
   size_t ref_size = 0;
   string bref(F);
   bref += ".bref";
@@ -148,9 +133,30 @@ Reference::Reference(const char *F) {
     offset.push_back(ref_size);
     cerr << "Loaded reference size: " << ref_size << endl;
   }
+}
 
-  // wait for index load to finish
-//  t.join();
+Reference::Reference(const char *F, bool _enable_minimizer): enable_minimizer(_enable_minimizer){
+  auto start = std::chrono::system_clock::now();
+
+  if (enable_minimizer){
+    int n_threads = 3;
+
+    mm_idxopt_t ipt;
+    mm_idxopt_init(&ipt);
+    string fn = string(F) + ".hash";
+    const char* fnw = fn.c_str();
+
+    mm_idx_reader_t *idx_rdr = mm_idx_reader_open(fnw, &ipt, nullptr);
+    mi = mm_idx_reader_read(idx_rdr, n_threads);
+
+    load_reference(F);
+  } else {
+    thread t(&Reference::load_index, this, F); // load index in parallel
+
+    load_reference(F);
+
+    t.join(); // wait for index load to finish
+  }
 
   auto end = std::chrono::system_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -158,12 +164,15 @@ Reference::Reference(const char *F) {
 }
 
 Reference::~Reference() {
-  mm_idx_destroy(mi);
-//  size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
-//  size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
-//  char *base = (char *) posv - 4;
-//  int r = munmap(base, posv_sz + keyv_sz);
-//  assert(r == 0);
+  if (enable_minimizer){
+    mm_idx_destroy(mi);
+  } else {
+    size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
+    size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
+    char *base = (char *) posv - 4;
+    int r = munmap(base, posv_sz + keyv_sz);
+    assert(r == 0);
+  }
 }
 
 

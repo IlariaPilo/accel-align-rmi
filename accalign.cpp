@@ -12,7 +12,8 @@ unsigned pairdis = 1000;
 string g_out, g_batch_file, g_embed_file;
 char rcsymbol[6] = "TGCAN";
 uint8_t code[256];
-bool enable_extension = true, enable_wfa_extension = false, extend_all = false;
+bool enable_extension = true, enable_wfa_extension = false, extend_all = false, enable_minimizer = false;
+
 
 int g_ncpus = 1;
 float delTime = 0, mapqTime = 0, keyvTime = 0, posvTime = 0, sortTime = 0;
@@ -2968,7 +2969,7 @@ int main(int ac, char **av) {
   make_code();
 
   // load reference once
-  Reference *r = new Reference(av[opn]);
+  Reference *r = new Reference(av[opn], enable_minimizer);
   opn++;
   if (enable_extension && !enable_wfa_extension)
     ksw_gen_simple_mat(5, mat, SC_MCH, SC_MIS, SC_AMBI);
