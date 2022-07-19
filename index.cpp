@@ -1,11 +1,10 @@
 #include "header.h"
 
-
 using namespace std;
 const unsigned mod = (1UL << 29) - 1;
 const unsigned step = 1;
 unsigned kmer;
-
+bool enable_minimizer = false;
 
 struct Data {
   uint32_t key, pos;
@@ -196,42 +195,50 @@ int main(int ac, char **av) {
     cerr << "index [options] <ref.fa>\n";
     cerr << "options:\n";
     cerr << "\t-l INT length of seed [32]\n";
+    cerr << "\t-m enable minimizer\n";
+    cerr << "\t-k minimizer: k, kmer size \n";
+    cerr << "\t-w minimizer: w, window size \n";
     return 0;
   }
 
-  int n_threads = 3;
-  mm_idxopt_t ipt;
-  mm_idxopt_init(&ipt);
-
-  unsigned kmer_temp = 0;
+  unsigned kmer_temp = 0, mm_k_tmp = 0, mm_w_tmp = 0;
 
   for (int it = 1; it < ac; it++) {
     if (strcmp(av[it], "-l") == 0)
       kmer_temp = atoi(av[it + 1]);
+    else if (strcmp(av[it], "-m") == 0)
+      enable_minimizer = true;
     else if (strcmp(av[it], "-k") == 0)
-      ipt.k = atoi(av[it + 1]);
+      mm_k_tmp = atoi(av[it + 1]);
     else if (strcmp(av[it], "-w") == 0)
-      ipt.w = atoi(av[it + 1]);
+      mm_w_tmp = atoi(av[it + 1]);
   }
+  string fn = av[ac - 1]; //input ref file name
 
-  kmer = 32;
-  if (kmer_temp != 0)
-    kmer = kmer_temp;
+  if (enable_minimizer) {
+    cerr << "Using kmer length " << mm_k_tmp << " and window size " << mm_w_tmp << endl;
 
-  string fn = av[ac - 1];
-  fn += ".hash";
-  const char *fnw = fn.c_str();
+    int n_threads = 3;
+    mm_idxopt_t ipt;
+    mm_idxopt_init(&ipt);
+    ipt.k = mm_k_tmp;
+    ipt.w = mm_w_tmp;
 
-  cerr << "Using kmer length " << kmer << " and step size " << step << endl;
+    fn += ".hash"; // output hash: xxx.hash
 
-  mm_idx_reader_t *idx_rdr = mm_idx_reader_open(av[ac - 1], &ipt, fnw);;
-  mm_idx_reader_read(idx_rdr, n_threads);
+    mm_idx_reader_t *idx_rdr = mm_idx_reader_open(av[ac - 1], &ipt, fn.c_str());
+    mm_idx_reader_read(idx_rdr, n_threads);
+  } else {
+    kmer = kmer_temp ? kmer_temp: 32;
 
-//  Index i;
-//  if (!i.load_ref(av[ac - 1]))
-//    return 0;
-//  if (!i.make_index(av[ac - 1]))
-//    return 0;
+    cerr << "Using kmer length " << kmer << " and step size " << step << endl;
+
+    Index i;
+    if (!i.load_ref(fn.c_str()))
+      return 0;
+    if (!i.make_index(fn.c_str()))
+      return 0;
+  }
 
   return 0;
 }
