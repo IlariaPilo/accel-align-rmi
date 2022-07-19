@@ -4,7 +4,7 @@ using namespace std;
 const unsigned mod = (1UL << 29) - 1;
 const unsigned step = 1;
 unsigned kmer;
-bool enable_minimizer = false;
+bool enable_idx_minimizer = false;
 
 struct Data {
   uint32_t key, pos;
@@ -207,7 +207,7 @@ int main(int ac, char **av) {
     if (strcmp(av[it], "-l") == 0)
       kmer_temp = atoi(av[it + 1]);
     else if (strcmp(av[it], "-m") == 0)
-      enable_minimizer = true;
+      enable_idx_minimizer = true;
     else if (strcmp(av[it], "-k") == 0)
       mm_k_tmp = atoi(av[it + 1]);
     else if (strcmp(av[it], "-w") == 0)
@@ -215,7 +215,7 @@ int main(int ac, char **av) {
   }
   string fn = av[ac - 1]; //input ref file name
 
-  if (enable_minimizer) {
+  if (enable_idx_minimizer) {
     cerr << "Using kmer length " << mm_k_tmp << " and window size " << mm_w_tmp << endl;
 
     int n_threads = 3;

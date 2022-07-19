@@ -50,7 +50,7 @@ struct Read {
 class Reference {
  public:
   void load_index(const char *F);
-  Reference(const char *F);
+  void load_reference(const char *F);
 
   std::string ref;
   std::vector<std::string> name;
@@ -58,6 +58,9 @@ class Reference {
   uint32_t *keyv, *posv;
   uint32_t nposv, nkeyv;
   mm_idx_t *mi;
+  bool enable_minimizer;
+
+  Reference(const char *F, bool _enable_minimizer);
 
   ~Reference();
 };
