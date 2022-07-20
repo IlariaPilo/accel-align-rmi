@@ -90,6 +90,8 @@ void print_usage() {
   cerr << "\t-w Use WFA for extension. KSW used by default. \n";
   cerr << "\t-p Maximum distance allowed between the paired-end reads [1000]\n";
   cerr << "\t-d Disable embedding, extend all candidates from seeding (this mode is super slow, only for benchmark).\n";
+  cerr << "\t-m Seeding with minimizer.\n";
+
 }
 
 void AccAlign::print_stats() {
@@ -735,15 +737,15 @@ void AccAlign::pghole_wrapper(Read &R,
 
       unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
 
-//    if (nkmers < 4) {
+    if (nkmers < 4) {
       //nkmer 3, 2, 1, top 2 cov of cov >=2, is 3, 2, is as same as cov>=2
       // as cov2 is faster than top2, use cov2
       pigeonhole_query(R.fwd, rlen, fcandidate_regions, '+', fbest, ori_slide, 2, kmer_step, MAX_OCC, high_freq);
       pigeonhole_query(R.rev, rlen, rcandidate_regions, '-', rbest, ori_slide, 2, kmer_step, MAX_OCC, high_freq);
-//    } else {
-//      pigeonhole_query_topcov(R.fwd, rlen, fcandidate_regions, '+', 2, kmer_step, MAX_OCC, fbest, ori_slide);
-//      pigeonhole_query_topcov(R.rev, rlen, rcandidate_regions, '-', 2, kmer_step, MAX_OCC, rbest, ori_slide);
-//    }
+    } else {
+      pigeonhole_query_topcov(R.fwd, rlen, fcandidate_regions, '+', 2, kmer_step, MAX_OCC, fbest, ori_slide);
+      pigeonhole_query_topcov(R.rev, rlen, rcandidate_regions, '-', 2, kmer_step, MAX_OCC, rbest, ori_slide);
+    }
       nfregions = fcandidate_regions.size();
       nrregions = rcandidate_regions.size();
 
@@ -812,95 +814,95 @@ inline uint32_t AccAlign::get_global_pos(uint64_t cr) {
   return g_pos;
 }
 
-#include "ksort.h"
-#define heap_lt(a, b) ((a).x > (b).x)
-KSORT_INIT(heap, mm128_t, heap_lt)
-static mm128_t *collect_seed_hits_heap(void *km,
-                                       const mm_mapopt_t *opt,
-                                       int max_occ,
-                                       const mm_idx_t *mi,
-                                       const char *qname,
-                                       const mm128_v *mv,
-                                       int qlen,
-                                       int64_t *n_a,
-                                       int *rep_len,
-                                       int *n_mini_pos,
-                                       uint64_t **mini_pos) {
-  int i, n_m, heap_size = 0;
-  int64_t j, n_for = 0, n_rev = 0;
-  mm_seed_t *m;
-  mm128_t *a, *heap;
-
-  m = mm_collect_matches(km,
-                         &n_m,
-                         qlen,
-                         max_occ,
-                         opt->max_max_occ,
-                         opt->occ_dist,
-                         mi,
-                         mv,
-                         n_a,
-                         rep_len,
-                         n_mini_pos,
-                         mini_pos);
-
-  fprintf(stderr, "\n hahaha: %d, %d", n_m, *n_a);
-
-  heap = (mm128_t *) kmalloc(km, n_m * sizeof(mm128_t));
-  a = (mm128_t *) kmalloc(km, *n_a * sizeof(mm128_t));
-
-  for (i = 0, heap_size = 0; i < n_m; ++i) {
-    if (m[i].n > 0) {
-      heap[heap_size].x = m[i].cr[0];
-      heap[heap_size].y = (uint64_t) i << 32;
-      ++heap_size;
-    }
-  }
-  ks_heapmake_heap(heap_size, heap);
-  while (heap_size > 0) {
-    mm_seed_t *q = &m[heap->y >> 32];
-    mm128_t *p;
-    uint64_t r = heap->x;
-    int32_t is_self, rpos = (uint32_t) r >> 1;
-//    if (!skip_seed(opt->flag, r, q, qname, qlen, mi, &is_self)) {
-    if ((r & 1) == (q->q_pos & 1)) { // forward strand
-      p = &a[n_for++];
-      p->x = (r & 0xffffffff00000000ULL) | rpos;
-      p->y = (uint64_t) q->q_span << 32 | q->q_pos >> 1;
-    } else { // reverse strand
-      p = &a[(*n_a) - (++n_rev)];
-      p->x = 1ULL << 63 | (r & 0xffffffff00000000ULL) | rpos;
-      p->y = (uint64_t) q->q_span << 32 | (qlen - ((q->q_pos >> 1) + 1 - q->q_span) - 1);
-    }
-    p->y |= (uint64_t) q->seg_id << MM_SEED_SEG_SHIFT;
-    if (q->is_tandem) p->y |= MM_SEED_TANDEM;
-    if (is_self) p->y |= MM_SEED_SELF;
+//#include "ksort.h"
+//#define heap_lt(a, b) ((a).x > (b).x)
+//KSORT_INIT(heap, mm128_t, heap_lt)
+//static mm128_t *collect_seed_hits_heap(void *km,
+//                                       const mm_mapopt_t *opt,
+//                                       int max_occ,
+//                                       const mm_idx_t *mi,
+//                                       const char *qname,
+//                                       const mm128_v *mv,
+//                                       int qlen,
+//                                       int64_t *n_a,
+//                                       int *rep_len,
+//                                       int *n_mini_pos,
+//                                       uint64_t **mini_pos) {
+//  int i, n_m, heap_size = 0;
+//  int64_t j, n_for = 0, n_rev = 0;
+//  mm_seed_t *m;
+//  mm128_t *a, *heap;
+//
+//  m = mm_collect_matches(km,
+//                         &n_m,
+//                         qlen,
+//                         max_occ,
+//                         opt->max_max_occ,
+//                         opt->occ_dist,
+//                         mi,
+//                         mv,
+//                         n_a,
+//                         rep_len,
+//                         n_mini_pos,
+//                         mini_pos);
+//
+//  fprintf(stderr, "\n hahaha: %d, %d", n_m, *n_a);
+//
+//  heap = (mm128_t *) kmalloc(km, n_m * sizeof(mm128_t));
+//  a = (mm128_t *) kmalloc(km, *n_a * sizeof(mm128_t));
+//
+//  for (i = 0, heap_size = 0; i < n_m; ++i) {
+//    if (m[i].n > 0) {
+//      heap[heap_size].x = m[i].cr[0];
+//      heap[heap_size].y = (uint64_t) i << 32;
+//      ++heap_size;
 //    }
-    // update the heap
-    if ((uint32_t) heap->y < q->n - 1) {
-      ++heap[0].y;
-      heap[0].x = m[heap[0].y >> 32].cr[(uint32_t) heap[0].y];
-    } else {
-      heap[0] = heap[heap_size - 1];
-      --heap_size;
-    }
-    ks_heapdown_heap(0, heap_size, heap);
-  }
-  kfree(km, m);
-  kfree(km, heap);
-
-  // reverse anchors on the reverse strand, as they are in the descending order
-  for (j = 0; j < n_rev >> 1; ++j) {
-    mm128_t t = a[(*n_a) - 1 - j];
-    a[(*n_a) - 1 - j] = a[(*n_a) - (n_rev - j)];
-    a[(*n_a) - (n_rev - j)] = t;
-  }
-  if (*n_a > n_for + n_rev) {
-    memmove(a + n_for, a + (*n_a) - n_rev, n_rev * sizeof(mm128_t));
-    *n_a = n_for + n_rev;
-  }
-  return a;
-}
+//  }
+//  ks_heapmake_heap(heap_size, heap);
+//  while (heap_size > 0) {
+//    mm_seed_t *q = &m[heap->y >> 32];
+//    mm128_t *p;
+//    uint64_t r = heap->x;
+//    int32_t is_self, rpos = (uint32_t) r >> 1;
+////    if (!skip_seed(opt->flag, r, q, qname, qlen, mi, &is_self)) {
+//    if ((r & 1) == (q->q_pos & 1)) { // forward strand
+//      p = &a[n_for++];
+//      p->x = (r & 0xffffffff00000000ULL) | rpos;
+//      p->y = (uint64_t) q->q_span << 32 | q->q_pos >> 1;
+//    } else { // reverse strand
+//      p = &a[(*n_a) - (++n_rev)];
+//      p->x = 1ULL << 63 | (r & 0xffffffff00000000ULL) | rpos;
+//      p->y = (uint64_t) q->q_span << 32 | (qlen - ((q->q_pos >> 1) + 1 - q->q_span) - 1);
+//    }
+//    p->y |= (uint64_t) q->seg_id << MM_SEED_SEG_SHIFT;
+//    if (q->is_tandem) p->y |= MM_SEED_TANDEM;
+//    if (is_self) p->y |= MM_SEED_SELF;
+////    }
+//    // update the heap
+//    if ((uint32_t) heap->y < q->n - 1) {
+//      ++heap[0].y;
+//      heap[0].x = m[heap[0].y >> 32].cr[(uint32_t) heap[0].y];
+//    } else {
+//      heap[0] = heap[heap_size - 1];
+//      --heap_size;
+//    }
+//    ks_heapdown_heap(0, heap_size, heap);
+//  }
+//  kfree(km, m);
+//  kfree(km, heap);
+//
+//  // reverse anchors on the reverse strand, as they are in the descending order
+//  for (j = 0; j < n_rev >> 1; ++j) {
+//    mm128_t t = a[(*n_a) - 1 - j];
+//    a[(*n_a) - 1 - j] = a[(*n_a) - (n_rev - j)];
+//    a[(*n_a) - (n_rev - j)] = t;
+//  }
+//  if (*n_a > n_for + n_rev) {
+//    memmove(a + n_for, a + (*n_a) - n_rev, n_rev * sizeof(mm128_t));
+//    *n_a = n_for + n_rev;
+//  }
+//  return a;
+//}
 
 void AccAlign::collect_seed_hits_priorityqueue(int n_m0,
                                                int64_t n_a,
@@ -2961,6 +2963,10 @@ int main(int ac, char **av) {
         flag = true;
       } else if (av[opn][1] == 'd') {
         extend_all = true;
+        opn += 1;
+        flag = true;
+      } else if (av[opn][1] == 'm') {
+        enable_minimizer = true;
         opn += 1;
         flag = true;
       } else {

@@ -216,13 +216,13 @@ int main(int ac, char **av) {
   string fn = av[ac - 1]; //input ref file name
 
   if (enable_idx_minimizer) {
-    cerr << "Using kmer length " << mm_k_tmp << " and window size " << mm_w_tmp << endl;
-
     int n_threads = 3;
     mm_idxopt_t ipt;
     mm_idxopt_init(&ipt);
-    ipt.k = mm_k_tmp;
-    ipt.w = mm_w_tmp;
+    if (mm_k_tmp)
+      ipt.k = mm_k_tmp;
+    if (mm_w_tmp)
+      ipt.w = mm_w_tmp;
 
     fn += ".hash"; // output hash: xxx.hash
 
