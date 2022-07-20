@@ -701,63 +701,64 @@ void AccAlign::pghole_wrapper(Read &R,
                               unsigned &fbest,
                               unsigned &rbest) {
   size_t rlen = strlen(R.seq);
-  unsigned kmer_step = kmer_len, nfregions = 0, nrregions = 0;
-  bool high_freq = false;
-  unsigned ori_slide = 0;
-
-  unsigned slide = kmer_len < rlen - kmer_len ? kmer_len : rlen - kmer_len;
   int err_threshold = 2;
 
-  mm128_v mv = {0, 0, 0};
-  void *km = nullptr;
+  if (enable_minimizer){
+    mm128_v mv = {0, 0, 0};
+    void *km = nullptr;
 
-  // cal minimizer
-  auto start = std::chrono::system_clock::now();
-  mm_sketch(km, R.fwd, rlen, mi->w, mi->k, 0, mi->flag & MM_I_HPC, &mv);
-  auto end = std::chrono::system_clock::now();
-  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-  mm_cal += elapsed.count();
+    // cal minimizer
+    auto start = std::chrono::system_clock::now();
+    mm_sketch(km, R.fwd, rlen, mi->w, mi->k, 0, mi->flag & MM_I_HPC, &mv);
+    auto end = std::chrono::system_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    mm_cal += elapsed.count();
 
-  int32_t mid_occ = 1000;
-  fetch_candidates(mv, mid_occ, rlen, err_threshold, fcandidate_regions, rcandidate_regions, fbest, rbest);
-
-  if (!fcandidate_regions.size() && !rcandidate_regions.size()) {
-    mid_occ = 5000;
+    int32_t mid_occ = 1000;
     fetch_candidates(mv, mid_occ, rlen, err_threshold, fcandidate_regions, rcandidate_regions, fbest, rbest);
-  }
 
-  delete mv.a;
+    if (!fcandidate_regions.size() && !rcandidate_regions.size()) {
+      mid_occ = 5000;
+      fetch_candidates(mv, mid_occ, rlen, err_threshold, fcandidate_regions, rcandidate_regions, fbest, rbest);
+    }
 
-//  // MAX_OCC, cov >= 2
-////  while (kmer_step > 0 && !nfregions && !nrregions) {
-//  while (ori_slide < slide && !nfregions && !nrregions) {
-//
-//    unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
-//
-//
-////    if (nkmers < 4) {
-//      //nkmer 3, 2, 1, top 2 cov of cov >=2, is 3, 2, is as same as cov>=2
-//      // as cov2 is faster than top2, use cov2
-//      pigeonhole_query(R.fwd, rlen, fcandidate_regions, '+', fbest, ori_slide, 2, kmer_step, MAX_OCC, high_freq);
-//      pigeonhole_query(R.rev, rlen, rcandidate_regions, '-', rbest, ori_slide, 2, kmer_step, MAX_OCC, high_freq);
-////    } else {
-////      pigeonhole_query_topcov(R.fwd, rlen, fcandidate_regions, '+', 2, kmer_step, MAX_OCC, fbest, ori_slide);
-////      pigeonhole_query_topcov(R.rev, rlen, rcandidate_regions, '-', 2, kmer_step, MAX_OCC, rbest, ori_slide);
-////    }
-//    nfregions = fcandidate_regions.size();
-//    nrregions = rcandidate_regions.size();
-//
-//    if (!nfregions && !nrregions) {
-//      pigeonhole_query(R.fwd, rlen, fcandidate_regions, '+', fbest, ori_slide, 1, kmer_step, MAX_OCC, high_freq);
-//      pigeonhole_query(R.rev, rlen, rcandidate_regions, '-', rbest, ori_slide, 1, kmer_step, MAX_OCC, high_freq);
-//      nfregions = fcandidate_regions.size();
-//      nrregions = rcandidate_regions.size();
+    delete mv.a;
+  } else {
+    bool high_freq = false;
+    unsigned kmer_step = kmer_len, nfregions = 0, nrregions = 0;
+    unsigned ori_slide = 0;
+    unsigned slide = kmer_len < rlen - kmer_len ? kmer_len : rlen - kmer_len;
+
+    // MAX_OCC, cov >= 2
+//  while (kmer_step > 0 && !nfregions && !nrregions) {
+    while (ori_slide < slide && !nfregions && !nrregions) {
+
+      unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
+
+//    if (nkmers < 4) {
+      //nkmer 3, 2, 1, top 2 cov of cov >=2, is 3, 2, is as same as cov>=2
+      // as cov2 is faster than top2, use cov2
+      pigeonhole_query(R.fwd, rlen, fcandidate_regions, '+', fbest, ori_slide, 2, kmer_step, MAX_OCC, high_freq);
+      pigeonhole_query(R.rev, rlen, rcandidate_regions, '-', rbest, ori_slide, 2, kmer_step, MAX_OCC, high_freq);
+//    } else {
+//      pigeonhole_query_topcov(R.fwd, rlen, fcandidate_regions, '+', 2, kmer_step, MAX_OCC, fbest, ori_slide);
+//      pigeonhole_query_topcov(R.rev, rlen, rcandidate_regions, '-', 2, kmer_step, MAX_OCC, rbest, ori_slide);
 //    }
-//
-//    R.kmer_step = kmer_step;
-//    ori_slide++;
-////    kmer_step = kmer_step / 2;
-//  }
+      nfregions = fcandidate_regions.size();
+      nrregions = rcandidate_regions.size();
+
+      if (!nfregions && !nrregions) {
+        pigeonhole_query(R.fwd, rlen, fcandidate_regions, '+', fbest, ori_slide, 1, kmer_step, MAX_OCC, high_freq);
+        pigeonhole_query(R.rev, rlen, rcandidate_regions, '-', rbest, ori_slide, 1, kmer_step, MAX_OCC, high_freq);
+        nfregions = fcandidate_regions.size();
+        nrregions = rcandidate_regions.size();
+      }
+
+      R.kmer_step = kmer_step;
+      ori_slide++;
+//    kmer_step = kmer_step / 2;
+    }
+  }
 
 }
 
@@ -1083,9 +1084,6 @@ void AccAlign::fetch_candidates(mm128_v &mv, int32_t mid_occ, size_t rlen, int e
 //      vector<Region> &fcandidate_regions, vector<Region> &rcandidate_regions,
 //      unsigned &fbest, unsigned &rbest)
 //
-//
-//
-//
 //  if (!fcandidate_regions.size() && !rcandidate_regions.size()){
 //    mid_occ = 5000;
 //    start = std::chrono::system_clock::now();
@@ -1289,68 +1287,25 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
 
   bool high_freq_1 = false, high_freq_2 = false; //read is from high repetitive region
   int mac_occ_1 = MAX_OCC, mac_occ_2 = MAX_OCC;
-//  mm(mate1.fwd, min_rlen, 2, region_f1, region_r1, best_f1, best_r1);
-//  mm(mate2.fwd, min_rlen, 2, region_f2, region_r2, best_f2, best_r2);
-//
-  mm128_v mv1 = {0, 0, 0};
-  mm128_v mv2 = {0, 0, 0};
-  void *km = nullptr;
   int err_threshold = 2;
 
-  // cal minimizer
-  auto start = std::chrono::system_clock::now();
-  mm_sketch(km, mate1.fwd, min_rlen, mi->w, mi->k, 0, mi->flag & MM_I_HPC, &mv1);
-  mm_sketch(km, mate2.fwd, min_rlen, mi->w, mi->k, 0, mi->flag & MM_I_HPC, &mv2);
-  auto end = std::chrono::system_clock::now();
-  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-  mm_cal += elapsed.count();
+  if (enable_minimizer) {
+    //  mm(mate1.fwd, min_rlen, 2, region_f1, region_r1, best_f1, best_r1);
+    //  mm(mate2.fwd, min_rlen, 2, region_f2, region_r2, best_f2, best_r2);
 
-  int32_t mid_occ = 1000;
-  fetch_candidates(mv1, mid_occ, min_rlen, err_threshold, region_f1, region_r1, best_f1, best_r1);
-  fetch_candidates(mv2, mid_occ, min_rlen, err_threshold, region_f2, region_r2, best_f2, best_r2);
+    mm128_v mv1 = {0, 0, 0};
+    mm128_v mv2 = {0, 0, 0};
+    void *km = nullptr;
 
-  // filter based on pairdis
-  flag_f1 = new bool[region_f1.size()]();
-  flag_r1 = new bool[region_r1.size()]();
-  flag_f2 = new bool[region_f2.size()]();
-  flag_r2 = new bool[region_r2.size()]();
-  has_f1r2 = pairdis_filter(region_f1, region_r2, flag_f1, flag_r2, best_f1, next_f1, best_r2, next_r2);
-  has_r1f2 = pairdis_filter(region_r1, region_f2, flag_r1, flag_f2, best_r1, next_r1, best_f2, next_f2);
+    // cal minimizer
+    auto start = std::chrono::system_clock::now();
+    mm_sketch(km, mate1.fwd, min_rlen, mi->w, mi->k, 0, mi->flag & MM_I_HPC, &mv1);
+    mm_sketch(km, mate2.fwd, min_rlen, mi->w, mi->k, 0, mi->flag & MM_I_HPC, &mv2);
+    auto end = std::chrono::system_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    mm_cal += elapsed.count();
 
-  if (!has_f1r2 && !has_r1f2) {
-    region_f1.clear();
-    region_f2.clear();
-    region_r1.clear();
-    region_r2.clear();
-    delete[] flag_f1;
-    delete[] flag_r1;
-    delete[] flag_f2;
-    delete[] flag_r2;
-
-    mid_occ = 5000;
-    fetch_candidates(mv1, mid_occ, min_rlen, err_threshold, region_f1, region_r1, best_f1, best_r1);
-    fetch_candidates(mv2, mid_occ, min_rlen, err_threshold, region_f2, region_r2, best_f2, best_r2);
-
-    flag_f1 = new bool[region_f1.size()]();
-    flag_r1 = new bool[region_r1.size()]();
-    flag_f2 = new bool[region_f2.size()]();
-    flag_r2 = new bool[region_r2.size()]();
-    has_f1r2 = pairdis_filter(region_f1, region_r2, flag_f1, flag_r2, best_f1, next_f1, best_r2, next_r2);
-    has_r1f2 = pairdis_filter(region_r1, region_f2, flag_r1, flag_f2, best_r1, next_r1, best_f2, next_f2);
-  }
-
-  if (!has_f1r2 && !has_r1f2) {
-    err_threshold = 1;
-    region_f1.clear();
-    region_f2.clear();
-    region_r1.clear();
-    region_r2.clear();
-    delete[] flag_f1;
-    delete[] flag_r1;
-    delete[] flag_f2;
-    delete[] flag_r2;
-
-    mid_occ = 1000;
+    int32_t mid_occ = 1000;
     fetch_candidates(mv1, mid_occ, min_rlen, err_threshold, region_f1, region_r1, best_f1, best_r1);
     fetch_candidates(mv2, mid_occ, min_rlen, err_threshold, region_f2, region_r2, best_f2, best_r2);
 
@@ -1383,44 +1338,91 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
       has_f1r2 = pairdis_filter(region_f1, region_r2, flag_f1, flag_r2, best_f1, next_f1, best_r2, next_r2);
       has_r1f2 = pairdis_filter(region_r1, region_f2, flag_r1, flag_f2, best_r1, next_r1, best_f2, next_f2);
     }
+
+    if (!has_f1r2 && !has_r1f2) {
+      err_threshold = 1;
+      region_f1.clear();
+      region_f2.clear();
+      region_r1.clear();
+      region_r2.clear();
+      delete[] flag_f1;
+      delete[] flag_r1;
+      delete[] flag_f2;
+      delete[] flag_r2;
+
+      mid_occ = 1000;
+      fetch_candidates(mv1, mid_occ, min_rlen, err_threshold, region_f1, region_r1, best_f1, best_r1);
+      fetch_candidates(mv2, mid_occ, min_rlen, err_threshold, region_f2, region_r2, best_f2, best_r2);
+
+      // filter based on pairdis
+      flag_f1 = new bool[region_f1.size()]();
+      flag_r1 = new bool[region_r1.size()]();
+      flag_f2 = new bool[region_f2.size()]();
+      flag_r2 = new bool[region_r2.size()]();
+      has_f1r2 = pairdis_filter(region_f1, region_r2, flag_f1, flag_r2, best_f1, next_f1, best_r2, next_r2);
+      has_r1f2 = pairdis_filter(region_r1, region_f2, flag_r1, flag_f2, best_r1, next_r1, best_f2, next_f2);
+
+      if (!has_f1r2 && !has_r1f2) {
+        region_f1.clear();
+        region_f2.clear();
+        region_r1.clear();
+        region_r2.clear();
+        delete[] flag_f1;
+        delete[] flag_r1;
+        delete[] flag_f2;
+        delete[] flag_r2;
+
+        mid_occ = 5000;
+        fetch_candidates(mv1, mid_occ, min_rlen, err_threshold, region_f1, region_r1, best_f1, best_r1);
+        fetch_candidates(mv2, mid_occ, min_rlen, err_threshold, region_f2, region_r2, best_f2, best_r2);
+
+        flag_f1 = new bool[region_f1.size()]();
+        flag_r1 = new bool[region_r1.size()]();
+        flag_f2 = new bool[region_f2.size()]();
+        flag_r2 = new bool[region_r2.size()]();
+        has_f1r2 = pairdis_filter(region_f1, region_r2, flag_f1, flag_r2, best_f1, next_f1, best_r2, next_r2);
+        has_r1f2 = pairdis_filter(region_r1, region_f2, flag_r1, flag_f2, best_r1, next_r1, best_f2, next_f2);
+      }
+    }
+
+    kfree(km, mv1.a);
+    kfree(km, mv2.a);
+  } else {
+
+    while (slide1 < slide && slide2 < slide) {
+//  while (kmer_step1 > 0 && kmer_step2 > 0) {
+      if (has_f1r2 || has_r1f2)
+        break;
+
+      pghole_wrapper_mates(mate1, region_f1, region_r1, best_f1, best_r1, slide1, kmer_step1, mac_occ_1, high_freq_1);
+      pghole_wrapper_mates(mate2, region_f2, region_r2, best_f2, best_r2, slide2, kmer_step2, mac_occ_2, high_freq_2);
+
+      // filter based on pairdis
+      flag_f1 = new bool[region_f1.size()]();
+      flag_r1 = new bool[region_r1.size()]();
+      flag_f2 = new bool[region_f2.size()]();
+      flag_r2 = new bool[region_r2.size()]();
+      has_f1r2 = pairdis_filter(region_f1, region_r2, flag_f1, flag_r2, best_f1, next_f1, best_r2, next_r2);
+      has_r1f2 = pairdis_filter(region_r1, region_f2, flag_r1, flag_f2, best_r1, next_r1, best_f2, next_f2);
+
+      if (!has_f1r2 && !has_r1f2) {
+        region_f1.clear();
+        region_f2.clear();
+        region_r1.clear();
+        region_r2.clear();
+        delete[] flag_f1;
+        delete[] flag_r1;
+        delete[] flag_f2;
+        delete[] flag_r2;
+      }
+
+      slide1++;
+      slide2++;
+//    kmer_step1 /= 2;
+//    kmer_step2 /= 2;
+    }
   }
 
-  kfree(km, mv1.a);
-  kfree(km, mv2.a);
-
-//
-//  while (slide1 < slide && slide2 < slide) {
-////  while (kmer_step1 > 0 && kmer_step2 > 0) {
-//    if (has_f1r2 || has_r1f2)
-//      break;
-//
-//    pghole_wrapper_mates(mate1, region_f1, region_r1, best_f1, best_r1, slide1, kmer_step1, mac_occ_1, high_freq_1);
-//    pghole_wrapper_mates(mate2, region_f2, region_r2, best_f2, best_r2, slide2, kmer_step2, mac_occ_2, high_freq_2);
-//
-//    // filter based on pairdis
-//    flag_f1 = new bool[region_f1.size()]();
-//    flag_r1 = new bool[region_r1.size()]();
-//    flag_f2 = new bool[region_f2.size()]();
-//    flag_r2 = new bool[region_r2.size()]();
-//    has_f1r2 = pairdis_filter(region_f1, region_r2, flag_f1, flag_r2, best_f1, next_f1, best_r2, next_r2);
-//    has_r1f2 = pairdis_filter(region_r1, region_f2, flag_r1, flag_f2, best_r1, next_r1, best_f2, next_f2);
-//
-//    if (!has_f1r2 && !has_r1f2) {
-//      region_f1.clear();
-//      region_f2.clear();
-//      region_r1.clear();
-//      region_r2.clear();
-//      delete[] flag_f1;
-//      delete[] flag_r1;
-//      delete[] flag_f2;
-//      delete[] flag_r2;
-//    }
-//
-//    slide1++;
-//    slide2++;
-////    kmer_step1 /= 2;
-////    kmer_step2 /= 2;
-//  }
 }
 
 void AccAlign::embed_wrapper_pair(Read &R1, Read &R2,
