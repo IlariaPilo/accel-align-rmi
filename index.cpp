@@ -207,7 +207,7 @@ int main(int ac, char **av) {
     cerr << "\t-m enable minimizer\n";
     cerr << "\t-k minimizer: k, kmer size \n";
     cerr << "\t-w minimizer: w, window size \n";
-    cerr << "\t-b bisulfite sequencing read alignment mode \n";
+    cerr << "\t-s bisulfite sequencing read alignment mode \n";
     return 0;
   }
 
@@ -222,7 +222,7 @@ int main(int ac, char **av) {
       mm_k_tmp = atoi(av[it + 1]);
     else if (strcmp(av[it], "-w") == 0)
       mm_w_tmp = atoi(av[it + 1]);
-    else if (strcmp(av[it], "-b") == 0)
+    else if (strcmp(av[it], "-s") == 0)
       enable_bs = true;
   }
   string fn = av[ac - 1]; //input ref file name
