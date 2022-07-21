@@ -4,7 +4,7 @@ using namespace std;
 const unsigned mod = (1UL << 29) - 1;
 const unsigned step = 1;
 unsigned kmer;
-bool enable_idx_minimizer = false;
+bool enable_idx_minimizer = false, enable_bs = false; //short for bisulfite reads
 
 struct Data {
   uint32_t key, pos;
@@ -21,12 +21,12 @@ class Index {
  private:
   string ref;
  public:
-  bool load_ref(const char *F);
-  bool make_index(const char *F);
+  bool load_ref(const char *F, char mode);
+  bool make_index(const char *F, int id);
   void cal_key(size_t i, vector<Data> &data);
 };
 
-bool Index::load_ref(const char *F) {
+bool Index::load_ref(const char *F, char mode) {
   char code[256], buf[65536];
   for (size_t i = 0; i < 256; i++)
     code[i] = 4;
@@ -34,6 +34,12 @@ bool Index::load_ref(const char *F) {
   code['C'] = code['c'] = 1;
   code['G'] = code['g'] = 2;
   code['T'] = code['t'] = 3;
+
+  if (mode == 'c')
+    code['C'] = code['c'] = 3;
+  else if (mode == 'g')
+    code['G'] = code['g'] = 0;
+
   cerr << "Loading ref\n";
   FILE *f = fopen(F, "rb");
   if (f == NULL)
@@ -86,7 +92,7 @@ class Tbb_cal_key {
   }
 };
 
-bool Index::make_index(const char *F) {
+bool Index::make_index(const char *F, int id) {
   size_t limit = ref.size() - kmer + 1;
   size_t vsz;
   if (step == 1)
@@ -113,7 +119,10 @@ bool Index::make_index(const char *F) {
 
   cerr << "writing\n";
   string fn = F;
-  fn += ".hash";
+  if (id)
+    fn += ".hash.part" + to_string(id);
+  else
+    fn += ".hash";
   ofstream fo(fn.c_str(), ios::binary);
 
   // determine the number of valid entries based on first junk entry
@@ -198,6 +207,7 @@ int main(int ac, char **av) {
     cerr << "\t-m enable minimizer\n";
     cerr << "\t-k minimizer: k, kmer size \n";
     cerr << "\t-w minimizer: w, window size \n";
+    cerr << "\t-b bisulfite sequencing read alignment mode \n";
     return 0;
   }
 
@@ -212,6 +222,8 @@ int main(int ac, char **av) {
       mm_k_tmp = atoi(av[it + 1]);
     else if (strcmp(av[it], "-w") == 0)
       mm_w_tmp = atoi(av[it + 1]);
+    else if (strcmp(av[it], "-b") == 0)
+      enable_bs = true;
   }
   string fn = av[ac - 1]; //input ref file name
 
@@ -228,15 +240,34 @@ int main(int ac, char **av) {
 
     mm_idx_reader_t *idx_rdr = mm_idx_reader_open(av[ac - 1], &ipt, fn.c_str());
     mm_idx_reader_read(idx_rdr, n_threads);
+  } else if (enable_bs) {
+    kmer = kmer_temp ? kmer_temp: 32;
+    cerr << "Using kmer length " << kmer << " and step size " << step << endl;
+
+    cerr << "==== convert reference C to T ===="  << endl;
+    Index ic;
+    if (!ic.load_ref(fn.c_str(), 'c'))
+      return 0;
+    if (!ic.make_index(fn.c_str(), 1))
+      return 0;
+
+    cerr << "==== convert reference G to A ===="  << endl;
+    Index ig;
+    if (!ig.load_ref(fn.c_str(), 'g'))
+      return 0;
+    if (!ig.make_index(fn.c_str(), 2))
+      return 0;
+
+    cerr << "hash1 and hash2 have been generated"  << endl;
   } else {
     kmer = kmer_temp ? kmer_temp: 32;
 
     cerr << "Using kmer length " << kmer << " and step size " << step << endl;
 
     Index i;
-    if (!i.load_ref(fn.c_str()))
+    if (!i.load_ref(fn.c_str(), ' '))
       return 0;
-    if (!i.make_index(fn.c_str()))
+    if (!i.make_index(fn.c_str(), 0))
       return 0;
   }
 
