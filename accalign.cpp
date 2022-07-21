@@ -12,7 +12,7 @@ unsigned pairdis = 1000;
 string g_out, g_batch_file, g_embed_file;
 char rcsymbol[6] = "TGCAN";
 uint8_t code[256];
-bool enable_extension = true, enable_wfa_extension = false, extend_all = false, enable_minimizer = false;
+bool enable_extension = true, enable_wfa_extension = false, extend_all = false, enable_minimizer = false, enable_bs = false;
 
 
 int g_ncpus = 1;
@@ -91,6 +91,7 @@ void print_usage() {
   cerr << "\t-p Maximum distance allowed between the paired-end reads [1000]\n";
   cerr << "\t-d Disable embedding, extend all candidates from seeding (this mode is super slow, only for benchmark).\n";
   cerr << "\t-m Seeding with minimizer.\n";
+  cerr << "\t-s bisulfite sequencing read alignment mode \n";
 
 }
 
@@ -2967,6 +2968,10 @@ int main(int ac, char **av) {
         flag = true;
       } else if (av[opn][1] == 'm') {
         enable_minimizer = true;
+        opn += 1;
+        flag = true;
+      } else if (av[opn][1] == 's') {
+        enable_bs = true;
         opn += 1;
         flag = true;
       } else {
