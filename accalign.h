@@ -3,10 +3,11 @@
 #include "mmpriv.h"
 class AccAlign {
  private:
-  std::string &ref;
-  std::vector<std::string> &name;
-  std::vector<uint32_t> &offset;
+//  std::string &ref;
+//  std::vector<std::string> &name;
+//  std::vector<uint32_t> &offset;
   Embedding *embedding;
+
 
   float input_io_time, parse_time;
   float seeding_time, hit_count_time, vpair_build_time;
@@ -72,8 +73,9 @@ class AccAlign {
   inline uint64_t normalize_pos(uint64_t cr, uint32_t q_pos, int k, int rlen);
 
  public:
-  uint32_t *keyv, *posv;
-  mm_idx_t *mi;
+  Reference *refs;
+//  uint32_t *keyv, *posv;
+//  mm_idx_t *mi;
 
   void open_output(std::string &out_file);
   void close_output();
@@ -98,7 +100,7 @@ class AccAlign {
   void fetch_candidates(mm128_v &mv, int32_t mid_occ, size_t rlen, int err_threshold,
                         vector<Region> &fcandidate_regions, vector<Region> &rcandidate_regions,
                         unsigned &fbest, unsigned &rbest);
-  AccAlign(Reference &r);
+  AccAlign(Reference *r);
   ~AccAlign();
 };
 
