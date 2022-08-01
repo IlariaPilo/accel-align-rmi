@@ -73,9 +73,34 @@ class AccAlign {
   inline uint64_t normalize_pos(uint64_t cr, uint32_t q_pos, int k, int rlen);
 
  public:
-  Reference *refs;
+  Reference **refs;
 //  uint32_t *keyv, *posv;
 //  mm_idx_t *mi;
+
+  std::string& get_ref(){
+    return refs[0]->ref;
+  }
+
+  std::vector<std::string>& get_name(){
+    return refs[0]->name;
+  };
+
+  std::vector<uint32_t>& get_offset(){
+      return refs[0]->offset;
+  };
+
+  uint32_t* get_keyv(){
+    return refs[0]->keyv;
+  };
+
+  uint32_t* get_posv(){
+    return refs[0]->posv;
+  };
+
+  mm_idx_t* get_mi(){
+    return refs[0]->mi;
+  };
+
 
   void open_output(std::string &out_file);
   void close_output();
@@ -100,7 +125,7 @@ class AccAlign {
   void fetch_candidates(mm128_v &mv, int32_t mid_occ, size_t rlen, int err_threshold,
                         vector<Region> &fcandidate_regions, vector<Region> &rcandidate_regions,
                         unsigned &fbest, unsigned &rbest);
-  AccAlign(Reference *r);
+  AccAlign(Reference **r);
   ~AccAlign();
 };
 
