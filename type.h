@@ -31,11 +31,15 @@ struct Region {
 
 struct Read {
   char name[MAX_LEN], qua[MAX_LEN], seq[MAX_LEN], fwd[MAX_LEN], rev[MAX_LEN], rev_str[MAX_LEN], cigar[MAX_LEN];
-  int tid, as, nm, best, secBest;
+  int tid, as, nm, best, secBest, best_optional, secBest_optional, ref_id, rlen;
   uint32_t pos;
-  char strand;
   short mapq, kmer_step; //kmer_step used that find the seed
+  char strand;
   Region best_region;
+
+  char strand_optional;
+  Region best_region_optional;
+
   bool force_align = false;
 
   friend gzFile &operator>>(gzFile &in, Read &r);

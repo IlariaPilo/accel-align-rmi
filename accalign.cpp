@@ -334,11 +334,11 @@ class Parallel_mapper {
   void operator()(const tbb::blocked_range<size_t> &r) const {
     if (!all_reads2) {
       for (size_t i = r.begin(); i != r.end(); ++i) {
-        acc_obj->map_read(*(all_reads1 + i));
+        acc_obj->map_read_wrapper(*(all_reads1 + i));
       }
     } else {
       for (size_t i = r.begin(); i != r.end(); ++i) {
-        acc_obj->map_paired_read(*(all_reads1 + i), *(all_reads2 + i));
+        acc_obj->map_paired_read_wrapper(*(all_reads1 + i), *(all_reads2 + i));
       }
     }
   }
@@ -372,19 +372,23 @@ void AccAlign::cpu_root_fn(tbb::concurrent_bounded_queue<ReadCnt> *inputQ,
   cerr << "CPU Root function quitting.." << endl;
 }
 
-void AccAlign::mark_for_extension(Read &read, char S, Region &cregion) {
-  read.strand = S;
+void AccAlign::mark_for_extension(Read &read, char S, Region &cregion, int ref_id) {
   int rlen = strlen(read.seq);
 
-  cregion.re = cregion.rs + rlen < get_ref().size() ? cregion.rs + rlen :
-               get_ref().size();
+  cregion.re = cregion.rs + rlen < get_ref(ref_id).size() ? cregion.rs + rlen : get_ref(ref_id).size();
 
   char *strand = S == '+' ? read.fwd : read.rev;
 
   if (cregion.embed_dist && !enable_extension)
-    rectify_start_pos(strand, cregion, rlen);
+    rectify_start_pos(strand, cregion, rlen, ref_id);
 
-  read.best_region = cregion;
+  if (ref_id == 0){
+    read.strand = S;
+    read.best_region = cregion;
+  } else {
+    read.strand_optional = S;
+    read.best_region_optional = cregion;
+  }
 }
 
 void AccAlign::pigeonhole_query_topcov(char *Q,
@@ -395,7 +399,8 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
                                        unsigned kmer_step,
                                        unsigned max_occ,
                                        unsigned &best,
-                                       unsigned ori_slide) {
+                                       unsigned ori_slide,
+                                       int ref_id) {
   int max_cov = 0;
   unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
   size_t ntotal_hits = 0;
@@ -412,8 +417,8 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
     for (size_t j = i; j < i + kmer_len; j++)
       k = (k << 2) + *(Q + j);
     size_t hash = (k & mask) % MOD;
-    b[kmer_idx] = get_keyv()[hash];
-    e[kmer_idx] = get_keyv()[hash + 1];
+    b[kmer_idx] = get_keyv(ref_id)[hash];
+    e[kmer_idx] = get_keyv(ref_id)[hash + 1];
     if (e[kmer_idx] - b[kmer_idx] >= max_occ)
       nseed_freq++;
 //    if (e[kmer_idx] - b[kmer_idx] < max_occ) {
@@ -447,7 +452,7 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   for (unsigned i = 0; i < nkmers; i++) {
     if (b[i] < e[i] && ((!high_freq && e[i] - b[i] < max_occ) || high_freq)) {
 //    if (b[i] < e[i] && e[i] - b[i] < max_occ) {
-      top_pos[i] = get_posv()[b[i]];
+      top_pos[i] = get_posv(ref_id)[b[i]];
       rel_off[i] = i * kmer_step;
       uint32_t shift_pos = rel_off[i] + ori_slide_bk;
       //TODO: for each chrome, happen to < the start pos
@@ -487,7 +492,7 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
     if ((!high_freq && e[min_kmer] - b[min_kmer] < max_occ) || high_freq) {
 //    if (e[min_kmer] - b[min_kmer] < max_occ) {
       // kick off prefetch for next round
-      __builtin_prefetch(get_posv() + b[min_kmer] + 1);
+      __builtin_prefetch(get_posv(ref_id) + b[min_kmer] + 1);
 
       // if previous min element was same as current one, increment coverage.
       // otherwise, check if last min element's coverage was high enough to make it a candidate region
@@ -520,7 +525,7 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
 
     // add next element
     b[min_kmer]++;
-    uint32_t next_pos = b[min_kmer] < e[min_kmer] ? get_posv()[b[min_kmer]] : MAX_POS;
+    uint32_t next_pos = b[min_kmer] < e[min_kmer] ? get_posv(ref_id)[b[min_kmer]] : MAX_POS;
     if (next_pos != MAX_POS) {
       uint32_t shift_pos = rel_off[min_kmer] + ori_slide_bk;
       //TODO: for each chrome, happen to < the start pos
@@ -575,7 +580,8 @@ void AccAlign::pigeonhole_query_sort(char *Q,
                                      unsigned kmer_step,
                                      unsigned max_occ,
                                      unsigned &best,
-                                     unsigned ori_slide) {
+                                     unsigned ori_slide,
+                                     int ref_id) {
   unsigned max_cov = 0;
   unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
   size_t ntotal_hits = 0;
@@ -591,8 +597,8 @@ void AccAlign::pigeonhole_query_sort(char *Q,
     for (size_t j = i; j < i + kmer_len; j++)
       k = (k << 2) + *(Q + j);
     size_t hash = (k & mask) % MOD;
-    b[kmer_idx] = get_keyv()[hash];
-    e[kmer_idx] = get_keyv()[hash + 1];
+    b[kmer_idx] = get_keyv(ref_id)[hash];
+    e[kmer_idx] = get_keyv(ref_id)[hash + 1];
     if (e[kmer_idx] - b[kmer_idx] >= max_occ)
       nseed_freq++;
 //    if (e[kmer_idx] - b[kmer_idx] < max_occ) {
@@ -627,7 +633,7 @@ void AccAlign::pigeonhole_query_sort(char *Q,
 //    if (b[i] < e[i] && e[i] - b[i] < max_occ) {
       for (uint32_t j = b[i]; j < e[i]; j++) {
         Region r;
-        r.rs = get_posv()[j];
+        r.rs = get_posv(ref_id)[j];
         r.qs = i * kmer_step + ori_slide;
         r.rs -= min(r.rs, r.qs);
         regions.push_back(r);
@@ -703,7 +709,7 @@ void AccAlign::pghole_wrapper(Read &R,
                               vector<Region> &fcandidate_regions,
                               vector<Region> &rcandidate_regions,
                               unsigned &fbest,
-                              unsigned &rbest) {
+                              unsigned &rbest, int ref_id) {
   size_t rlen = strlen(R.seq);
   int err_threshold = 2;
 
@@ -713,17 +719,17 @@ void AccAlign::pghole_wrapper(Read &R,
 
     // cal minimizer
     auto start = std::chrono::system_clock::now();
-    mm_sketch(km, R.fwd, rlen, get_mi()->w, get_mi()->k, 0, get_mi()->flag & MM_I_HPC, &mv);
+    mm_sketch(km, R.fwd, rlen, get_mi(ref_id)->w, get_mi(ref_id)->k, 0, get_mi(ref_id)->flag & MM_I_HPC, &mv);
     auto end = std::chrono::system_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     mm_cal += elapsed.count();
 
     int32_t mid_occ = 1000;
-    fetch_candidates(mv, mid_occ, rlen, err_threshold, fcandidate_regions, rcandidate_regions, fbest, rbest);
+    fetch_candidates(mv, mid_occ, rlen, err_threshold, fcandidate_regions, rcandidate_regions, fbest, rbest, ref_id);
 
     if (!fcandidate_regions.size() && !rcandidate_regions.size()) {
       mid_occ = 5000;
-      fetch_candidates(mv, mid_occ, rlen, err_threshold, fcandidate_regions, rcandidate_regions, fbest, rbest);
+      fetch_candidates(mv, mid_occ, rlen, err_threshold, fcandidate_regions, rcandidate_regions, fbest, rbest, ref_id);
     }
 
     delete mv.a;
@@ -742,18 +748,18 @@ void AccAlign::pghole_wrapper(Read &R,
     if (nkmers < 4) {
       //nkmer 3, 2, 1, top 2 cov of cov >=2, is 3, 2, is as same as cov>=2
       // as cov2 is faster than top2, use cov2
-      pigeonhole_query(R.fwd, rlen, fcandidate_regions, '+', fbest, ori_slide, 2, kmer_step, MAX_OCC, high_freq);
-      pigeonhole_query(R.rev, rlen, rcandidate_regions, '-', rbest, ori_slide, 2, kmer_step, MAX_OCC, high_freq);
+      pigeonhole_query(R.fwd, rlen, fcandidate_regions, '+', fbest, ori_slide, 2, kmer_step, MAX_OCC, high_freq, ref_id);
+      pigeonhole_query(R.rev, rlen, rcandidate_regions, '-', rbest, ori_slide, 2, kmer_step, MAX_OCC, high_freq, ref_id);
     } else {
-      pigeonhole_query_topcov(R.fwd, rlen, fcandidate_regions, '+', 2, kmer_step, MAX_OCC, fbest, ori_slide);
-      pigeonhole_query_topcov(R.rev, rlen, rcandidate_regions, '-', 2, kmer_step, MAX_OCC, rbest, ori_slide);
+      pigeonhole_query_topcov(R.fwd, rlen, fcandidate_regions, '+', 2, kmer_step, MAX_OCC, fbest, ori_slide, ref_id);
+      pigeonhole_query_topcov(R.rev, rlen, rcandidate_regions, '-', 2, kmer_step, MAX_OCC, rbest, ori_slide, ref_id);
     }
       nfregions = fcandidate_regions.size();
       nrregions = rcandidate_regions.size();
 
       if (!nfregions && !nrregions) {
-        pigeonhole_query(R.fwd, rlen, fcandidate_regions, '+', fbest, ori_slide, 1, kmer_step, MAX_OCC, high_freq);
-        pigeonhole_query(R.rev, rlen, rcandidate_regions, '-', rbest, ori_slide, 1, kmer_step, MAX_OCC, high_freq);
+        pigeonhole_query(R.fwd, rlen, fcandidate_regions, '+', fbest, ori_slide, 1, kmer_step, MAX_OCC, high_freq, ref_id);
+        pigeonhole_query(R.rev, rlen, rcandidate_regions, '-', rbest, ori_slide, 1, kmer_step, MAX_OCC, high_freq, ref_id);
         nfregions = fcandidate_regions.size();
         nrregions = rcandidate_regions.size();
       }
@@ -808,10 +814,10 @@ inline uint64_t AccAlign::normalize_pos(uint64_t cr, uint32_t q_pos, int k, int 
   return normalized;
 }
 
-inline uint32_t AccAlign::get_global_pos(uint64_t cr) {
+inline uint32_t AccAlign::get_global_pos(uint64_t cr, int ref_id) {
   uint32_t rid = (cr & 0xffffffff00000000) >> 32;
   uint32_t pos = (cr & 0x00000000ffffffff) >> 1;
-  uint32_t g_pos = get_offset()[rid] + pos;
+  uint32_t g_pos = get_offset(ref_id)[rid] + pos;
 
   return g_pos;
 }
@@ -914,7 +920,7 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0,
                                                vector<Region> &candidate_regions,
                                                vector<Region> &rcandidate_regions,
                                                unsigned &best,
-                                               unsigned &rbest) {
+                                               unsigned &rbest, int ref_id) {
   if (!n_a)
     return;
 
@@ -925,7 +931,7 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0,
   memset(idx, 0, sizeof(size_t) * n_m0);
   uint64_t top_pos[n_m0], MAX_POS = numeric_limits<uint64_t>::max();
 
-  int32_t k = get_mi()->k;
+  int32_t k = get_mi(ref_id)->k;
 
   for (size_t i = 0; i < n_m0; ++i) {
     ntotal_hits += m[i].n;
@@ -957,7 +963,7 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0,
         merge_interval(r, last_q_pos, k);
         r.qs = r.matched_intervals[0].s; //let it be the first match seed, so the left extension could be accurate
         r.qe = r.matched_intervals[0].e;
-        r.rs = get_global_pos(last_pos);
+        r.rs = get_global_pos(last_pos, ref_id);
 
         if (!(last_pos & 1)) { //fwd
           if (last_cov >= max_cov) {
@@ -999,7 +1005,7 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0,
       merge_interval(r, last_q_pos, k);
       r.qs = r.matched_intervals[0].s; //let it be the first match seed, so the left extension could be accurate
       r.qe = r.matched_intervals[0].e;
-      r.rs = get_global_pos(last_pos);
+      r.rs = get_global_pos(last_pos, ref_id);
 
       if (!(last_pos & 1)) { //fwd
         if (last_cov >= max_cov) {
@@ -1022,7 +1028,7 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0,
 
 void AccAlign::fetch_candidates(mm128_v &mv, int32_t mid_occ, size_t rlen, int err_threshold,
                                 vector<Region> &fcandidate_regions, vector<Region> &rcandidate_regions,
-                                unsigned &fbest, unsigned &rbest) {
+                                unsigned &fbest, unsigned &rbest, int ref_id) {
   // fetch the position
   auto start = std::chrono::system_clock::now();
 
@@ -1035,7 +1041,7 @@ void AccAlign::fetch_candidates(mm128_v &mv, int32_t mid_occ, size_t rlen, int e
   int64_t n_a;
   uint64_t *mini_pos;
   mm_seed_t *m = mm_collect_matches(km, &n_m0, rlen, mid_occ, max_max_occ, occ_dist,
-                                    get_mi(), &mv, &n_a, &rep_len, &n_mini_pos, &mini_pos);
+                                    get_mi(ref_id), &mv, &n_a, &rep_len, &n_mini_pos, &mini_pos);
 
 //  mm_mapopt_t opt;
 //  opt.flag = 0;
@@ -1061,7 +1067,7 @@ void AccAlign::fetch_candidates(mm128_v &mv, int32_t mid_occ, size_t rlen, int e
                                   fcandidate_regions,
                                   rcandidate_regions,
                                   fbest,
-                                  rbest);
+                                  rbest, ref_id);
   end = std::chrono::system_clock::now();
   elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
   mm_hit_cnt += elapsed.count();
@@ -1114,7 +1120,7 @@ void AccAlign::pigeonhole_query(char *Q,
                                 int err_threshold,
                                 unsigned kmer_step,
                                 unsigned max_occ,
-                                bool &high_freq) {
+                                bool &high_freq, int ref_id) {
   int max_cov = 0;
   unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
   size_t ntotal_hits = 0;
@@ -1129,8 +1135,8 @@ void AccAlign::pigeonhole_query(char *Q,
     for (size_t j = i; j < i + kmer_len; j++)
       k = (k << 2) + *(Q + j);
     size_t hash = (k & mask) % MOD;
-    b[kmer_idx] = get_keyv()[hash];
-    e[kmer_idx] = get_keyv()[hash + 1];
+    b[kmer_idx] = get_keyv(ref_id)[hash];
+    e[kmer_idx] = get_keyv(ref_id)[hash + 1];
     if (e[kmer_idx] - b[kmer_idx] >= max_occ)
       nseed_freq++;
     kmer_idx++;
@@ -1159,7 +1165,7 @@ void AccAlign::pigeonhole_query(char *Q,
   // initialize top values with first values for each kmer.
   for (unsigned i = 0; i < nkmers; i++) {
     if (b[i] < e[i] && ((!high_freq && e[i] - b[i] < max_occ) || high_freq)) {
-      top_pos[i] = get_posv()[b[i]];
+      top_pos[i] = get_posv(ref_id)[b[i]];
       rel_off[i] = i * kmer_step;
       uint32_t shift_pos = rel_off[i] + ori_slide;
       top_pos[i] -= min(top_pos[i], shift_pos); //pos can't <0, e.g. insertion before this kmer, set 0 instead of -1
@@ -1187,7 +1193,7 @@ void AccAlign::pigeonhole_query(char *Q,
 
     if ((!high_freq && e[min_kmer] - b[min_kmer] < max_occ) || high_freq) {
       // kick off prefetch for next round
-      __builtin_prefetch(get_posv() + b[min_kmer] + 1);
+      __builtin_prefetch(get_posv(ref_id) + b[min_kmer] + 1);
 
       // if previous min element was same as current one, increment coverage.
       // otherwise, check if last min element's coverage was high enough to make it a candidate region
@@ -1219,7 +1225,7 @@ void AccAlign::pigeonhole_query(char *Q,
 
     // add next element
     b[min_kmer]++;
-    uint32_t next_pos = b[min_kmer] < e[min_kmer] ? get_posv()[b[min_kmer]] : MAX_POS;
+    uint32_t next_pos = b[min_kmer] < e[min_kmer] ? get_posv(ref_id)[b[min_kmer]] : MAX_POS;
     if (next_pos != MAX_POS) {
       uint32_t shift_pos = rel_off[min_kmer] + ori_slide;
       *min_item = next_pos - min(next_pos, shift_pos);
@@ -1260,19 +1266,19 @@ void AccAlign::pghole_wrapper_mates(Read &R,
                                     unsigned &fbest,
                                     unsigned &rbest,
                                     unsigned ori_slide,
-                                    unsigned kmer_step, unsigned max_occ, bool &high_freq) {
+                                    unsigned kmer_step, unsigned max_occ, bool &high_freq, int ref_id) {
   unsigned rlen = strlen(R.seq);
 
   // MAX_OCC, cov >= 2
-  pigeonhole_query(R.fwd, rlen, fcandidate_regions, '+', fbest, ori_slide, 2, kmer_step, max_occ, high_freq);
-  pigeonhole_query(R.rev, rlen, rcandidate_regions, '-', rbest, ori_slide, 2, kmer_step, max_occ, high_freq);
+  pigeonhole_query(R.fwd, rlen, fcandidate_regions, '+', fbest, ori_slide, 2, kmer_step, max_occ, high_freq, ref_id);
+  pigeonhole_query(R.rev, rlen, rcandidate_regions, '-', rbest, ori_slide, 2, kmer_step, max_occ, high_freq, ref_id);
   R.kmer_step = kmer_step;
   unsigned nfregions = fcandidate_regions.size();
   unsigned nrregions = rcandidate_regions.size();
 
   if (!nfregions && !nrregions) {
-    pigeonhole_query(R.fwd, rlen, fcandidate_regions, '+', fbest, ori_slide, 1, kmer_step, max_occ, high_freq);
-    pigeonhole_query(R.rev, rlen, rcandidate_regions, '-', rbest, ori_slide, 1, kmer_step, max_occ, high_freq);
+    pigeonhole_query(R.fwd, rlen, fcandidate_regions, '+', fbest, ori_slide, 1, kmer_step, max_occ, high_freq, ref_id);
+    pigeonhole_query(R.rev, rlen, rcandidate_regions, '-', rbest, ori_slide, 1, kmer_step, max_occ, high_freq, ref_id);
   }
 }
 
@@ -1283,7 +1289,7 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
                                    unsigned &best_f1, unsigned &best_r1, unsigned &best_f2, unsigned &best_r2,
                                    unsigned &next_f1, unsigned &next_r1, unsigned &next_f2, unsigned &next_r2,
                                    bool *&flag_f1, bool *&flag_r1, bool *&flag_f2, bool *&flag_r2,
-                                   bool &has_f1r2, bool &has_r1f2) {
+                                   bool &has_f1r2, bool &has_r1f2, int ref_id) {
   int min_rlen = strlen(mate1.seq) < strlen(mate2.seq) ? strlen(mate1.seq) : strlen(mate2.seq);
   unsigned slide = kmer_len < min_rlen - kmer_len ? kmer_len : min_rlen - kmer_len;
   unsigned kmer_step1 = kmer_len, kmer_step2 = kmer_len;
@@ -1303,15 +1309,15 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
 
     // cal minimizer
     auto start = std::chrono::system_clock::now();
-    mm_sketch(km, mate1.fwd, min_rlen, get_mi()->w, get_mi()->k, 0, get_mi()->flag & MM_I_HPC, &mv1);
-    mm_sketch(km, mate2.fwd, min_rlen, get_mi()->w, get_mi()->k, 0, get_mi()->flag & MM_I_HPC, &mv2);
+    mm_sketch(km, mate1.fwd, min_rlen, get_mi(ref_id)->w, get_mi(ref_id)->k, 0, get_mi(ref_id)->flag & MM_I_HPC, &mv1);
+    mm_sketch(km, mate2.fwd, min_rlen, get_mi(ref_id)->w, get_mi(ref_id)->k, 0, get_mi(ref_id)->flag & MM_I_HPC, &mv2);
     auto end = std::chrono::system_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     mm_cal += elapsed.count();
 
     int32_t mid_occ = 1000;
-    fetch_candidates(mv1, mid_occ, min_rlen, err_threshold, region_f1, region_r1, best_f1, best_r1);
-    fetch_candidates(mv2, mid_occ, min_rlen, err_threshold, region_f2, region_r2, best_f2, best_r2);
+    fetch_candidates(mv1, mid_occ, min_rlen, err_threshold, region_f1, region_r1, best_f1, best_r1, ref_id);
+    fetch_candidates(mv2, mid_occ, min_rlen, err_threshold, region_f2, region_r2, best_f2, best_r2, ref_id);
 
     // filter based on pairdis
     flag_f1 = new bool[region_f1.size()]();
@@ -1332,8 +1338,8 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
       delete[] flag_r2;
 
       mid_occ = 5000;
-      fetch_candidates(mv1, mid_occ, min_rlen, err_threshold, region_f1, region_r1, best_f1, best_r1);
-      fetch_candidates(mv2, mid_occ, min_rlen, err_threshold, region_f2, region_r2, best_f2, best_r2);
+      fetch_candidates(mv1, mid_occ, min_rlen, err_threshold, region_f1, region_r1, best_f1, best_r1, ref_id);
+      fetch_candidates(mv2, mid_occ, min_rlen, err_threshold, region_f2, region_r2, best_f2, best_r2, ref_id);
 
       flag_f1 = new bool[region_f1.size()]();
       flag_r1 = new bool[region_r1.size()]();
@@ -1355,8 +1361,8 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
       delete[] flag_r2;
 
       mid_occ = 1000;
-      fetch_candidates(mv1, mid_occ, min_rlen, err_threshold, region_f1, region_r1, best_f1, best_r1);
-      fetch_candidates(mv2, mid_occ, min_rlen, err_threshold, region_f2, region_r2, best_f2, best_r2);
+      fetch_candidates(mv1, mid_occ, min_rlen, err_threshold, region_f1, region_r1, best_f1, best_r1, ref_id);
+      fetch_candidates(mv2, mid_occ, min_rlen, err_threshold, region_f2, region_r2, best_f2, best_r2, ref_id);
 
       // filter based on pairdis
       flag_f1 = new bool[region_f1.size()]();
@@ -1377,8 +1383,8 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
         delete[] flag_r2;
 
         mid_occ = 5000;
-        fetch_candidates(mv1, mid_occ, min_rlen, err_threshold, region_f1, region_r1, best_f1, best_r1);
-        fetch_candidates(mv2, mid_occ, min_rlen, err_threshold, region_f2, region_r2, best_f2, best_r2);
+        fetch_candidates(mv1, mid_occ, min_rlen, err_threshold, region_f1, region_r1, best_f1, best_r1, ref_id);
+        fetch_candidates(mv2, mid_occ, min_rlen, err_threshold, region_f2, region_r2, best_f2, best_r2, ref_id);
 
         flag_f1 = new bool[region_f1.size()]();
         flag_r1 = new bool[region_r1.size()]();
@@ -1398,8 +1404,8 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
       if (has_f1r2 || has_r1f2)
         break;
 
-      pghole_wrapper_mates(mate1, region_f1, region_r1, best_f1, best_r1, slide1, kmer_step1, mac_occ_1, high_freq_1);
-      pghole_wrapper_mates(mate2, region_f2, region_r2, best_f2, best_r2, slide2, kmer_step2, mac_occ_2, high_freq_2);
+      pghole_wrapper_mates(mate1, region_f1, region_r1, best_f1, best_r1, slide1, kmer_step1, mac_occ_1, high_freq_1, ref_id);
+      pghole_wrapper_mates(mate2, region_f2, region_r2, best_f2, best_r2, slide2, kmer_step2, mac_occ_2, high_freq_2, ref_id);
 
       // filter based on pairdis
       flag_f1 = new bool[region_f1.size()]();
@@ -1432,8 +1438,8 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
 void AccAlign::embed_wrapper_pair(Read &R1, Read &R2,
                                   vector<Region> &candidate_regions_f1, vector<Region> &candidate_regions_r2,
                                   bool flag_f1[], bool flag_r2[], unsigned &best_f1, unsigned &best_r2,
-                                  int &best_threshold, int &next_threshold, char strand) {
-  const char *ptr_ref = get_ref().c_str();
+                                  int &best_threshold, int &next_threshold, char strand, int ref_id) {
+  const char *ptr_ref = get_ref(ref_id).c_str();
   char *seq1, *seq2;
   if (strand == '+') {
     //f1r2
@@ -1455,7 +1461,7 @@ void AccAlign::embed_wrapper_pair(Read &R1, Read &R2,
 void AccAlign::embed_wrapper(Read &R, bool ispe,
                              vector<Region> &fcandidate_regions, vector<Region> &rcandidate_regions,
                              unsigned &fbest, unsigned &fnext, unsigned &rbest, unsigned &rnext,
-                             int &best_threshold, int &next_threshold) {
+                             int &best_threshold, int &next_threshold, int ref_id) {
   unsigned nfregions = fcandidate_regions.size();
   unsigned nrregions = rcandidate_regions.size();
   assert(nfregions + nrregions > 0); //at least one hit
@@ -1480,7 +1486,7 @@ void AccAlign::embed_wrapper(Read &R, bool ispe,
   // globally, there is no point embedding.
   size_t rlen = strlen(R.seq);
   fbest = fnext = rbest = rnext = 0;
-  const char *ptr_ref = get_ref().c_str();
+  const char *ptr_ref = get_ref(ref_id).c_str();
 
   if (fwd_first) {
     embedding->embed_unmatch_iter(fcandidate_regions, ptr_ref, R.fwd, rlen, R.kmer_step,
@@ -1511,15 +1517,11 @@ int AccAlign::get_mapq(int best, int secBest) {
   return mapq;
 }
 
-void AccAlign::map_read(Read &R) {
+
+
+void AccAlign::map_read(Read &R, int ref_id) {
 
   auto start = std::chrono::system_clock::now();
-  parse(R.seq, R.fwd, R.rev, R.rev_str);
-  auto end = std::chrono::system_clock::now();
-  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-  parse_time += elapsed.count();
-
-  start = std::chrono::system_clock::now();
   vector<Region> fcandidate_regions, rcandidate_regions;
 
   // first try pigenhole. if we generate any candidates, pass them through
@@ -1527,11 +1529,11 @@ void AccAlign::map_read(Read &R) {
   // XXX: On experimentation, it was found that using pigeonhole filtering
   // produces wrong results and invalid mappings when errors are too large.
   unsigned fbest = 0, rbest = 0;
-  pghole_wrapper(R, fcandidate_regions, rcandidate_regions, fbest, rbest);
+  pghole_wrapper(R, fcandidate_regions, rcandidate_regions, fbest, rbest, ref_id);
   unsigned nfregions = fcandidate_regions.size();
   unsigned nrregions = rcandidate_regions.size();
-  end = std::chrono::system_clock::now();
-  elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
   seeding_time += elapsed.count();
 
   if (nfregions == 0 && nrregions == 0) {
@@ -1584,39 +1586,68 @@ void AccAlign::map_read(Read &R) {
     int best_threshold = strlen(R.seq) * embedding->efactor;
     int next_threshold = strlen(R.seq) * embedding->efactor;
     embed_wrapper(R, false, fcandidate_regions, rcandidate_regions, fbest, fnext, rbest, rnext,
-                  best_threshold, next_threshold);
+                  best_threshold, next_threshold, ref_id);
 
     start = std::chrono::system_clock::now();
 
     if (nfregions == 0) {
       if (nrregions == 0)
         return;
-      mark_for_extension(R, '-', rcandidate_regions[rbest]);
+      mark_for_extension(R, '-', rcandidate_regions[rbest], ref_id);
     } else if (nrregions == 0) {
-      mark_for_extension(R, '+', fcandidate_regions[fbest]);
+      mark_for_extension(R, '+', fcandidate_regions[fbest], ref_id);
     } else {
       // pick the candidate with smallest embed dist
       // if fwd/rev have same embed_dist, take the hcov one
       // if hcov one not the min dist, take the one with smaller pos (to be consistent with gpu)
       if (fcandidate_regions[fbest].embed_dist < rcandidate_regions[rbest].embed_dist) {
-        mark_for_extension(R, '+', fcandidate_regions[fbest]);
+        mark_for_extension(R, '+', fcandidate_regions[fbest], ref_id);
       } else if (fcandidate_regions[fbest].embed_dist > rcandidate_regions[rbest].embed_dist) {
-        mark_for_extension(R, '-', rcandidate_regions[rbest]);
+        mark_for_extension(R, '-', rcandidate_regions[rbest], ref_id);
       } else {
         if (fcandidate_regions[fbest].rs < rcandidate_regions[rbest].rs) {
-          mark_for_extension(R, '+', fcandidate_regions[fbest]);
+          mark_for_extension(R, '+', fcandidate_regions[fbest], ref_id);
         } else {
-          mark_for_extension(R, '-', rcandidate_regions[rbest]);
+          mark_for_extension(R, '-', rcandidate_regions[rbest], ref_id);
         }
       }
     }
 
-    R.best = best_threshold;
-    R.secBest = next_threshold;
+    if (ref_id == 0){
+      R.best = best_threshold;
+      R.secBest = next_threshold;
+    } else {
+      R.best_optional = best_threshold;
+      R.secBest_optional = next_threshold;
+    }
 
     end = std::chrono::system_clock::now();
     elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     mapqTime += elapsed.count();
+  }
+}
+
+void AccAlign::map_read_wrapper(Read &R) {
+  auto start = std::chrono::system_clock::now();
+  parse(R.seq, R.fwd, R.rev, R.rev_str);
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  parse_time += elapsed.count();
+
+  map_read(R, 0);
+  R.ref_id = 0;
+
+  if (enable_multiple_ref){
+    map_read(R, 1);
+    if (R.best > R.best_optional){
+      R.strand = R.strand_optional;
+      R.best_region = R.best_region_optional;
+      R.best = R.best_optional;
+      R.secBest = R.secBest_optional;
+      R.ref_id = 1;
+    }
+  } else {
+    return;
   }
 
 }
@@ -1691,16 +1722,9 @@ void AccAlign::extend_pair(Read &mate1, Read &mate2,
 //  next_threshold = -next_threshold;
 }
 
-void AccAlign::map_paired_read(Read &mate1, Read &mate2) {
+void AccAlign::map_paired_read(Read &mate1, Read &mate2, int ref_id) {
 
   auto start = std::chrono::system_clock::now();
-  parse(mate1.seq, mate1.fwd, mate1.rev, mate1.rev_str);
-  parse(mate2.seq, mate2.fwd, mate2.rev, mate2.rev_str);
-  auto end = std::chrono::system_clock::now();
-  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-  parse_time += elapsed.count();
-
-  start = std::chrono::system_clock::now();
   vector<Region> region_f1, region_r1, region_f2, region_r2;
   unsigned best_f1 = 0, best_r1 = 0, best_f2 = 0, best_r2 = 0;
   unsigned next_f1 = 0, next_r1 = 0, next_f2 = 0, next_r2 = 0;
@@ -1717,14 +1741,14 @@ void AccAlign::map_paired_read(Read &mate1, Read &mate2) {
 
   pghole_wrapper_pair(mate1, mate2, region_f1, region_r1, region_f2, region_r2,
                       best_f1, best_r1, best_f2, best_r2, next_f1, next_r1, next_f2, next_r2,
-                      flag_f1, flag_r1, flag_f2, flag_r2, has_f1r2, has_r1f2);
-  end = std::chrono::system_clock::now();
-  elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+                      flag_f1, flag_r1, flag_f2, flag_r2, has_f1r2, has_r1f2, ref_id);
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
   seeding_time += elapsed.count();
 
   if (!has_f1r2 && !has_r1f2) {
-    map_read(mate1);
-    map_read(mate2);
+    map_read_wrapper(mate1);
+    map_read_wrapper(mate2);
     if (mate1.strand == '*' && mate2.strand == '*')
       return;
     else if ((mate1.strand != '*' && mate2.strand != '*' && mate1.best_region.embed_dist < mate2.best_region.embed_dist)
@@ -1752,15 +1776,15 @@ void AccAlign::map_paired_read(Read &mate1, Read &mate2) {
     // if there is no candidates, the strand will remain *
     int secmin_dist;
     if (best_f1r2 > best_r1f2) {
-      mark_for_extension(mate1, '+', region_f1[best_f1]);
-      mark_for_extension(mate2, '-', region_r2[best_r2]);
+      mark_for_extension(mate1, '+', region_f1[best_f1], ref_id);
+      mark_for_extension(mate2, '-', region_r2[best_r2], ref_id);
       if (best_r1f2 > next_f1r2)
         secmin_dist = best_r1f2;
       else
         secmin_dist = next_f1r2;
     } else {
-      mark_for_extension(mate2, '+', region_f2[best_f2]);
-      mark_for_extension(mate1, '-', region_r1[best_r1]);
+      mark_for_extension(mate2, '+', region_f2[best_f2], ref_id);
+      mark_for_extension(mate1, '-', region_r1[best_r1], ref_id);
       if (best_f1r2 > next_r1f2)
         secmin_dist = best_f1r2;
       else
@@ -1778,10 +1802,10 @@ void AccAlign::map_paired_read(Read &mate1, Read &mate2) {
   int best_f1r2 = INT_MAX, next_f1r2 = INT_MAX, best_r1f2 = INT_MAX, next_r1f2 = INT_MAX;
   if (has_f1r2)
     embed_wrapper_pair(mate1, mate2, region_f1, region_r2, flag_f1, flag_r2,
-                       best_f1, best_r2, best_f1r2, next_f1r2, '+');
+                       best_f1, best_r2, best_f1r2, next_f1r2, '+', ref_id);
   if (has_r1f2)
     embed_wrapper_pair(mate1, mate2, region_r1, region_f2, flag_r1, flag_f2,
-                       best_r1, best_f2, best_r1f2, next_r1f2, '-');
+                       best_r1, best_f2, best_r1f2, next_r1f2, '-', ref_id);
 
   delete[] flag_f1;
   delete[] flag_r1;
@@ -1790,16 +1814,49 @@ void AccAlign::map_paired_read(Read &mate1, Read &mate2) {
 
   start = std::chrono::system_clock::now();
   if (best_f1r2 <= best_r1f2) {
-    mark_for_extension(mate1, '+', region_f1[best_f1]);
-    mark_for_extension(mate2, '-', region_r2[best_r2]);
+    mark_for_extension(mate1, '+', region_f1[best_f1], ref_id);
+    mark_for_extension(mate2, '-', region_r2[best_r2], ref_id);
   } else {
-    mark_for_extension(mate2, '+', region_f2[best_f2]);
-    mark_for_extension(mate1, '-', region_r1[best_r1]);
+    mark_for_extension(mate2, '+', region_f2[best_f2], ref_id);
+    mark_for_extension(mate1, '-', region_r1[best_r1], ref_id);
   }
 
   end = std::chrono::system_clock::now();
   elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
   mapqTime += elapsed.count();
+}
+
+void AccAlign::map_paired_read_wrapper(Read &mate1, Read &mate2) {
+  auto start = std::chrono::system_clock::now();
+  parse(mate1.seq, mate1.fwd, mate1.rev, mate1.rev_str);
+  parse(mate2.seq, mate2.fwd, mate2.rev, mate2.rev_str);
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  parse_time += elapsed.count();
+
+  map_paired_read(mate1, mate2, 0);
+  mate1.ref_id = 0;
+  mate2.ref_id = 0;
+  if (enable_multiple_ref){
+    map_paired_read(mate1, mate2, 1);
+    if (mate1.best + mate2.best > mate1.best_optional + mate2.best_optional){
+      //TODO: mate1 from ct, mate2 should from ag???
+      mate1.strand = mate1.strand_optional;
+      mate1.best_region = mate1.best_region_optional;
+      mate1.best = mate1.best_optional;
+      mate1.secBest = mate1.secBest_optional;
+
+      mate2.strand = mate2.strand_optional;
+      mate2.best_region = mate2.best_region_optional;
+      mate2.best = mate2.best_optional;
+      mate2.secBest = mate2.secBest_optional;
+
+      mate1.ref_id = 1;
+      mate2.ref_id = 1;
+    }
+  } else {
+    return;
+  }
 }
 
 inline bool unfill(Read &R) {
@@ -1831,7 +1888,7 @@ void AccAlign::print_paired_sam(Read &R, Read &R2) {
   flag |= 0x40;
   ss << flag;
 
-  ss << '\t' << (unfill(R) ? "*" : get_name()[R.tid]);
+  ss << '\t' << (unfill(R) ? "*" : get_name(R.ref_id)[R.tid]);
   ss << '\t' << (unfill(R) ? 0 : R.pos);
   ss << '\t' << (unfill(R) ? 0 : (int) R.mapq);
   ss << '\t' << (unfill(R) ? "*" : R.cigar) << '\t';
@@ -1839,7 +1896,7 @@ void AccAlign::print_paired_sam(Read &R, Read &R2) {
   if (R.strand == '*' || R2.strand == '*')
     ss << '*';
   else
-    ss << (get_name()[R.tid] == get_name()[R2.tid] ? "=" : get_name()[R2.tid].c_str());
+    ss << (get_name(R.ref_id)[R.tid] == get_name(R.ref_id)[R2.tid] ? "=" : get_name(R.ref_id)[R2.tid].c_str());
 
   ss << '\t' << (strand2 == '*' ? 0 : R2.pos);
 
@@ -1879,7 +1936,7 @@ void AccAlign::print_paired_sam(Read &R, Read &R2) {
   flag |= 0x80;
 
   ss << flag;
-  ss << '\t' << (unfill(R2) ? "*" : get_name()[R2.tid]);
+  ss << '\t' << (unfill(R2) ? "*" : get_name(R2.ref_id)[R2.tid]);
   ss << '\t' << (unfill(R2) ? 0 : R2.pos);
   ss << '\t' << (unfill(R2) ? 0 : (int) R2.mapq);
   ss << '\t' << (unfill(R2) ? "*" : R2.cigar) << '\t';
@@ -1887,7 +1944,7 @@ void AccAlign::print_paired_sam(Read &R, Read &R2) {
   if (R.strand == '*' || R2.strand == '*')
     ss << '*';
   else
-    ss << (get_name()[R.tid] == get_name()[R2.tid] ? "=" : get_name()[R.tid].c_str());
+    ss << (get_name(R2.ref_id)[R.tid] == get_name(R2.ref_id)[R2.tid] ? "=" : get_name(R2.ref_id)[R.tid].c_str());
 
   ss << '\t' << (strand2 == '*' ? 0 : R.pos);
   ss << '\t' << -isize;
@@ -1954,40 +2011,40 @@ void AccAlign::snprintf_pair_sam(Read &R, string *s, Read &R2, string *s2) {
 
   string format = "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tAS:i:%d\n";
   if (R.strand == '+' && R2.strand != '*') {
-    size += strlen(R.name) + get_name()[R.tid].length() + get_name()[R2.tid].length() + 2 * strlen(R.seq);
+    size += strlen(R.name) + get_name(R.ref_id)[R.tid].length() + get_name(R.ref_id)[R2.tid].length() + 2 * strlen(R.seq);
     char buf[size];
-    snprintf(buf, size, format.c_str(), nn.c_str(), flag, get_name()[R.tid].c_str(), R.pos,
-             (int) R.mapq, R.cigar, get_name()[R.tid] == get_name()[R2.tid] ? "=" : get_name()[R2.tid].c_str(),
+    snprintf(buf, size, format.c_str(), nn.c_str(), flag, get_name(R.ref_id)[R.tid].c_str(), R.pos,
+             (int) R.mapq, R.cigar, get_name(R.ref_id)[R.tid] == get_name(R.ref_id)[R2.tid] ? "=" : get_name(R.ref_id)[R2.tid].c_str(),
              R2.pos, isize, R.seq, R.qua, R.nm, R.as);
     *s = buf;
   } else if (R.strand == '-' && R2.strand != '*') {
-    size += strlen(R.name) + get_name()[R.tid].length() + get_name()[R2.tid].length() + 2 * strlen(R.seq);
+    size += strlen(R.name) + get_name(R.ref_id)[R.tid].length() + get_name(R.ref_id)[R2.tid].length() + 2 * strlen(R.seq);
     char buf[size];
     std::reverse(R.qua, R.qua + strlen(R.qua));
-    snprintf(buf, size, format.c_str(), nn.c_str(), flag, get_name()[R.tid].c_str(), R.pos,
-             (int) R.mapq, R.cigar, get_name()[R.tid] == get_name()[R2.tid] ? "=" : get_name()[R2.tid].c_str(),
+    snprintf(buf, size, format.c_str(), nn.c_str(), flag, get_name(R.ref_id)[R.tid].c_str(), R.pos,
+             (int) R.mapq, R.cigar, get_name(R.ref_id)[R.tid] == get_name(R.ref_id)[R2.tid] ? "=" : get_name(R.ref_id)[R2.tid].c_str(),
              R2.pos, isize, R.rev_str, R.qua, R.nm, R.as);
     *s = buf;
   } else if (R.strand == '+' && R2.strand == '*') {
-    size += strlen(R.name) + get_name()[R.tid].length() + 2 * strlen(R.seq);
+    size += strlen(R.name) + get_name(R.ref_id)[R.tid].length() + 2 * strlen(R.seq);
     char buf[size];
     snprintf(buf, size, format.c_str(),
-             nn.c_str(), flag, get_name()[R.tid].c_str(), R.pos, (int) R.mapq, R.cigar, "*", 0,
+             nn.c_str(), flag, get_name(R.ref_id)[R.tid].c_str(), R.pos, (int) R.mapq, R.cigar, "*", 0,
              isize, R.seq, R.qua, R.nm, R.as);
     *s = buf;
   } else if (R.strand == '-' && R2.strand == '*') {
-    size += strlen(R.name) + get_name()[R2.tid].length() + 2 * strlen(R.seq);
+    size += strlen(R.name) + get_name(R.ref_id)[R2.tid].length() + 2 * strlen(R.seq);
     char buf[size];
     std::reverse(R.qua, R.qua + strlen(R.qua));
     snprintf(buf, size, format.c_str(),
-             nn.c_str(), flag, get_name()[R.tid].c_str(), R.pos, (int) R.mapq, R.cigar, "*", 0,
+             nn.c_str(), flag, get_name(R.ref_id)[R.tid].c_str(), R.pos, (int) R.mapq, R.cigar, "*", 0,
              isize, R.rev_str, R.qua, R.nm, R.as);
     *s = buf;
   } else if (R.strand == '*' && R2.strand != '*') {
-    size += strlen(R.name) + get_name()[R2.tid].length() + 2 * strlen(R.seq);
+    size += strlen(R.name) + get_name(R.ref_id)[R2.tid].length() + 2 * strlen(R.seq);
     char buf[size];
     snprintf(buf, size, format.c_str(),
-             nn.c_str(), flag, "*", 0, 0, "*", get_name()[R2.tid].c_str(), R2.pos,
+             nn.c_str(), flag, "*", 0, 0, "*", get_name(R.ref_id)[R2.tid].c_str(), R2.pos,
              isize, R.seq, R.qua, R.nm, R.as);
     *s = buf;
   } else if (R.strand == '*' && R2.strand == '*') {
@@ -2017,40 +2074,40 @@ void AccAlign::snprintf_pair_sam(Read &R, string *s, Read &R2, string *s2) {
   flag |= 0x80;
 
   if (R2.strand == '+' && R.strand != '*') {
-    size += strlen(R2.name) + get_name()[R2.tid].length() + get_name()[R.tid].length() + 2 * strlen(R2.seq);
+    size += strlen(R2.name) + get_name(R2.ref_id)[R2.tid].length() + get_name(R2.ref_id)[R.tid].length() + 2 * strlen(R2.seq);
     char buf[size];
-    snprintf(buf, size, format.c_str(), nn2.c_str(), flag, get_name()[R2.tid].c_str(), R2.pos,
-             (int) R2.mapq, R2.cigar, get_name()[R.tid] == get_name()[R2.tid] ? "=" : get_name()[R.tid].c_str(),
+    snprintf(buf, size, format.c_str(), nn2.c_str(), flag, get_name(R2.ref_id)[R2.tid].c_str(), R2.pos,
+             (int) R2.mapq, R2.cigar, get_name(R2.ref_id)[R.tid] == get_name(R2.ref_id)[R2.tid] ? "=" : get_name(R2.ref_id)[R.tid].c_str(),
              R.pos, -isize, R2.seq, R2.qua, R2.nm, R2.as);
     *s2 = buf;
   } else if (R2.strand == '-' && R.strand != '*') {
-    size += strlen(R2.name) + get_name()[R2.tid].length() + get_name()[R.tid].length() + 2 * strlen(R2.seq);
+    size += strlen(R2.name) + get_name(R2.ref_id)[R2.tid].length() + get_name(R2.ref_id)[R.tid].length() + 2 * strlen(R2.seq);
     char buf[size];
     std::reverse(R2.qua, R2.qua + strlen(R2.qua));
-    snprintf(buf, size, format.c_str(), nn2.c_str(), flag, get_name()[R2.tid].c_str(), R2.pos,
-             (int) R2.mapq, R2.cigar, get_name()[R.tid] == get_name()[R2.tid] ? "=" : get_name()[R.tid].c_str(),
+    snprintf(buf, size, format.c_str(), nn2.c_str(), flag, get_name(R2.ref_id)[R2.tid].c_str(), R2.pos,
+             (int) R2.mapq, R2.cigar, get_name(R2.ref_id)[R.tid] == get_name(R2.ref_id)[R2.tid] ? "=" : get_name(R2.ref_id)[R.tid].c_str(),
              R.pos, -isize, R2.rev_str, R2.qua, R2.nm, R2.as);
     *s2 = buf;
   } else if (R2.strand == '+' && R.strand == '*') {
-    size += strlen(R2.name) + get_name()[R2.tid].length() + 2 * strlen(R2.seq);
+    size += strlen(R2.name) + get_name(R2.ref_id)[R2.tid].length() + 2 * strlen(R2.seq);
     char buf[size];
     snprintf(buf, size, format.c_str(),
-             nn2.c_str(), flag, get_name()[R2.tid].c_str(), R2.pos, (int) R2.mapq, R2.cigar, "*", 0,
+             nn2.c_str(), flag, get_name(R2.ref_id)[R2.tid].c_str(), R2.pos, (int) R2.mapq, R2.cigar, "*", 0,
              -isize, R2.seq, R2.qua, R2.nm, R2.as);
     *s2 = buf;
   } else if (R2.strand == '-' && R.strand == '*') {
-    size += strlen(R2.name) + get_name()[R.tid].length() + 2 * strlen(R2.seq);
+    size += strlen(R2.name) + get_name(R2.ref_id)[R.tid].length() + 2 * strlen(R2.seq);
     char buf[size];
     std::reverse(R2.qua, R2.qua + strlen(R2.qua));
     snprintf(buf, size, format.c_str(),
-             nn2.c_str(), flag, get_name()[R2.tid].c_str(), R2.pos, (int) R2.mapq, R2.cigar, "*", 0,
+             nn2.c_str(), flag, get_name(R2.ref_id)[R2.tid].c_str(), R2.pos, (int) R2.mapq, R2.cigar, "*", 0,
              -isize, R2.rev_str, R2.qua, R2.nm, R2.as);
     *s2 = buf;
   } else if (R2.strand == '*' && R.strand != '*') {
-    size += strlen(R2.name) + get_name()[R.tid].length() + 2 * strlen(R2.seq);
+    size += strlen(R2.name) + get_name(R2.ref_id)[R.tid].length() + 2 * strlen(R2.seq);
     char buf[size];
     snprintf(buf, size, format.c_str(),
-             nn2.c_str(), flag, "*", 0, 0, "*", get_name()[R.tid].c_str(), R.pos,
+             nn2.c_str(), flag, "*", 0, 0, "*", get_name(R2.ref_id)[R.tid].c_str(), R.pos,
              -isize, R2.seq, R2.qua, R2.nm, R2.as);
     *s2 = buf;
   } else if (R2.strand == '*' && R.strand == '*') {
@@ -2078,7 +2135,7 @@ void AccAlign::print_sam(Read &R) {
     ss << "4\t*\t0\t255\t*\t*\t0\t0\t";
   } else {
     ss << (R.strand == '+' ? 0 : 16) << "\t" <<
-                                             get_name()[R.tid] << "\t" <<
+                                             get_name(R.ref_id)[R.tid] << "\t" <<
        R.pos << "\t" <<
        (int) R.mapq << "\t" <<
        R.cigar << "\t*\t0\t0\t";
@@ -2126,16 +2183,16 @@ void AccAlign::snprintf_sam(Read &R, string *s) {
              R.name, 0, "*", 0, 0, "*", R.seq, R.qua, 0, 0);
     *s = buf;
   } else {
-    size += strlen(R.name) + get_name()[R.tid].length() + 2 * strlen(R.seq);
+    size += strlen(R.name) + get_name(R.ref_id)[R.tid].length() + 2 * strlen(R.seq);
     char buf[size];
     if (R.strand == '+') {
       snprintf(buf, size, format.c_str(),
-               R.name, 0, get_name()[R.tid].c_str(), R.pos, (int) R.mapq, R.cigar,
+               R.name, 0, get_name(R.ref_id)[R.tid].c_str(), R.pos, (int) R.mapq, R.cigar,
                R.seq, R.qua, R.nm, R.as);
     } else {
       std::reverse(R.qua, R.qua + strlen(R.qua));
       snprintf(buf, size, format.c_str(),
-               R.name, 16, get_name()[R.tid].c_str(), R.pos, (int) R.mapq, R.cigar,
+               R.name, 16, get_name(R.ref_id)[R.tid].c_str(), R.pos, (int) R.mapq, R.cigar,
                R.rev_str, R.qua, R.nm, R.as);
     }
     *s = buf;
@@ -2264,14 +2321,14 @@ static void ksw_gen_simple_mat(int m, int8_t *mat, int8_t a, int8_t b, int8_t sc
 }
 
 //rectify_start_pos at the end of map
-void AccAlign::rectify_start_pos(char *strand, Region &region, unsigned rlen) {
+void AccAlign::rectify_start_pos(char *strand, Region &region, unsigned rlen, int ref_id) {
   //embed first kmer of read
   int elen = kmer_len * embedding->efactor;
   char embeddedQ[elen];
   embedding->cgk2_embedQ(strand, kmer_len, 0, embeddedQ);
 
   //shift the start pos and find the best
-  const char *ptr_ref = get_ref().c_str();
+  const char *ptr_ref = get_ref(ref_id).c_str();
 
   // the pos without shift
   int threshold = embedding->cgk2_embed_nmismatch(ptr_ref + region.rs, kmer_len, elen, 0, embeddedQ);
@@ -2279,7 +2336,7 @@ void AccAlign::rectify_start_pos(char *strand, Region &region, unsigned rlen) {
 
   float indel_len = ceil(MAX_INDEL * rlen / float(100));
   for (int i = -indel_len; i < indel_len; ++i) {
-    if (i == 0 || region.rs + i < 0 || region.rs + i >= get_ref().size())
+    if (i == 0 || region.rs + i < 0 || region.rs + i >= get_ref(ref_id).size())
       continue;
 
     int nmismatch = embedding->cgk2_embed_nmismatch(ptr_ref + region.rs + i, kmer_len, threshold, 0, embeddedQ);
@@ -2362,7 +2419,7 @@ void AccAlign::score_region(Read &r, char *qseq, Region &region,
       ksw_extz_t ez_l;
       memset(&ez_l, 0, sizeof(ksw_extz_t));
       char tseq[rs - rs0];
-      memcpy(tseq, get_ref().c_str() + rs0, rs - rs0);
+      memcpy(tseq, get_ref(r.ref_id).c_str() + rs0, rs - rs0);
       mm_seq_rev(rs - rs0, tseq);
       mm_seq_rev(qs - qs0, qseq);
 
@@ -2386,14 +2443,14 @@ void AccAlign::score_region(Read &r, char *qseq, Region &region,
     uint32_t cigar_m[] = {match_len << 4};
     append_cigar(extension, 1, cigar_m);
     for (unsigned j = 0; j < match_len; ++j) {
-      extension->dp_score += qseq[qs + j] == get_ref().c_str()[raw_rs + qs + j] ? SC_MCH : -SC_MIS;
+      extension->dp_score += qseq[qs + j] == get_ref(r.ref_id).c_str()[raw_rs + qs + j] ? SC_MCH : -SC_MIS;
     }
 
     // right extension
     if (qe < qe0 && re < re0) {
       ksw_extz_t ez_r;
       memset(&ez_r, 0, sizeof(ksw_extz_t));
-      const uint8_t *_tseq = reinterpret_cast<const uint8_t *>(get_ref().c_str() + re);
+      const uint8_t *_tseq = reinterpret_cast<const uint8_t *>(get_ref(r.ref_id).c_str() + re);
       const uint8_t *_qseq = reinterpret_cast<const uint8_t *>(qseq + qe);
       ksw_extz2_sse(0, qe0 - qe, _qseq, re0 - re, _tseq, 5, mat, GAPO, GAPE, BANDWIDTH,
                     Z_DROP, END_BONUS, KSW_EZ_EXTZ_ONLY, &ez_r);
@@ -2426,7 +2483,7 @@ void AccAlign::score_region(Read &r, char *qseq, Region &region,
       switch (op) {
         case 'M':
           for (int j = 0; j < count; j++, ref_pos++, read_pos++) {
-            if (get_ref().c_str()[ref_pos] != qseq[read_pos])
+            if (get_ref(r.ref_id).c_str()[ref_pos] != qseq[read_pos])
               edit_mismatch++;
           }
           break;
@@ -2455,19 +2512,19 @@ void AccAlign::score_region(Read &r, char *qseq, Region &region,
 
 //determine chromo id
 int AccAlign::get_tid(Read &R) {
-  int tid = R.pos / (get_offset()[1] - get_offset()[0]);
-  if (R.pos >= get_offset()[tid] && (tid == (int) get_name().size() - 1 || R.pos < get_offset()[tid + 1])) {
+  int tid = R.pos / (get_offset(R.ref_id)[1] - get_offset(R.ref_id)[0]);
+  if (R.pos >= get_offset(R.ref_id)[tid] && (tid == (int) get_name(R.ref_id).size() - 1 || R.pos < get_offset(R.ref_id)[tid + 1])) {
     return tid;
-  } else if (R.pos < get_offset()[tid]) {
+  } else if (R.pos < get_offset(R.ref_id)[tid]) {
     while (tid >= 0) {
-      if (R.pos >= get_offset()[tid]) {
+      if (R.pos >= get_offset(R.ref_id)[tid]) {
         return tid;
       }
       --tid;
     }
   } else {
-    while (tid < (int) get_name().size()) {
-      if (R.pos < get_offset()[tid + 1]) {
+    while (tid < (int) get_name(R.ref_id).size()) {
+      if (R.pos < get_offset(R.ref_id)[tid + 1]) {
         return tid;
       }
       ++tid;
@@ -2495,14 +2552,14 @@ void AccAlign::save_region(Read &R, size_t rlen, Region &region,
   R.tid = get_tid(R);
 
   if (R.tid == INT_MAX) { //out of the largest pos
-    R.pos = get_offset().back() - get_offset()[get_offset().size() - 2] - rlen;
-    R.tid = get_name().size() - 1;
-  } else if (R.tid + 1 < (int) get_name().size() && R.pos + rlen / 2 > get_offset()[R.tid + 1]) {
+    R.pos = get_offset(R.ref_id).back() - get_offset(R.ref_id)[get_offset(R.ref_id).size() - 2] - rlen;
+    R.tid = get_name(R.ref_id).size() - 1;
+  } else if (R.tid + 1 < (int) get_name(R.ref_id).size() && R.pos + rlen / 2 > get_offset(R.ref_id)[R.tid + 1]) {
     //reach the end of chromo, switch to next
     R.pos = 1;
     R.tid += 1;
   } else
-    R.pos = R.pos - get_offset()[R.tid] + 1;
+    R.pos = R.pos - get_offset(R.ref_id)[R.tid] + 1;
 
   //cerr << "Saving region at pos " << R.pos << " as pos " << R.pos -
   //    offset[R.tid] + 1 << " for read " << R.name << endl;
@@ -2518,14 +2575,14 @@ void AccAlign::align_read(Read &R) {
       R.tid = get_tid(R);
 
       if (R.tid == INT_MAX) { //out of the largest pos
-        R.pos = get_offset().back() - get_offset()[get_offset().size() - 2] - rlen;
-        R.tid = get_name().size() - 1;
-      } else if (R.tid + 1 < (int) get_name().size() && R.pos + rlen / 2 > get_offset()[R.tid + 1]) {
+        R.pos = get_offset(R.ref_id).back() - get_offset(R.ref_id)[get_offset(R.ref_id).size() - 2] - rlen;
+        R.tid = get_name(R.ref_id).size() - 1;
+      } else if (R.tid + 1 < (int) get_name(R.ref_id).size() && R.pos + rlen / 2 > get_offset(R.ref_id)[R.tid + 1]) {
         //reach the end of chromo, switch to next
         R.pos = 1;
         R.tid += 1;
       } else
-        R.pos = R.pos - get_offset()[R.tid] + 1;
+        R.pos = R.pos - get_offset(R.ref_id)[R.tid] + 1;
     }else {
       R.tid = R.pos = 0;
     }
@@ -2557,7 +2614,7 @@ void AccAlign::wfa_align_read(Read &R) {
   Region region = R.best_region;
   size_t rlen = strlen(R.seq);
   char *text = R.strand == '+' ? R.fwd : R.rev;
-  const char *pattern = get_ref().c_str() + region.rs;
+  const char *pattern = get_ref(R.ref_id).c_str() + region.rs;
 
   if (enable_extension && region.embed_dist) {
     // Allocate MM
@@ -2616,13 +2673,13 @@ void AccAlign::wfa_align_read(Read &R) {
 
   R.pos = region.rs;
   R.tid = 0;
-  for (size_t j = 0; j < get_name().size(); j++) {
-    if (get_offset()[j + 1] > R.pos) {
+  for (size_t j = 0; j < get_name(R.ref_id).size(); j++) {
+    if (get_offset(R.ref_id)[j + 1] > R.pos) {
       R.tid = j;
       break;
     }
   }
-  R.pos = R.pos - get_offset()[R.tid] + 1;
+  R.pos = R.pos - get_offset(R.ref_id)[R.tid] + 1;
 
   auto end = std::chrono::system_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -2681,8 +2738,8 @@ void AccAlign::sam_header(void) {
   ostringstream so;
 
   so << "@HD\tVN:1.3\tSO:coordinate\n";
-  for (size_t i = 0; i < get_name().size(); i++)
-    so << "@SQ\tSN:" << get_name()[i] << '\t' << "LN:" << get_offset()[i + 1] - get_offset()[i] << '\n';
+  for (size_t i = 0; i < get_name(0).size(); i++)
+    so << "@SQ\tSN:" << get_name(0)[i] << '\t' << "LN:" << get_offset(0)[i + 1] - get_offset(0)[i] << '\n';
   so << "@PG\tID:AccAlign\tPN:AccAlign\tVN:0.0\n";
 
   if (sam_name.length())
@@ -2742,14 +2799,14 @@ struct tbb_map {
   tbb_map(AccAlign *obj) : accalign(obj) {}
 
   Read *operator()(Read *r) {
-    accalign->map_read(*r);
+    accalign->map_read_wrapper(*r);
     return r;
   }
 
   ReadPair operator()(ReadPair p) {
     Read *mate1 = std::get<0>(p);
     Read *mate2 = std::get<1>(p);
-    accalign->map_paired_read(*mate1, *mate2);
+    accalign->map_paired_read_wrapper(*mate1, *mate2);
 
     return p;
   }
