@@ -63,8 +63,9 @@ class Reference {
   uint32_t nposv, nkeyv;
   mm_idx_t *mi;
   bool enable_minimizer;
+  char mode; // 'c' c-> t; 'g' g->a; ' ' original
 
-  Reference(const char *F, bool _enable_minimizer);
+  Reference(const char *F, bool _enable_minimizer, char mode);
 
   ~Reference();
 };
