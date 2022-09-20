@@ -98,6 +98,25 @@ path-to-accel-align/accalign -l 32 -t 4 -x -o output-path/out.sam \
 path-to-ref/ref.fna input-path/read.fastq
 ``` 
 
+### Bisulfite sequencing read alignment (multiple reference) mode ###
+#### Index
+Index would generate under the same directory of reference as partX, e.g. hg37.fna.hash.part1, hg37.fna.hash.part2.
+```
+#TODO
+```
+
+#### Alignment
+```
+/media/ssd/ngs-data-analysis/code/accel-align-release/accalign \
+-l 32 -t 12 -s /media/ssd/ngs-data-analysis/data/fsva-hg37/hg37.fna \
+/media/ssd/ngs-data-analysis/yan/input/1m/sv-1m-100-r-GA.fastq > haha.sam
+
+```
+
+
+
+
+
 ### Citing Accel-align ###
 If you use Accel-align in your work, please cite https://doi.org/10.1186/s12859-021-04162-z :
 

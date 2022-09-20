@@ -1,14 +1,28 @@
 #include "header.h"
 
-extern uint8_t code[256];
-
 class RefParser {
   string &ref;
+  char mode;
 
  public:
-  RefParser(string &ref) : ref(ref) {}
+  RefParser(string &_ref, char _mode) : ref(_ref), mode(_mode) {}
 
   void operator()(const tbb::blocked_range<size_t> &r) const {
+    uint8_t code[256];
+    for (size_t i = 0; i < 256; i++)
+      code[i] = 4;
+
+    code['A'] = code['a'] = 0;
+    code['C'] = code['c'] = 1;
+    code['G'] = code['g'] = 2;
+    code['T'] = code['t'] = 3;
+    code['N'] = code['n'] = 0;
+
+    if (mode == 'c')
+      code['C'] = code['c'] = 3;
+    else if (mode == 'g')
+      code['G'] = code['g'] = 0;
+
     for (size_t i = r.begin(); i != r.end(); ++i)
       ref[i] = *(code + ref[i]);
   }
@@ -133,14 +147,14 @@ void Reference::load_reference(const char *F){
     cerr << "Parsing reference.\n";
     tbb::parallel_for(
         tbb::blocked_range<size_t>(0, ref_size),
-        RefParser(ref));
+        RefParser(ref, mode));
     fi.close();
     offset.push_back(ref_size);
     cerr << "Loaded reference size: " << ref_size << endl;
   }
 }
 
-Reference::Reference(const char *F, bool _enable_minimizer): enable_minimizer(_enable_minimizer){
+Reference::Reference(const char *F, bool _enable_minimizer, char _mode): enable_minimizer(_enable_minimizer), mode(_mode){
   auto start = std::chrono::system_clock::now();
 
   if (enable_minimizer){
@@ -155,7 +169,7 @@ Reference::Reference(const char *F, bool _enable_minimizer): enable_minimizer(_e
     mi = mm_idx_reader_read(idx_rdr, n_threads);
 
     load_reference(F);
-  } else {
+  } else{
     thread t(&Reference::load_index, this, F); // load index in parallel
 
     load_reference(F);

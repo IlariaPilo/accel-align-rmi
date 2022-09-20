@@ -13,7 +13,7 @@ string g_out, g_batch_file, g_embed_file;
 char rcsymbol[6] = "TGCAN";
 uint8_t code[256];
 bool enable_extension = true, enable_wfa_extension = false, extend_all = false,
-enable_minimizer = false, enable_bs = false, enable_multiple_ref = false;
+enable_minimizer = false, enable_bs = false;
 
 
 int g_ncpus = 1;
@@ -1635,7 +1635,7 @@ void AccAlign::map_read_wrapper(Read &R) {
   map_read(R, 0);
   R.ref_id = 0;
 
-  if (enable_multiple_ref){
+  if (enable_bs){
     map_read(R, 1);
     if (R.best > R.best_optional){
       R.strand = R.strand_optional;
@@ -1841,7 +1841,7 @@ void AccAlign::map_paired_read_wrapper(Read &mate1, Read &mate2) {
   map_paired_read(mate1, mate2, 0);
   mate1.ref_id = 0;
   mate2.ref_id = 0;
-  if (enable_multiple_ref){
+  if (enable_bs){
     map_paired_read(mate1, mate2, 1);
     if (mate1.best + mate2.best > mate1.best_optional + mate2.best_optional){
       //TODO: mate1 from ct, mate2 should from ag???
@@ -3026,10 +3026,6 @@ int main(int ac, char **av) {
         enable_bs = true;
         opn += 1;
         flag = true;
-      } else if (av[opn][1] == 'r') {
-        enable_multiple_ref = true;
-        opn += 1;
-        flag = true;
       } else {
         print_usage();
       }
@@ -3049,9 +3045,12 @@ int main(int ac, char **av) {
 
   // load reference once
   Reference **r = new Reference*[2];
-  r[0] = new Reference(av[opn++], enable_minimizer);
-  if (enable_multiple_ref)
-    r[1] = new Reference(av[opn++], enable_minimizer);
+  if (enable_bs){
+    r[0] = new Reference(av[opn++], enable_minimizer, 'c');
+    r[1] = new Reference(av[opn++], enable_minimizer, 'g');
+  } else {
+    r[0] = new Reference(av[opn++], enable_minimizer, ' ');
+  }
 
   if (enable_extension && !enable_wfa_extension)
     ksw_gen_simple_mat(5, mat, SC_MCH, SC_MIS, SC_AMBI);
