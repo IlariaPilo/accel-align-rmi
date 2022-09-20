@@ -29,7 +29,13 @@ class RefParser {
 };
 
 void Reference::load_index(const char *F) {
-  string fn = string(F) + ".hash";
+  string fn;
+  if (mode == ' ')
+    fn = string(F) + ".hash";
+  else if (mode == 'c')
+    fn = string(F) + ".hash.part1";
+  else if (mode == 'g')
+    fn = string(F) + ".hash.part2";
 
   cerr << "loading hashtable from " << fn << endl;
   ifstream fi;
