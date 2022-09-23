@@ -3046,7 +3046,7 @@ int main(int ac, char **av) {
   // load reference once
   Reference **r = new Reference*[2];
   if (enable_bs){
-    r[0] = new Reference(av[opn++], enable_minimizer, 'c');
+    r[0] = new Reference(av[opn], enable_minimizer, 'c');
     r[1] = new Reference(av[opn++], enable_minimizer, 'g');
   } else {
     r[0] = new Reference(av[opn++], enable_minimizer, ' ');
