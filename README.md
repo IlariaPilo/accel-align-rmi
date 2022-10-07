@@ -102,7 +102,8 @@ path-to-ref/ref.fna input-path/read.fastq
 #### Index
 Index would generate under the same directory of reference as partX, e.g. hg37.fna.hash.part1, hg37.fna.hash.part2.
 ```
-#TODO
+/media/ssd/ngs-data-analysis/code/accel-align-release/accindex \
+-l 32 -s /media/ssd/ngs-data-analysis/data/fsva-hg37/hg37.fna 
 ```
 
 #### Alignment
@@ -110,10 +111,28 @@ Index would generate under the same directory of reference as partX, e.g. hg37.f
 /media/ssd/ngs-data-analysis/code/accel-align-release/accalign \
 -l 32 -t 12 -s /media/ssd/ngs-data-analysis/data/fsva-hg37/hg37.fna \
 /media/ssd/ngs-data-analysis/yan/input/1m/sv-1m-100-r-GA.fastq > haha.sam
-
 ```
 
+#### Test
 
+##### Single-end
+
+##### Pair-end
+
+###### Simulation (simulate PE reads, and mate1 converts C to T, mate2 converts G to A)
+```
+sed 's/C/T/ig' sv-1m-100-r1.fastq > sv-1m-100-r1-CT.fastq
+sed 's/G/A/ig' sv-1m-100-r2.fastq > sv-1m-100-r2-GA.fastq
+```
+
+###### Alignment
+```
+/media/ssd/ngs-data-analysis/code/accel-align-release/accalign \
+-l 32 -t 12 -s /media/ssd/ngs-data-analysis/data/fsva-hg37/hg37.fna \
+/media/ssd/ngs-data-analysis/yan/input/1m/sv-1m-100-r1-CT.fastq \
+/media/ssd/ngs-data-analysis/yan/input/1m/sv-1m-100-r2-GA.fastq \
+> /media/ssd/ngs-data-analysis/yan/output/accalign.sam
+```
 
 
 
