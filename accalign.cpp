@@ -12,7 +12,7 @@ unsigned pairdis = 1000;
 string g_out, g_batch_file, g_embed_file;
 char rcsymbol[6] = "TGCAN";
 uint8_t code[256];
-bool enable_extension = true, enable_wfa_extension = false, extend_all = false;
+bool enable_extension = true, enable_wfa_extension = false, extend_all = false, fuzzy_pos = false;
 
 int g_ncpus = 1;
 float delTime = 0, mapqTime = 0, keyvTime = 0, posvTime = 0, sortTime = 0;
@@ -88,6 +88,7 @@ void print_usage() {
   cerr << "\t-w Use WFA for extension. KSW used by default. \n";
   cerr << "\t-p Maximum distance allowed between the paired-end reads [1000]\n";
   cerr << "\t-d Disable embedding, extend all candidates from seeding (this mode is super slow, only for benchmark).\n";
+  cerr << "\t-f Report fuzzy position approximately. This disables the rectification of normalized start position by shifted embeddings. \n";
 }
 
 void AccAlign::print_stats() {
@@ -370,7 +371,7 @@ void AccAlign::mark_for_extension(Read &read, char S, Region &cregion) {
 
   char *strand = S == '+' ? read.fwd : read.rev;
 
-  if (cregion.embed_dist && !enable_extension)
+  if (cregion.embed_dist && !enable_extension && !fuzzy_pos)
     rectify_start_pos(strand, cregion, rlen);
 
   read.best_region = cregion;
@@ -2487,6 +2488,10 @@ int main(int ac, char **av) {
         flag = true;
       } else if (av[opn][1] == 'd') {
         extend_all = true;
+        opn += 1;
+        flag = true;
+      } else if (av[opn][1] == 'f') {
+        fuzzy_pos = true;
         opn += 1;
         flag = true;
       } else {
