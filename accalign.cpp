@@ -2355,45 +2355,45 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
 
   cerr << "Reading fastq file " << F1 << ", " << F2 << "\n";
 
-  // replace this broadcast node with source node
-//  if (!is_paired) {
-//    graph g;
-//
-//    source_node < Read * > input_node(g, [&](Read *&r) -> bool {
-//      auto start = std::chrono::system_clock::now();
-//
-//      if (gzeof(in1) || (gzgetc(in1) == EOF))
-//        return false;
-//
-//      r = new Read;
-//      in1 >> *r;
-//
-//      auto end = std::chrono::system_clock::now();
-//      auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-//      input_io_time += elapsed.count();
-//
-//      if (!strlen(r->seq))
-//        return false;
-//
-//      return true;
-//
-//    }, false);
-//
-//    int max_objects = 10000000;
-//    limiter_node < Read * > lnode(g, max_objects);
-//    function_node < Read * , Read * > map_node(g, unlimited, tbb_map(this));
-//    function_node < Read * , Read * > align_node(g, unlimited, tbb_align(this));
-//    function_node < Read * , continue_msg > score_node(g, 1, tbb_score(this));
-//
-//    make_edge(score_node, lnode.decrement);
-//    make_edge(align_node, score_node);
-//    make_edge(map_node, align_node);
-//    make_edge(lnode, map_node);
-//    make_edge(input_node, map_node);
-//    input_node.activate();
-//    g.wait_for_all();
-//  } else {
-  if (is_paired) {
+//   replace this broadcast node with source node
+  if (!is_paired) {
+    graph g;
+
+    source_node < Read * > input_node(g, [&](Read *&r) -> bool {
+      auto start = std::chrono::system_clock::now();
+
+      if (gzeof(in1) || (gzgetc(in1) == EOF))
+        return false;
+
+      r = new Read;
+      in1 >> *r;
+
+      auto end = std::chrono::system_clock::now();
+      auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+      input_io_time += elapsed.count();
+
+      if (!strlen(r->seq))
+        return false;
+
+      return true;
+
+    }, false);
+
+    int max_objects = 10000000;
+    limiter_node < Read * > lnode(g, max_objects);
+    function_node < Read * , Read * > map_node(g, unlimited, tbb_map(this));
+    function_node < Read * , Read * > align_node(g, unlimited, tbb_align(this));
+    function_node < Read * , continue_msg > score_node(g, 1, tbb_score(this));
+
+    make_edge(score_node, lnode.decrement);
+    make_edge(align_node, score_node);
+    make_edge(map_node, align_node);
+    make_edge(lnode, map_node);
+    make_edge(input_node, map_node);
+    input_node.activate();
+    g.wait_for_all();
+  } else {
+//  if (is_paired) {
     graph g;
     source_node<ReadPair> input_node(g, [&](ReadPair &rp) -> bool {
       auto start = std::chrono::system_clock::now();
@@ -2525,8 +2525,8 @@ int main(int ac, char **av) {
   f.open_output(g_out);
 
   if (opn == ac - 1) {
-    f.fastq(av[opn], "\0", false);
-//    f.tbb_fastq(av[opn], "\0");
+//    f.fastq(av[opn], "\0", false);
+    f.tbb_fastq(av[opn], "\0");
   } else if (opn == ac - 2) {
 //    f.fastq(av[opn], av[opn + 1], false);
     f.tbb_fastq(av[opn], av[opn + 1]);
