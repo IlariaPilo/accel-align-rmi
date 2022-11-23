@@ -1759,11 +1759,46 @@ void AccAlign::align_wrapper(int tid, int soff, int eoff, Read *ptlread, Read *p
     tbb::parallel_for(tbb::blocked_range<size_t>(soff, eoff), Tbb_aligner(ptlread, sams, this));
 
     auto start = std::chrono::system_clock::now();
-    for (int i = soff; i < eoff; i++) {
-      out_sam(sams + i);
+
+    int n_merge_str = eoff-soff;
+    int str_len = 0;
+    if (!enable_extension) {
+      str_len = 50;
+    } else {
+      str_len = 50 + strlen(ptlread->seq); //assume the length of cigar will not longer than the read
+    }
+    
+    if (ptlread->strand == '*') {
+      str_len += strlen(ptlread->name) + 2 * strlen(ptlread->seq);
+    } else {
+      str_len += strlen(ptlread->name) + name[ptlread->tid].length() + 2 * strlen(ptlread->seq);
+    }
+
+    char c[str_len*n_merge_str];
+    int beg = 0;
+    for (int i = 0; i < n_merge_str; ++i){
+      strcpy(c+beg, sams[i].c_str());
+      beg += sams[i].size();
+    }
+
+    start = std::chrono::system_clock::now();
+    {
+      if (sam_name.length()) {
+        sam_stream << c;
+      } else {
+        cout << c;
+      }
     }
     auto end = std::chrono::system_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    sam_out_time += elapsed.count();
+
+//    for (int i = soff; i < eoff; i++) {
+//      out_sam(sams + i);
+//    }
+
+    end = std::chrono::system_clock::now();
+    elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     sam_time += elapsed.count();
 
     dataQ->push(make_tuple(ptlread, (Read *) NULL));
@@ -2525,8 +2560,8 @@ int main(int ac, char **av) {
   f.open_output(g_out);
 
   if (opn == ac - 1) {
-//    f.fastq(av[opn], "\0", false);
-    f.tbb_fastq(av[opn], "\0");
+    f.fastq(av[opn], "\0", false);
+//    f.tbb_fastq(av[opn], "\0");
   } else if (opn == ac - 2) {
 //    f.fastq(av[opn], av[opn + 1], false);
     f.tbb_fastq(av[opn], av[opn + 1]);
