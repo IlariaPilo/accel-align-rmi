@@ -2416,7 +2416,7 @@ void AccAlign::score_region(Read &r, char *qseq, Region &region,
 
     l = qlen - qe;
     l += l * SC_MCH + END_BONUS > GAPO ? (l * SC_MCH + END_BONUS - GAPO) / GAPE : 0;
-    re0 = re + l < offset.back() ? re + l: offset.back();
+    re0 = re + l < get_offset(r.ref_id).back() ? re + l: get_offset(r.ref_id).back();
 
     //left extension
     if (qs > 0 && rs > 0) {
