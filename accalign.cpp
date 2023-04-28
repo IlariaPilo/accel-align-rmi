@@ -39,11 +39,16 @@ static void parse(char seq[], char fwd[], char rev[], char rev_str[]) {
   unsigned len = strlen(seq);
 
   for (size_t i = 0; i < len; i++) {
+    char tmp_c = seq[i];
+    if (enable_bs && (tmp_c == 'c' || tmp_c == 'C')){
+      tmp_c = 'T';
+    }
     uint8_t c = *(code + seq[i]);
     fwd[i] = c;
     rev[len - 1 - i] = c == 4 ? c : 3 - c;
     rev_str[len - 1 - i] = rcsymbol[c];
   }
+
   *(fwd + len) = '\0';
   *(rev + len) = '\0';
   *(rev_str + len) = '\0';
