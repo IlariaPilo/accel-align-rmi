@@ -43,7 +43,7 @@ static void parse(char seq[], char fwd[], char rev[], char rev_str[]) {
     if (enable_bs && (tmp_c == 'c' || tmp_c == 'C')){
       tmp_c = 'T';
     }
-    uint8_t c = *(code + seq[i]);
+    uint8_t c = *(code + tmp_c);
     fwd[i] = c;
     rev[len - 1 - i] = c == 4 ? c : 3 - c;
     rev_str[len - 1 - i] = rcsymbol[c];
