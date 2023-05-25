@@ -1,3 +1,7 @@
+**_IMPORTANT: this is the original README! To take a look at the specific features of this fork, go [here](./README_rmi.md)._**
+
+---
+
 ## Overview ##
 
 Accel-align is a fast alignment tool implemented in C++ programming language.
