@@ -1,0 +1,58 @@
+Running with 24 threads
+
+-------- wiki_ts_200M_uint64 --------
+Models                   Branch        AvgLg2        MaxLg2       Size (B)   Build time (ns)
+linear_spline,linear   16777216       4.28326      14.70342      402653200       37387476487
+linear_spline,linear    8388608       4.47365      14.70342      201326608       24621227271
+linear_spline,linear    4194304       4.71411      15.47811      100663312       21417913690
+linear_spline,linear    1048576       5.34937      27.57542       25165840       19976471429
+linear_spline,linear     524288       5.76918      27.57542       12582928       47502840411
+linear_spline,linear     262144       6.28746      15.16243        6291472       19157556375
+linear_spline,linear     131072       6.92736      16.41039        3145744       19241524179
+linear,linear             32768       8.72713      27.57542         786448       23764848208
+linear_spline,linear       1024      14.50991      27.57542          24592       18891037343
+linear_spline,linear        128      16.27908      16.65756           3088       20948676477
+Execution time: 170499924746 ns
+
+-------- osm_cellids_200M_uint64 --------
+Models                   Branch        AvgLg2        MaxLg2       Size (B)   Build time (ns)
+cubic,linear           16777216       7.43388      16.40954      402653216       29830636647
+cubic,linear            8388608       8.20680      27.57542      201326624       27071409179
+cubic,linear            4194304       9.02023      27.57542      100663328       25351360224
+radix22,linear          1048576       9.65157      17.79530       41943040       19713879413
+cubic,linear             524288      11.58736      27.57542       12582944       23722646412
+radix18,linear            32768      13.36202      21.21220        1835008       19590491869
+linear,linear             32768      15.12827      21.37139         786448       21131248784
+robust_linear,cubic        1024      19.59049      21.58133          40976       24188701501
+robust_linear,linear        512      20.54158      23.36902          12304       22964482019
+robust_linear,linear        128      22.41625      23.70156           3088       19088209419
+Execution time: 202874059184 ns
+
+-------- fb_200M_uint64 --------
+Models                   Branch        AvgLg2        MaxLg2       Size (B)   Build time (ns)
+robust_linear,linear   16777216       5.04697       9.95565      402653200       20165029902
+robust_linear,linear    8388608       5.63038      10.61930      201326608       18904266747
+robust_linear,linear    4194304       6.26442      11.46659      100663312       19511152849
+robust_linear,linear    1048576       7.61933      11.58965       25165840       18524316503
+robust_linear,linear     524288       8.30967      12.12024       12582928       17175229726
+robust_linear,linear     262144       8.99303      12.45918        6291472       18136010136
+robust_linear,linear     131072       9.66433      12.66133        3145744       19484959065
+robust_linear,linear      32768      10.90576      12.71360         786448       17008581530
+robust_linear,linear       1024      13.67400      18.10085          24592       17685092503
+robust_linear,linear        128      15.31291      21.24017           3088       16891999867
+Execution time: 105011373136 ns
+
+-------- books_200M_uint32 --------
+Models                   Branch        AvgLg2        MaxLg2       Size (B)   Build time (ns)
+linear,linear          16777216       4.56474      21.06598      402653200       21107356235
+linear,linear           8388608       4.86285      21.06598      201326608       30465589229
+linear,linear           4194304       5.26457      21.06598      100663312       29362417893
+radix22,linear          1048576       5.43829       8.77808       41943040       19685324507
+linear,linear            524288       6.70130      21.06599       12582928       15953146938
+linear,linear            262144       7.18439      21.06601        6291472       15924156586
+radix18,linear            32768       7.70451      12.72494        1835008       19783179574
+linear,linear             32768       8.62031      21.06605         786448       21687386351
+robust_linear,linear       1024      10.97305      21.07244          24592       21833711212
+linear,linear               128      12.86291      21.09924           3088       22086237761
+Execution time: 170566378236 ns
+
