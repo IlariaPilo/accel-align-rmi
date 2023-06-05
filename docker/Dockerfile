@@ -19,7 +19,7 @@ USER aligner
 
 WORKDIR /home/aligner
 
-ADD https://api.github.com/repos/IlariaPilo/accel-align-rmi/git/refs/heads/main version.json
+ADD https://api.github.com/repos/IlariaPilo/accel-align-rmi/git/refs/heads/minimizer version.json
 RUN git clone --recurse-submodules https://github.com/IlariaPilo/accel-align-rmi
 # Install python dependencies
 RUN cd accel-align-rmi && \
