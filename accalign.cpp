@@ -1,6 +1,21 @@
 #include "header.h"
+
+#include <iomanip>
+
 #include "accalign.h"
 #include "ksw2.h"
+#include "strobealign/timer.hpp"
+#include "strobealign/logger.hpp"
+
+#include "strobealign/refs.hpp"
+#include "strobealign/exceptions.hpp"
+#include "strobealign/cmdline.hpp"
+#include "strobealign/pc.hpp"
+#include "strobealign/aln.hpp"
+#include "strobealign/readlen.hpp"
+#include "strobealign/randstrobes.hpp"
+#include "strobealign/nam.hpp"
+#include "strobealign-integrator.hpp"
 
 using namespace tbb::flow;
 using namespace std;
@@ -13,13 +28,17 @@ string g_out, g_batch_file, g_embed_file;
 char rcsymbol[6] = "TGCAN";
 uint8_t code[256];
 bool enable_extension = true, enable_wfa_extension = false, extend_all = false,
-enable_minimizer = false, enable_bs = false;
+enable_minimizer = false, enable_bs = false, enable_strobealign_extension = false;
 
 
 int g_ncpus = 1;
 float delTime = 0, mapqTime = 0, keyvTime = 0, posvTime = 0, sortTime = 0;
 float mm_cal = 0, mm_fetch = 0, mm_hit_cnt = 0;
 int8_t mat[25];
+
+
+// Strobealign specific
+static Logger& logger = Logger::get();
 
 void make_code(void) {
   for (size_t i = 0; i < 256; i++)
@@ -86,17 +105,15 @@ gzFile &operator>>(gzFile &in, Read &r) {
 }
 
 void print_usage() {
-  cerr << "accalign [options] <ref.fa> [read1.fastq] [read2.fastq]\n";
+  cerr << "accalign [options] --use-index <ref.fa> [read1.fastq] [read2.fastq]\n";
   cerr << "\t Maximum read length supported is 512\n";
   cerr << "options:\n";
   cerr << "\t-t INT Number of cpu threads to use [all]\n";
-  cerr << "\t-l INT Length of seed [32]\n";
   cerr << "\t-o Name of the output file \n";
   cerr << "\t-x Alignment-free mode\n";
   cerr << "\t-w Use WFA for extension. KSW used by default. \n";
   cerr << "\t-p Maximum distance allowed between the paired-end reads [1000]\n";
   cerr << "\t-d Disable embedding, extend all candidates from seeding (this mode is super slow, only for benchmark).\n";
-  cerr << "\t-m Seeding with minimizer.\n";
   cerr << "\t-s bisulfite sequencing read alignment mode \n";
 
 }
@@ -128,7 +145,7 @@ void AccAlign::print_stats() {
 //#endif
 }
 
-bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu) {
+bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu, IndexParameters *index_parameters, StrobemerIndex *index, mapping_params *map_params) {
 
   bool is_paired = false;
 
@@ -194,9 +211,9 @@ bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu) {
 
     if (nreads_per_vec == batch_size) {
       if (is_paired)
-        inputQ.push(make_tuple(reads[vec_index], reads2[vec_index], batch_size));
+        inputQ.push(make_tuple(reads[vec_index], reads2[vec_index], batch_size, index, index_parameters, map_params));
       else
-        inputQ.push(make_tuple(reads[vec_index], (Read *) NULL, batch_size));
+        inputQ.push(make_tuple(reads[vec_index], (Read *) NULL, batch_size, index, index_parameters, map_params));
 
       vec_index++;
 
@@ -217,9 +234,9 @@ bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu) {
   if (nreads_per_vec && vec_index < vec_size) {
     // the remaining reads
     if (is_paired)
-      inputQ.push(make_tuple(reads[vec_index], reads2[vec_index], nreads_per_vec));
+      inputQ.push(make_tuple(reads[vec_index], reads2[vec_index], nreads_per_vec, index, index_parameters, map_params));
     else
-      inputQ.push(make_tuple(reads[vec_index], (Read *) NULL, nreads_per_vec));
+      inputQ.push(make_tuple(reads[vec_index], (Read *) NULL, nreads_per_vec, index, index_parameters, map_params));
 
     total_nreads += nreads_per_vec;
   } else {
@@ -248,7 +265,7 @@ bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu) {
       ++nreads_per_vec;
 
       if (nreads_per_vec == batch_size) {
-        inputQ.push(make_tuple(std::get<0>(cur_vec), std::get<1>(cur_vec), batch_size));
+        inputQ.push(make_tuple(std::get<0>(cur_vec), std::get<1>(cur_vec), batch_size, index, index_parameters, map_params));
         dataQ.pop(cur_vec);
         total_nreads += nreads_per_vec;
         nreads_per_vec = 0;
@@ -258,7 +275,7 @@ bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu) {
     // the remaining reads
     if (nreads_per_vec) {
       total_nreads += nreads_per_vec;
-      inputQ.push(make_tuple(std::get<0>(cur_vec), std::get<1>(cur_vec), nreads_per_vec));
+      inputQ.push(make_tuple(std::get<0>(cur_vec), std::get<1>(cur_vec), nreads_per_vec, index, index_parameters, map_params));
     }
   }
 
@@ -274,7 +291,7 @@ bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu) {
   cerr << "done reading " << total_nreads << " reads from fastq file " << F1 << ", " << F2 << " in " <<
        input_io_time / 1000000.0 << " secs\n";
 
-  ReadCnt sentinel = make_tuple((Read *) NULL, (Read *) NULL, 0);
+  ReadCnt sentinel = make_tuple((Read *) NULL, (Read *) NULL, 0, (StrobemerIndex *) NULL, (IndexParameters *) NULL, (mapping_params *) NULL);
   inputQ.push(sentinel);
 
   int size = vec_index < vec_size ? vec_index : vec_size;
@@ -321,7 +338,9 @@ void AccAlign::output_root_fn(tbb::concurrent_bounded_queue<ReadCnt> *outputQ,
       targetQ->push(gpu_reads);   //put sentinel back
       break;
     }
-    align_wrapper(0, 0, nreads, std::get<0>(gpu_reads), std::get<1>(gpu_reads), dataQ);
+    Read *read01 = std::get<0>(gpu_reads);
+    Read *read02 = std::get<1>(gpu_reads);
+    align_wrapper(0, 0, nreads, read01, read02, dataQ);
   } while (1);
 
   cerr << "Extension and output function quitting...\n";
@@ -331,15 +350,18 @@ class Parallel_mapper {
   Read *all_reads1;
   Read *all_reads2;
   AccAlign *acc_obj;
+  StrobemerIndex *index;
+  IndexParameters *indexParameters;
+  mapping_params *map_params;
 
  public:
-  Parallel_mapper(Read *_all_reads1, Read *_all_reads2, AccAlign *_acc_obj) :
-      all_reads1(_all_reads1), all_reads2(_all_reads2), acc_obj(_acc_obj) {}
+  Parallel_mapper(Read *_all_reads1, Read *_all_reads2, AccAlign *_acc_obj, StrobemerIndex *index, IndexParameters *indexParameters, mapping_params *map_params) :
+      all_reads1(_all_reads1), all_reads2(_all_reads2), acc_obj(_acc_obj), index(index), indexParameters(indexParameters), map_params(map_params) {}
 
   void operator()(const tbb::blocked_range<size_t> &r) const {
     if (!all_reads2) {
       for (size_t i = r.begin(); i != r.end(); ++i) {
-        acc_obj->map_read_wrapper(*(all_reads1 + i));
+        acc_obj->map_read_wrapper(*(all_reads1 + i), index, indexParameters, map_params);
       }
     } else {
       for (size_t i = r.begin(); i != r.end(); ++i) {
@@ -360,6 +382,9 @@ void AccAlign::cpu_root_fn(tbb::concurrent_bounded_queue<ReadCnt> *inputQ,
     targetQ->pop(cpu_readcnt);
     nreads = std::get<2>(cpu_readcnt);
     total += nreads;
+    StrobemerIndex *index = std::get<3>(cpu_readcnt);
+    IndexParameters *indexParameters = std::get<4>(cpu_readcnt);
+    mapping_params *map_params = std::get<5>(cpu_readcnt);
     if (nreads == 0) {
       inputQ->push(cpu_readcnt);    // push sentinel back
       break;
@@ -367,7 +392,7 @@ void AccAlign::cpu_root_fn(tbb::concurrent_bounded_queue<ReadCnt> *inputQ,
 
     tbb::task_scheduler_init init(g_ncpus);
     tbb::parallel_for(tbb::blocked_range<size_t>(0, nreads),
-                      Parallel_mapper(std::get<0>(cpu_readcnt), std::get<1>(cpu_readcnt), this)
+                      Parallel_mapper(std::get<0>(cpu_readcnt), std::get<1>(cpu_readcnt), this, index, indexParameters, map_params)
     );
 
     outputQ->push(cpu_readcnt);
@@ -714,10 +739,22 @@ void AccAlign::pghole_wrapper(Read &R,
                               vector<Region> &fcandidate_regions,
                               vector<Region> &rcandidate_regions,
                               unsigned &fbest,
-                              unsigned &rbest, int ref_id) {
+                              unsigned &rbest,
+                              int ref_id,
+                              StrobemerIndex &index,
+                              IndexParameters &index_parameters,
+                              mapping_params &map_params) {
   size_t rlen = strlen(R.seq);
   int err_threshold = 2;
 
+  // Retrieve Candidate Regions using Strobealign index
+  if(enable_strobealign_extension) {
+    find_candidate_positions_using_strobealign(std::string(R.seq), fcandidate_regions, false, index, index_parameters, map_params);
+    find_candidate_positions_using_strobealign(std::string(R.seq), rcandidate_regions, true, index, index_parameters, map_params);
+    return;
+  }
+
+  // Retrieve Candidate Regions using Accel-Align index
   if (enable_minimizer){
     mm128_v mv = {0, 0, 0};
     void *km = nullptr;
@@ -772,6 +809,35 @@ void AccAlign::pghole_wrapper(Read &R,
       R.kmer_step = kmer_step;
       ori_slide++;
 //    kmer_step = kmer_step / 2;
+    }
+  }
+
+}
+
+// @param direction: "false", if forward strang, "true" if reverse strang
+void AccAlign::find_candidate_positions_using_strobealign(std::string_view seq, vector<Region> &candidate_regions, bool direction, StrobemerIndex &index, IndexParameters &index_parameters, mapping_params &map_params){
+  auto query_randstrobes = randstrobes_query(seq, index_parameters);
+  auto [nonrepetitive_fraction, nams] = find_nams(query_randstrobes, index);
+
+  if (nams.empty() || nonrepetitive_fraction < 0.7) {
+    nams = find_nams_rescue(query_randstrobes, index, map_params.rescue_cutoff);
+  }
+  std::sort(nams.begin(), nams.end(), [](const Nam &a, const Nam &b) -> bool {
+    return a.score > b.score;
+  });
+
+  Region region;
+  region.matched_intervals.reserve(1);
+  for(Nam &nam: nams) {
+    if(nam.is_rc == direction) {
+      region.rs = nam.ref_s;
+      region.re = nam.ref_e;
+      region.qs = nam.query_s;
+      region.qe = nam.query_e;
+      region.cov = nam.n_hits;
+      region.score = (int)nam.score;
+      region.matched_intervals.push_back(Interval{nam.query_s, nam.query_e});
+      candidate_regions.push_back(move(region));
     }
   }
 
@@ -1522,7 +1588,7 @@ int AccAlign::get_mapq(int best, int secBest) {
   return mapq;
 }
 
-void AccAlign::map_read(Read &R, int ref_id) {
+void AccAlign::map_read(Read &R, int ref_id, StrobemerIndex &index, IndexParameters &index_parameters, mapping_params &map_params) {
 
   auto start = std::chrono::system_clock::now();
   vector<Region> fcandidate_regions, rcandidate_regions;
@@ -1532,7 +1598,7 @@ void AccAlign::map_read(Read &R, int ref_id) {
   // XXX: On experimentation, it was found that using pigeonhole filtering
   // produces wrong results and invalid mappings when errors are too large.
   unsigned fbest = 0, rbest = 0;
-  pghole_wrapper(R, fcandidate_regions, rcandidate_regions, fbest, rbest, ref_id);
+  pghole_wrapper(R, fcandidate_regions, rcandidate_regions, fbest, rbest, ref_id, index, index_parameters, map_params);
   unsigned nfregions = fcandidate_regions.size();
   unsigned nrregions = rcandidate_regions.size();
   auto end = std::chrono::system_clock::now();
@@ -1630,18 +1696,18 @@ void AccAlign::map_read(Read &R, int ref_id) {
   }
 }
 
-void AccAlign::map_read_wrapper(Read &R) {
+void AccAlign::map_read_wrapper(Read &R, StrobemerIndex *index, IndexParameters *index_parameters, mapping_params *map_params) {
   auto start = std::chrono::system_clock::now();
   parse(R.seq, R.fwd, R.rev, R.rev_str);
   auto end = std::chrono::system_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
   parse_time += elapsed.count();
 
-  map_read(R, 0);
+  map_read(R, 0, *index, *index_parameters, *map_params);
   R.ref_id = 0;
 
   if (enable_bs){
-    map_read(R, 1);
+    map_read(R, 1, *index, *index_parameters, *map_params);
     if (R.best > R.best_optional){
       R.strand = R.strand_optional;
       R.best_region = R.best_region_optional;
@@ -1756,8 +1822,8 @@ void AccAlign::map_paired_read(Read &mate1, Read &mate2, int ref_id) {
   seeding_time += elapsed.count();
 
   if (!has_f1r2 && !has_r1f2) {
-    map_read_wrapper(mate1);
-    map_read_wrapper(mate2);
+    map_read_wrapper(mate1, NULL, NULL, NULL);
+    map_read_wrapper(mate2, NULL, NULL, NULL);
     if (mate1.strand == '*' && mate2.strand == '*')
       return;
     else if ((mate1.strand != '*' && mate2.strand != '*' && mate1.best_region.embed_dist < mate2.best_region.embed_dist)
@@ -2807,7 +2873,7 @@ struct tbb_map {
   tbb_map(AccAlign *obj) : accalign(obj) {}
 
   Read *operator()(Read *r) {
-    accalign->map_read_wrapper(*r);
+    accalign->map_read_wrapper(*r, NULL, NULL, NULL);
     return r;
   }
 
@@ -2976,103 +3042,243 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
   return true;
 }
 
-int main(int ac, char **av) {
-  if (ac < 3) {
-    print_usage();
+
+InputBuffer get_input_buffer(const CommandLineOptions& opt) {
+  if (opt.is_SE) {
+    return InputBuffer(opt.reads_filename1, "", opt.chunk_size, false);
+  } else if (opt.is_interleaved) {
+    if (opt.reads_filename2 != "") {
+      throw BadParameter("Cannot specify both --interleaved and specify two read files");
+    }
+    return InputBuffer(opt.reads_filename1, "", opt.chunk_size, true);
+  } else {
+    return InputBuffer(opt.reads_filename1, opt.reads_filename2, opt.chunk_size, false);
+  }
+}
+
+void log_parameters(const IndexParameters& index_parameters, const mapping_params& map_param, const alignment_params& aln_params) {
+  logger.debug() << "Using" << std::endl
+                 << "k: " << index_parameters.k << std::endl
+                 << "s: " << index_parameters.s << std::endl
+                 << "w_min: " << index_parameters.w_min << std::endl
+                 << "w_max: " << index_parameters.w_max << std::endl
+                 << "Read length (r): " << map_param.r << std::endl
+                 << "Maximum seed length: " << index_parameters.max_dist + index_parameters.k << std::endl
+                 << "R: " << map_param.R << std::endl
+                 << "Expected [w_min, w_max] in #syncmers: [" << index_parameters.w_min << ", " << index_parameters.w_max << "]" << std::endl
+                 << "Expected [w_min, w_max] in #nucleotides: [" << (index_parameters.k - index_parameters.s + 1) * index_parameters.w_min << ", " << (index_parameters.k - index_parameters.s + 1) * index_parameters.w_max << "]" << std::endl
+                 << "A: " << aln_params.match << std::endl
+                 << "B: " << aln_params.mismatch << std::endl
+                 << "O: " << aln_params.gap_open << std::endl
+                 << "E: " << aln_params.gap_extend << std::endl
+                 << "end bonus: " << aln_params.end_bonus << '\n';
+}
+
+/*
+ * Return formatted SAM header as a string
+ */
+std::string sam_header(const References& references, const std::string& read_group_id, const std::vector<std::string>& read_group_fields, const std::string& cmd_line) {
+  std::stringstream out;
+  out << "@HD\tVN:1.6\tSO:unsorted\n";
+  for (size_t i = 0; i < references.size(); ++i) {
+    out << "@SQ\tSN:" << references.names[i] << "\tLN:" << references.lengths[i] << "\n";
+  }
+  if (!read_group_id.empty()) {
+    out << "@RG\tID:" << read_group_id;
+    for (const auto& field : read_group_fields) {
+      out << '\t' << field;
+    }
+    out << '\n';
+  }
+  out << "@PG\tID:strobealign\tPN:strobealign\tVN: 0.1"  << "\tCL:" << cmd_line << std::endl;
+  return out.str();
+}
+
+
+int main(int argc, char **argv) {
+
+  int opn = 1;
+  while (opn < argc && !enable_strobealign_extension) {
+    if (std::string(argv[opn]) == "--strobe-mode") {
+      enable_strobealign_extension = true;
+    }
+    opn++;
+  }
+
+  auto opt = parse_command_line_arguments(argc, argv, enable_strobealign_extension);
+  logger.set_level(opt.verbose ? LOG_DEBUG : LOG_INFO);
+  logger.info() << std::setprecision(2) << std::fixed;
+
+
+  // General Setup
+  logger.info() << "Starting General Setup" << std::endl;
+  if (argc < 3) {
+    logger.error() << "Please provide a valid command." << std::endl;
     return 0;
   }
 
-  int opn = 1;
   int kmer_temp = 0;
-  while (opn < ac) {
-    bool flag = false;
-    if (av[opn][0] == '-') {
-      if (av[opn][1] == 't') {
-        g_ncpus = atoi(av[opn + 1]);
-        opn += 2;
-        flag = true;
-      } else if (av[opn][1] == 'l') {
-        kmer_temp = atoi(av[opn + 1]);
-        opn += 2;
-        flag = true;
-      } else if (av[opn][1] == 'o') {
-        g_out = av[opn + 1];
-        opn += 2;
-        flag = true;
-      } else if (av[opn][1] == 'e') {
-        g_embed_file = av[opn + 1];
-        opn += 2;
-        flag = true;
-      } else if (av[opn][1] == 'b') {
-        g_batch_file = av[opn + 1];
-        opn += 2;
-        flag = true;
-      } else if (av[opn][1] == 'p') {
-        pairdis = atoi(av[opn + 1]);
-        opn += 2;
-        flag = true;
-      } else if (av[opn][1] == 'x') {
-        enable_extension = false;
-        opn += 1;
-        flag = true;
-      } else if (av[opn][1] == 'w') {
-        enable_wfa_extension = true;
-        opn += 1;
-        flag = true;
-      } else if (av[opn][1] == 'd') {
-        extend_all = true;
-        opn += 1;
-        flag = true;
-      } else if (av[opn][1] == 'm') {
-        enable_minimizer = true;
-        opn += 1;
-        flag = true;
-      } else if (av[opn][1] == 's') {
-        enable_bs = true;
-        opn += 1;
-        flag = true;
-      } else {
-        print_usage();
-      }
+  Reference **r = new Reference*[2];
+  const char *reference_file;
+  StrobemerIndex *index_reference;
+  IndexParameters *index_parameters_reference;
+  mapping_params map_params;
+  const char *read_file_01;
+  const char *read_file_02;
+
+
+  if(!enable_strobealign_extension) {
+
+    // Accel-Align Setup
+    logger.info() << "Starting Accel-Align Setup" << std::endl;
+
+
+    g_ncpus = atoi(std::to_string(opt.n_threads).c_str());
+    kmer_temp = atoi(std::to_string(opt.l).c_str());
+    g_out = opt.o;
+    g_embed_file = opt.e;
+    g_batch_file = opt.b;
+    pairdis = atoi(std::to_string(opt.p).c_str());
+    enable_extension = opt.x;
+    enable_wfa_extension = opt.w;
+    extend_all = opt.d;
+    enable_minimizer = opt.m;
+    enable_bs = opt.bs;
+
+
+    if (kmer_temp != 0)
+      kmer_len = kmer_temp;
+    mask = kmer_len == 32 ? ~0 : (1ULL << (kmer_len * 2)) - 1;
+
+    cerr << "Using kmer length " << kmer_len << " and step size " << kmer_step << endl;
+
+    tbb::task_scheduler_init init(g_ncpus);
+    make_code();
+
+    // load reference once
+    if (enable_bs){
+      r[0] = new Reference(opt.ref_filename.c_str(), enable_minimizer, 'c', true);
+      r[1] = new Reference(opt.ref_filename.c_str(), enable_minimizer, 'g', true);
+    } else {
+      r[0] = new Reference(opt.ref_filename.c_str(), enable_minimizer, ' ', true);
     }
-    if (!flag)
-      break;
+
+    if (enable_extension && !enable_wfa_extension) {
+      ksw_gen_simple_mat(5, mat, SC_MCH, SC_MIS, SC_AMBI);
+    }
+    logger.info() << "Finished Accel-Align Setup" << std::endl;
+  } else {
+
+
+    // Strobealign Setup
+
+    // accalign command: ./accalign -l 32 -t 7 -s <path-to-ref-genome>/<ref-genome>.fna <path-to-input-folder>/<input-file>.fq > <path-to-output-folder>/<output-file>.sam
+    // strobealign command: strobealign --use-index ref.fa reads.1.fastq.gz reads.2.fastq.gz
+
+    logger.info() << "Starting Strobealign Setup" << std::endl;
+
+    // Load accalign Reference data structure without acalign index
+
+
+    if(opt.ref_filename.empty()) {
+      logger.error() << "Please provide a valid reference file" << std::endl;
+      return 1;
+    }
+    reference_file = opt.ref_filename.c_str();
+    r[0] = new Reference(reference_file, enable_minimizer, ' ', false);
+
+    if (opt.c >= 64 || opt.c <= 0) {
+      throw BadParameter("c must be greater than 0 and less than 64");
+    }
+
+    InputBuffer input_buffer = get_input_buffer(opt);
+    if (!opt.r_set && !opt.reads_filename1.empty()) {
+      opt.r = estimate_read_length(input_buffer);
+      logger.info() << "Estimated read length: " << opt.r << " bp\n";
+    }
+    input_buffer.rewind_reset();
+    IndexParameters index_parameters = IndexParameters::from_read_length(
+            opt.r,
+            opt.k_set ? opt.k : IndexParameters::DEFAULT,
+            opt.s_set ? opt.s : IndexParameters::DEFAULT,
+            opt.l_set ? opt.l : IndexParameters::DEFAULT,
+            opt.u_set ? opt.u : IndexParameters::DEFAULT,
+            opt.c_set ? opt.c : IndexParameters::DEFAULT,
+            opt.max_seed_len_set ? opt.max_seed_len : IndexParameters::DEFAULT
+    );
+    index_parameters_reference = &index_parameters;
+    logger.debug() << index_parameters << '\n';
+    alignment_params aln_params;
+    aln_params.match = opt.A;
+    aln_params.mismatch = opt.B;
+    aln_params.gap_open = opt.O;
+    aln_params.gap_extend = opt.E;
+    aln_params.end_bonus = opt.end_bonus;
+
+
+    map_params.r = opt.r;
+    map_params.max_secondary = opt.max_secondary;
+    map_params.dropoff_threshold = opt.dropoff_threshold;
+    map_params.R = opt.R;
+    map_params.maxTries = opt.maxTries;
+    map_params.is_sam_out = opt.is_sam_out;
+    map_params.cigar_eqx = opt.cigar_eqx;
+    map_params.output_unmapped = opt.output_unmapped;
+
+    log_parameters(index_parameters, map_params, aln_params);
+    logger.debug() << "Threads: " << opt.n_threads << std::endl;
+
+
+    // Retrieve Strobealign index
+    References references;
+    Timer read_refs_timer;
+    references = References::from_fasta(opt.ref_filename);
+    logger.info() << "Time reading reference: " << read_refs_timer.elapsed() << " s\n";
+
+    logger.info() << "Reference size: " << references.total_length() / 1E6 << " Mbp ("
+                  << references.size() << " contig" << (references.size() == 1 ? "" : "s")
+                  << "; largest: "
+                  << (*std::max_element(references.lengths.begin(), references.lengths.end()) / 1E6) << " Mbp)\n";
+    if (references.total_length() == 0) {
+      throw InvalidFasta("No reference sequences found");
+    }
+
+    index_reference = new StrobemerIndex(references, index_parameters);
+
+    // Read Strobealign index from the provided file
+    Timer read_index_timer;
+    std::string sti_path = opt.ref_filename + index_parameters.filename_extension();
+    logger.info() << "Reading index from " << sti_path << '\n';
+    index_reference->read(sti_path);
+    logger.info() << "Total time reading index: " << read_index_timer.elapsed() << " s\n";
+
+
+    logger.info() << "Running in " << (opt.is_SE ? "single-end" : "paired-end") << " mode" << std::endl;
+    logger.info() << "Finished Strobealign Setup" << std::endl;
   }
-  if (kmer_temp != 0)
-    kmer_len = kmer_temp;
-  mask = kmer_len == 32 ? ~0 : (1ULL << (kmer_len * 2)) - 1;
 
-  cerr << "Using " << g_ncpus << " cpus " << endl;
-  cerr << "Using kmer length " << kmer_len << " and step size " << kmer_step << endl;
 
+
+  logger.info() << "Using " << g_ncpus << " cpus " << std::endl;
   tbb::task_scheduler_init init(g_ncpus);
   make_code();
-
-  // load reference once
-  Reference **r = new Reference*[2];
-  if (enable_bs){
-    r[0] = new Reference(av[opn], enable_minimizer, 'c');
-    r[1] = new Reference(av[opn++], enable_minimizer, 'g');
-  } else {
-    r[0] = new Reference(av[opn++], enable_minimizer, ' ');
-  }
-
-  if (enable_extension && !enable_wfa_extension)
-    ksw_gen_simple_mat(5, mat, SC_MCH, SC_MIS, SC_AMBI);
-
   size_t total_begin = time(NULL);
 
   auto start = std::chrono::system_clock::now();
 
+
+  read_file_01 = opt.reads_filename1.c_str();
+  if(!opt.is_SE) {
+    read_file_02 = opt.reads_filename2.c_str();
+  }
+
+  // Run Accel-Align using the provided mode
   AccAlign f(r);
   f.open_output(g_out);
-
-  if (opn == ac - 1) {
-    f.fastq(av[opn], "\0", false);
-//    f.tbb_fastq(av[opn], "\0");
-  } else if (opn == ac - 2) {
-//    f.fastq(av[opn], av[opn + 1], false);
-    f.tbb_fastq(av[opn], av[opn + 1]);
+  if (opt.is_SE) {
+    f.fastq(read_file_01, "\0", false, index_parameters_reference, index_reference, &map_params);
+  } else if (!opt.reads_filename2.empty()) {
+    f.tbb_fastq(read_file_01, read_file_02);
   } else {
     print_usage();
     return 0;

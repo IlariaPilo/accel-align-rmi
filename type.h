@@ -2,6 +2,9 @@
 
 #include "const.h"
 #include "minimap.h"
+#include "strobealign-integrator.hpp"
+#include "strobealign/indexparameters.hpp"
+#include "strobealign/aln.hpp"
 
 struct Alignment {
   std::string cigar_string;
@@ -63,14 +66,15 @@ class Reference {
   uint32_t nposv, nkeyv;
   mm_idx_t *mi;
   bool enable_minimizer;
+  bool load_accalign_index;
   char mode; // 'c' c-> t; 'g' g->a; ' ' original
 
-  Reference(const char *F, bool _enable_minimizer, char mode);
+  Reference(const char *F, bool _enable_minimizer, char mode, bool load_accalign_index);
 
   ~Reference();
 };
 
-typedef std::tuple<Read *, Read *, int> ReadCnt;
+typedef std::tuple<Read *, Read *, int, StrobemerIndex*, IndexParameters*, mapping_params*> ReadCnt;
 
 typedef std::tuple<Read *, Read *> ReadPair;
 
