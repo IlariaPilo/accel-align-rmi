@@ -28,33 +28,44 @@ class RefParser {
   }
 };
 
+// F should be the directory, that is <reference_prefix>_index
 void Reference::load_index(const char *F) {
-  // TODO - fix and add here the index load
-  string fn;
-  if (mode == ' ')
-    fn = string(F) + ".hash";
-  else if (mode == 'c')
-    fn = string(F) + ".hash.part1";
-  else if (mode == 'g')
-    fn = string(F) + ".hash.part2";
 
-  cerr << "loading hashtable from " << fn << endl;
+  string keys_f = "keys_uint32";
+  string pos_f = "pos_uint32";
+  //string fn;
+  //if (mode == ' ') {
+  //  fn = string(F) + ".hash";
+  //}
+  // ignore this ones
+  //else if (mode == 'c')
+  //  fn = string(F) + ".hash.part1";
+  //else if (mode == 'g')
+  //  fn = string(F) + ".hash.part2";
+
   ifstream fi;
-  fi.open(fn.c_str(), ios::binary);
+  fi.open(keys_f.c_str(), ios::binary);
   if (!fi) {
-    cerr << "Unable to open index file " << fn << endl;
+    cerr << "Unable to open key file" << endl;
+    exit(0);
+  }
+  fi.read((char *) &nkeyv, 4);
+  nkeyv *= 2;
+  fi.close();
+  //nkeyv = MOD + 1;
+
+  fi.open(pos_f.c_str(), ios::binary);
+  if (!fi) {
+    cerr << "Unable to open pos file" << endl;
     exit(0);
   }
   fi.read((char *) &nposv, 4);
   fi.close();
-  nkeyv = MOD + 1;
 
   cerr << "Mapping keyv of size: " << nkeyv * 4 <<
-       " and posv of size " << (size_t) nposv * 4 <<
-       " from index file " << fn << endl;
+       " and posv of size " << (size_t) nposv * 4 << endl;
   size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
   size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
-  int fd = open(fn.c_str(), O_RDONLY);
 
 #if __linux__
 #include <linux/version.h>
@@ -69,13 +80,18 @@ void Reference::load_index(const char *F) {
 #define MMAP_FLAGS MAP_PRIVATE
 #endif
 
-  char *base = reinterpret_cast<char *>(mmap(NULL, 4 + posv_sz + keyv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
+  int fd = open(keys_f.c_str(), O_RDONLY);
+  char *base = reinterpret_cast<char *>(mmap(NULL, 4 + keyv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
+  assert(base != MAP_FAILED);
+  keyv = (uint32_t * )(base + 4);
+
+  fd = open(pos_f.c_str(), O_RDONLY);
+  base = reinterpret_cast<char *>(mmap(NULL, 4 + posv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
   assert(base != MAP_FAILED);
   posv = (uint32_t * )(base + 4);
-  keyv = posv + nposv;
+
   cerr << "Mapping done" << endl;
   cerr << "done loading hashtable\n";
-
 }
 
 void Reference::load_reference(const char *F){
@@ -176,10 +192,10 @@ uint32_t Reference::index_lookup(uint32_t key) {
   uint32_t l, r;
   uint64_t key64 = (uint64_t) key;
   // call the lookup function of the index
-  guess_pos = (uint32_t) rmi::lookup(key64, &err);
+  guess_pos = (uint32_t) rmi.lookup(key64, &err)*2;
   // set up l and r for the bounded binary search
-  l = std::max(int32_t(0), static_cast<int32_t>(guess_pos-err));
-  r = std::min(static_cast<int32_t>(guess_pos+err), static_cast<int32_t>(nkeyv-1));
+  l = std::max(int32_t(0), static_cast<int32_t>(guess_pos-err*2));
+  r = std::min(static_cast<int32_t>(guess_pos+err*2), static_cast<int32_t>(nkeyv-1));
   // check in the keyv array
   while (l <= r) {
       guess_key = keyv[guess_pos];
@@ -188,9 +204,9 @@ uint32_t Reference::index_lookup(uint32_t key) {
           return guess_pos;
       // else, do binary search
       if (guess_key < key) {
-          l = guess_pos + 1;
+          l = guess_pos + 2;
       } else {
-          r = guess_pos - 1;
+          r = guess_pos - 2;
       }
       // update guess_pos
       guess_pos = l + (r-l)/2;
@@ -228,14 +244,17 @@ Reference::Reference(const char *F, bool _enable_minimizer, char _mode): enable_
 }
 
 Reference::~Reference() {
-  // TODO - add here the index cleanup
   if (enable_minimizer){
     mm_idx_destroy(mi);
   } else {
     size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
     size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
-    char *base = (char *) posv - 4;
-    int r = munmap(base, posv_sz + keyv_sz);
+    char *base = (char *) keyv - 4;
+    int r = munmap(base, keyv_sz + 4);  // TODO - +4 was not present at the beginning
+    assert(r == 0);
+
+    base = (char *) posv - 4;
+    r = munmap(base, posv_sz + 4);  // TODO - +4 was not present at the beginning
     assert(r == 0);
   }
 }

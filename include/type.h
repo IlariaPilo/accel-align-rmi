@@ -2,6 +2,7 @@
 
 #include "const.h"
 #include "minimap.h"
+#include "rmi.h"
 
 struct Alignment {
   std::string cigar_string;
@@ -64,6 +65,7 @@ class Reference {
   uint32_t *keyv, *posv;
   uint32_t nposv, nkeyv;
   mm_idx_t *mi;
+  RMI rmi;
   bool enable_minimizer;
   char mode; // 'c' c-> t; 'g' g->a; ' ' original
 
@@ -89,16 +91,3 @@ typedef struct {
 typedef bool (*load_type)(char const*);
 typedef uint64_t (*lookup_type)(uint64_t, size_t*);
 typedef void (*cleanup_type)();
-
-class RMI {
-  // private
-  void* library_handle;
-  load_type rmi_load;
-  lookup_type rmi_lookup;
-  cleanup_type rmi_cleanup;
-
-  public:
-    RMI(const char *library_prefix);
-    ~RMI();
-    uint64_t lookup(uint64_t key, size_t* err);
-};

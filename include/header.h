@@ -29,7 +29,7 @@
 
 #include "tbb/tbb.h"
 #include "tbb/flow_graph.h"
-#include "tbb/task_scheduler_init.h"
+// #include "tbb/task_scheduler_init.h"
 #include "tbb/concurrent_queue.h"
 #include "tbb/parallel_sort.h"
 
@@ -37,6 +37,7 @@
 #include "const.h"
 #include "embedding.h"
 #include "accalign.h"
+#include "rmi.h"
 
 #include "minimap.h"
 #include "mmpriv.h"
