@@ -15,7 +15,7 @@ fi
 
 INITIAL_DIR=$(pwd)
 _source_dir_=$(dirname "$0")
-BASE_DIR=$(readlink -f "$_source_dir_")     # /home/ilaria/Documents/uny/project/accel-align-rmi
+BASE_DIR=$(readlink -f "$_source_dir_")     # /home/ilaria/Documents/uny/project/accel-align-rmi-dev
 cd $BASE_DIR
 
 ref_name=$1                                 # ./data/hg37.fna
@@ -118,7 +118,7 @@ else
   echo -e "               | SIZE (B)\t\t$size"
   echo -e "               | AVG LOG2 ERROR\t\t$avg_err"
   echo -e "               | MAX LOG2 ERROR\t\t$max_err"
-  echo -e "               | BUILD TIME\t\t$b_time"
+  echo -e "               | BUILD TIME (ns)\t\t$b_time"
   read -ep $'            do you want to train a new one? [y/N] ' choice
   case "$choice" in 
     y|Y ) 

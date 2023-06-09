@@ -19,7 +19,7 @@ std::string get_parent_directory(const std::string& path) {
 /**
  * Constructor for the wrapper of the RMI library.
  *
- * @param library_prefix The prefix of the library we want to use that is, the path and the name WITHOUT the .so extension.
+ * @param library_prefix The prefix of the library we want to use, that is, the path and the name WITHOUT the .so extension.
  * @return A wrapper object.
  */
 RMI::RMI(const char *library_prefix) {                  // ./data/hg37_index/hg37_index

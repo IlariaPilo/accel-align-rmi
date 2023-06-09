@@ -55,6 +55,8 @@ class Reference {
  public:
   void load_index(const char *F);
   void load_reference(const char *F);
+  // add lookup function
+  uint32_t index_lookup(uint32_t key);
 
   std::string ref;
   std::vector<std::string> name;

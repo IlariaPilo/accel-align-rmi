@@ -121,15 +121,21 @@ bool Index::key_gen() {
     cerr << "Fall back to serial sorting (low mem)\n";
     sort(data.begin(), data.end(), Data());
   }
-
+  
   string fn = "keys_uint32";
   cerr << "writing in " << fn << endl;
 
   ofstream fo(fn.c_str(), ios::binary);
 
-  // determine the number of valid entries based on first junk entry
-  auto joff = std::lower_bound(data.begin(), data.end(), Data(-1, -1), Data());
-  uint64_t eof = (uint64_t)(joff - data.begin());
+  // determine the number of valid and unique entries
+  uint32_t prec = (uint32_t) -1;
+  uint64_t eof = 0;
+  for (size_t i = 0; i < data.size() && data[i].key != (uint32_t) -1; i++) {
+    if (data[i].key != prec) {
+        prec = data[i].key;
+        eof ++;
+      }
+  }
   cerr << "Found " << eof << " valid entries out of " <<
        data.size() << " total\n";
   // The number of entries is required to be a 64-bit value
@@ -139,20 +145,32 @@ bool Index::key_gen() {
   try {
     cerr << "Fast writing keys (" << eof << ")\n";
     uint32_t *buf = new uint32_t[eof];
-    for (size_t i = 0, i_buf = 0; i < data.size(); i++) {
-      if (data[i].key != (uint32_t) -1)
+    // the previous value
+    prec = (uint32_t) -1; 
+
+    for (size_t i = 0, i_buf = 0; i_buf < eof; i++) {
+      if (data[i].key != prec) {
         buf[i_buf++] = data[i].key;
+        prec = data[i].key;
+      }
     }
     fo.write((char *) buf, eof * sizeof(uint32_t));
     delete[] buf;
+
   } catch (std::bad_alloc& e) {
     cerr << "Fall back to slow writing keys due to low mem.\n";
+    // the previous value
+    prec = (uint32_t) -1;
+
     for (size_t i = 0; i < data.size(); i++) {
-      if (data[i].key != (uint32_t) -1)
+      if (data[i].key != (uint32_t) -1 && data[i].key != prec) {
         fo.write((char *) &data[i].key, 4);
+        prec = data[i].key;
+      }
+        
     }
   }
-  cerr << "Indexing complete\n";
+  cerr << "Key generation complete\n";
   fo.close();
   return true;
 }

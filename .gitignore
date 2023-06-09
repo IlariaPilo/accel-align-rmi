@@ -39,6 +39,7 @@
 local*
 TODO
 data/benchmarking/*uint*
+.vscode*
 
 # Indices
 */*_index/*

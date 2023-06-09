@@ -29,6 +29,7 @@ class RefParser {
 };
 
 void Reference::load_index(const char *F) {
+  // TODO - fix and add here the index load
   string fn;
   if (mode == ' ')
     fn = string(F) + ".hash";
@@ -160,6 +161,44 @@ void Reference::load_reference(const char *F){
   }
 }
 
+// add lookup function
+/**
+ * Function to query the RMI index.
+ *
+ * It first uses the rmi::lookup function and then performs a binary search, bounded by the (known) error.
+ *
+ * @param key The value we want to search in the index.
+ * @return The position of key in the index container, UINT32_T(-1) if the key was not found.
+ */
+uint32_t Reference::index_lookup(uint32_t key) {
+  size_t err;
+  uint32_t guess_key, guess_pos;
+  uint32_t l, r;
+  uint64_t key64 = (uint64_t) key;
+  // call the lookup function of the index
+  guess_pos = (uint32_t) rmi::lookup(key64, &err);
+  // set up l and r for the bounded binary search
+  l = std::max(int32_t(0), static_cast<int32_t>(guess_pos-err));
+  r = std::min(static_cast<int32_t>(guess_pos+err), static_cast<int32_t>(nkeyv-1));
+  // check in the keyv array
+  while (l <= r) {
+      guess_key = keyv[guess_pos];
+      // if it's the same, done
+      if (guess_key == key)
+          return guess_pos;
+      // else, do binary search
+      if (guess_key < key) {
+          l = guess_pos + 1;
+      } else {
+          r = guess_pos - 1;
+      }
+      // update guess_pos
+      guess_pos = l + (r-l)/2;
+  }
+  // not found :(
+  return -1;
+}
+
 Reference::Reference(const char *F, bool _enable_minimizer, char _mode): enable_minimizer(_enable_minimizer), mode(_mode){
   auto start = std::chrono::system_clock::now();
 
@@ -189,6 +228,7 @@ Reference::Reference(const char *F, bool _enable_minimizer, char _mode): enable_
 }
 
 Reference::~Reference() {
+  // TODO - add here the index cleanup
   if (enable_minimizer){
     mm_idx_destroy(mi);
   } else {
