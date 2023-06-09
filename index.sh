@@ -31,6 +31,7 @@ OUTPUT_DIR=$(realpath $OUTPUT_DIR)
 mkdir -p $OUTPUT_DIR
 
 keys_name="${OUTPUT_DIR}/keys_uint32"       # ./data/hg37_index/keys_unit32
+pos_name="${OUTPUT_DIR}/pos_uint32"       # ./data/hg37_index/pos_unit32
 
 # Get number of threads
 if [ $# -eq 1 ]; then
@@ -53,7 +54,7 @@ make bin/key_gen
 cd $OUTPUT_DIR                             # ----> NOW WE ARE IN hg37_index/keys_unit32
 
 echo -e "\n\033[1;35m [index.sh] \033[0mRunning key_gen..."
-if [ ! -e $keys_name ]; then
+if [ ! -e $keys_name ] || [ ! -e $pos_name ]; then
   # The file does not exist, so execute the command
   "${BASE_DIR}/bin/key_gen" $ref_name
 else

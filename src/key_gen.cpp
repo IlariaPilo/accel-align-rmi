@@ -123,55 +123,106 @@ bool Index::key_gen() {
   }
   
   string fn = "keys_uint32";
-  cerr << "writing in " << fn << endl;
 
-  ofstream fo(fn.c_str(), ios::binary);
+  ofstream fo_key(fn.c_str(), ios::binary);
 
   // determine the number of valid and unique entries
   uint32_t prec = (uint32_t) -1;
   uint64_t eof = 0;
-  for (size_t i = 0; i < data.size() && data[i].key != (uint32_t) -1; i++) {
+  uint32_t same;
+  size_t valid;   // the number of entries different than -1
+
+  size_t i;
+
+  for (i = 0; i < data.size() && data[i].key != (uint32_t) -1; i++) {
     if (data[i].key != prec) {
         prec = data[i].key;
         eof ++;
       }
   }
-  cerr << "Found " << eof << " valid entries out of " <<
-       data.size() << " total\n";
+  valid = i;
+  cerr << "Found " << eof << " valid keys and " << valid << " valid positions out of " <<
+       data.size() << " total\n\n";
   // The number of entries is required to be a 64-bit value
-  fo.write((char *) &eof, 8);
+  fo_key.write((char *) &eof, 8);
 
   // write out keys
   try {
     cerr << "Fast writing keys (" << eof << ")\n";
-    uint32_t *buf = new uint32_t[eof];
+    uint32_t *buf = new uint32_t[eof*2];
     // the previous value
-    prec = (uint32_t) -1; 
+    prec = data[0].key; 
+    // the number of previous values which where the same
+    same = 0;
+    size_t i_buf;
 
-    for (size_t i = 0, i_buf = 0; i_buf < eof; i++) {
+    for (i = 0, i_buf = 0; i < valid; i++) {
       if (data[i].key != prec) {
-        buf[i_buf++] = data[i].key;
+        buf[i_buf++] = prec;
+        buf[i_buf++] = same;
         prec = data[i].key;
+        same = 0;
       }
+      same++;
     }
-    fo.write((char *) buf, eof * sizeof(uint32_t));
+    // add the last one
+    buf[i_buf++] = prec;
+    buf[i_buf] = same;
+    fo_key.write((char *) buf, eof*2 * sizeof(uint32_t));
     delete[] buf;
 
   } catch (std::bad_alloc& e) {
     cerr << "Fall back to slow writing keys due to low mem.\n";
     // the previous value
-    prec = (uint32_t) -1;
+    prec = data[0].key;
+    // the number of previous values which where the same
+    same = 0;
+    uint32_t buf[2];
 
-    for (size_t i = 0; i < data.size(); i++) {
-      if (data[i].key != (uint32_t) -1 && data[i].key != prec) {
-        fo.write((char *) &data[i].key, 4);
+    for (size_t i = 0; i < valid; i++) {
+      if (data[i].key != prec) {
+        buf[0] = prec;
+        buf[1] = same;
+        fo_key.write((char *) buf, 8);
         prec = data[i].key;
+        same = 0;
       }
-        
+      same++;
+    }
+    // add the last one
+    buf[0] = prec;
+    buf[1] = same;
+    fo_key.write((char *) buf, 8);
+  }
+  cerr << "Key generation complete!\n\n";
+  fo_key.close();
+
+  // now, write positions
+  fn = "pos_uint32";
+
+  ofstream fo_pos(fn.c_str(), ios::binary);
+
+  eof = (uint64_t) valid;
+  fo_pos.write((char *) &eof, 8);
+
+  try {
+    cerr << "Fast writing posv (" << eof << ")\n";
+    uint32_t *buf = new uint32_t[eof];
+    for (i = 0; i < eof; i++) {
+      buf[i] = data[i].pos;
+    }
+    fo_pos.write((char *) buf, eof * sizeof(uint32_t));
+    delete[] buf;
+  } catch (std::bad_alloc& e) {
+    cerr << "Fall back to slow writing posv due to low mem.\n";
+    for (i = 0; i < eof; i++) {
+      fo_pos.write((char *) &data[i].pos, 4);
     }
   }
-  cerr << "Key generation complete\n";
-  fo.close();
+
+  cerr << "Position generation complete!\n\n";
+  fo_pos.close();
+
   return true;
 }
 

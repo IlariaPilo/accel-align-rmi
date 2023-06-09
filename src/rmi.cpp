@@ -17,12 +17,12 @@ std::string get_parent_directory(const std::string& path) {
 }
 
 /**
- * Constructor for the wrapper of the RMI library.
+ * Initializes the wrapper of the RMI library.
  *
  * @param library_prefix The prefix of the library we want to use, that is, the path and the name WITHOUT the .so extension.
  * @return A wrapper object.
  */
-RMI::RMI(const char *library_prefix) {                  // ./data/hg37_index/hg37_index
+void RMI::init(const char *library_prefix) {                  // ./data/hg37_index/hg37_index
     auto start = std::chrono::system_clock::now();
     auto lib_str = std::string(library_prefix);
     std::string library_name = lib_str + ".so";         // ./data/hg37_index/hg37_index.so
@@ -56,13 +56,20 @@ RMI::RMI(const char *library_prefix) {                  // ./data/hg37_index/hg3
     // print elapsed time
     auto end = std::chrono::system_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    std::cerr << "Setup RMI library in " << elapsed.count() / 1000000 << " secs" << std::endl;
+    std::cerr << "Setup RMI library in " << elapsed.count() << " us" << std::endl;
+    is_init = true;
+}
+// Constructor -> simply initializes is_init
+RMI::RMI() {
+    is_init = false;
 }
 
 // Destructor -> removes the index and closes the dynamic library object
 RMI::~RMI() {
-    rmi_cleanup();
-    dlclose(library_handle);
+    if (is_init) {
+        rmi_cleanup();
+        dlclose(library_handle);
+    }
 }
 
 // lookup -> TODO, up to now it's a wrapper
