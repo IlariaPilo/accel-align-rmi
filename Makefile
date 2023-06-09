@@ -11,7 +11,7 @@ TBBFLAGS = -L$(TBB_LIB) -ltbb
 SRC = src/key_gen.cpp src/index_gen.cpp src/rmi.cpp
 OBJ = bin/rmi.o
 BIN_DIR = bin
-BIN = $(BIN_DIR)/key_gen $(BIN_DIR)/index_gen
+BIN = $(BIN_DIR)/key_gen $(BIN_DIR)/index_gen	#FIXME - remove index_gen if necessary
 
 # Targets
 all: $(BIN)
