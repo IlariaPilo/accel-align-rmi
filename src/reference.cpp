@@ -63,7 +63,7 @@ void Reference::load_index(const char *F) {
   fi.close();
 
   cerr << "Mapping keyv of size: " << nkeyv * 4 <<
-       " and posv of size " << (size_t) nposv * 4 << endl;
+       " and posv of size " << nposv * 4 << endl;
   size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
   size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
 
@@ -81,14 +81,14 @@ void Reference::load_index(const char *F) {
 #endif
 
   int fd = open(keys_f.c_str(), O_RDONLY);
-  char *base = reinterpret_cast<char *>(mmap(NULL, 4 + keyv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
+  char *base = reinterpret_cast<char *>(mmap(NULL, 8 + keyv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
   assert(base != MAP_FAILED);
-  keyv = (uint32_t * )(base + 4);
+  keyv = (uint32_t * )(base + 8);
 
   fd = open(pos_f.c_str(), O_RDONLY);
-  base = reinterpret_cast<char *>(mmap(NULL, 4 + posv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
+  base = reinterpret_cast<char *>(mmap(NULL, 8 + posv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
   assert(base != MAP_FAILED);
-  posv = (uint32_t * )(base + 4);
+  posv = (uint32_t * )(base + 8);
 
   cerr << "Mapping done" << endl;
   cerr << "done loading hashtable\n";
@@ -241,7 +241,7 @@ Reference::Reference(const char *F, bool _enable_minimizer, char _mode): enable_
     string F_index = string(F).substr(0, string(F).find_last_of(".")) + "_index";
     thread t(&Reference::load_index, this, F_index.c_str()); // load index in parallel
 
-    load_reference(F);    // TODO - why?
+    load_reference(F);
 
     t.join(); // wait for index load to finish
   }
@@ -257,12 +257,12 @@ Reference::~Reference() {
   } else {
     size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
     size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
-    char *base = (char *) keyv - 4;
-    int r = munmap(base, keyv_sz + 4);  // TODO - +4 was not present at the beginning
+    char *base = (char *) keyv - 8;
+    int r = munmap(base, keyv_sz + 8);
     assert(r == 0);
 
-    base = (char *) posv - 4;
-    r = munmap(base, posv_sz + 4);  // TODO - +4 was not present at the beginning
+    base = (char *) posv - 8;
+    r = munmap(base, posv_sz + 8); 
     assert(r == 0);
   }
 }
