@@ -434,7 +434,7 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
     pos_idx = get_lookup(ref_id, hash);
 
     if (pos_idx == (uint32_t)-1) {
-      // FIXME key not found - what to do?
+      std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
       continue;
     }
 
@@ -632,7 +632,7 @@ uint32_t pos_idx;
     pos_idx = get_lookup(ref_id, hash);
 
     if (pos_idx == (uint32_t)-1) {
-      // FIXME key not found - what to do?
+      std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
       continue;
     }
 
@@ -1188,7 +1188,7 @@ void AccAlign::pigeonhole_query(char *Q,
     pos_idx = get_lookup(ref_id, hash);
 
     if (pos_idx == (uint32_t)-1) {
-      // FIXME key not found - what to do?
+      std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
       continue;
     }
 
