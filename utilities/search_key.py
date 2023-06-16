@@ -27,6 +27,8 @@ with open(filename, "rb") as f:
         curr_key = struct.unpack('<I', key_bytes)[0]
         print("Maximum Key:", curr_key)
         exit(0)
+    
+    key = int(key)
 
     # Iterate over each pair and update min_key and max_key
     for i in range(num_pairs):
