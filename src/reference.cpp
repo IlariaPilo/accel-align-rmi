@@ -255,7 +255,7 @@ Reference::Reference(const char *F, bool _enable_minimizer, char _mode): enable_
   } else{
     string F_prefix = string(F).substr(0, string(F).find_last_of("."));
     string F_index = F_prefix  + "_index";
-    rmi.init(F_prefix);
+    rmi.init(F_prefix.c_str());
     thread t(&Reference::load_index, this, F_index.c_str()); // load index in parallel
 
     load_reference(F);
