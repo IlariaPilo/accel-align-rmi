@@ -17,7 +17,7 @@ with open(filename, "rb") as f:
     num_pairs = struct.unpack('<Q', num_pairs_bytes)[0]
 
     # Iterate over each pair and update min_key and max_key
-    for _ in range(num_pairs):
+    for i in range(num_pairs):
         # Read the key (uint32)
         key_bytes = f.read(4)
         _ = f.read(4)
