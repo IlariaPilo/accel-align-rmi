@@ -1189,8 +1189,10 @@ void AccAlign::pigeonhole_query(char *Q,
 
     if (pos_idx == (uint32_t)-1) {
       std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
+      kmer_idx++;
       continue;
     }
+    std::cerr << "\033[1;32m" << " [fine] " << "\033[0m" << "hash " << hash << " is fine." << std::endl;
 
     b[kmer_idx] = get_keyv(ref_id)[pos_idx + 1];     // the first position of hash
     e[kmer_idx] = get_keyv(ref_id)[pos_idx + 3];     // the first position of next hash 
