@@ -63,7 +63,7 @@ class Reference {
   std::vector<std::string> name;
   std::vector<uint32_t> offset;
   uint32_t *keyv, *posv;
-  uint32_t nposv, nkeyv;
+  uint64_t nposv, nkeyv;
   mm_idx_t *mi;
   RMI rmi;
   bool enable_minimizer;
