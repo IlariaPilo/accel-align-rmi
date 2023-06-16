@@ -28,7 +28,7 @@ void RMI::init(const char *library_prefix) {                  // ./data/hg37_ind
     std::string library_name = lib_str + ".so";         // ./data/hg37_index/hg37_index.so
     std::string library_sym = lib_str + ".sym";         // ./data/hg37_index/hg37_index.sym
 
-    std::cerr << "Loading library " << lib_str << std::endl;
+    std::cerr << "Loading library " << lib_name << std::endl;
     // first, open the library
     library_handle = dlopen(library_name.c_str(), RTLD_LAZY);
     assert(library_handle);
