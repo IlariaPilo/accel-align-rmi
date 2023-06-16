@@ -225,6 +225,7 @@ uint32_t Reference::index_lookup(uint32_t key) {
 
   // check in the keyv array
   while (l <= r) {
+      assert(guess_key%2 == 0);       // guess_key should be even
       guess_key = keyv[guess_pos];
       // if it's the same, done
       if (guess_key == key)
