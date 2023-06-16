@@ -85,10 +85,26 @@ void Reference::load_index(const char *F) {
   assert(base != MAP_FAILED);
   keyv = (uint32_t * )(base + 8);
 
+  // TODO - remove
+  // print first 4 entries
+  cerr << "------ keyv ------" << endl;
+  cerr << keyv[0] << endl;
+  cerr << keyv[1] << endl;
+  cerr << keyv[2] << endl;
+  cerr << keyv[3] << endl;
+
   fd = open(pos_f.c_str(), O_RDONLY);
   base = reinterpret_cast<char *>(mmap(NULL, 8 + posv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
   assert(base != MAP_FAILED);
   posv = (uint32_t * )(base + 8);
+
+  // TODO - remove
+  // print first 4 entries
+  cerr << "------ posv ------" << endl;
+  cerr << posv[0] << endl;
+  cerr << posv[1] << endl;
+  cerr << posv[2] << endl;
+  cerr << posv[3] << endl;
 
   cerr << "Mapping done" << endl;
   cerr << "done loading hashtable\n";
