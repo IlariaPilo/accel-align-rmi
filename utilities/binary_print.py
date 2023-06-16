@@ -27,6 +27,11 @@ else:
     sys.exit()
 
 with open(filename, "rb") as f:
+    # first one
+    chunk = f.read(8)
+    val = struct.unpack("Q", chunk)[0]
+    print('Length: ', val)
+
     if direction == 'backward':
         f.seek(0, 2)  # move the file pointer to the end of the file
 
