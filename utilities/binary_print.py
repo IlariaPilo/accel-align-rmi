@@ -4,13 +4,16 @@ import struct
 # Thanks @ ChatGPT for this script!
 
 if len(sys.argv) < 2:
-    print("\n\033[1;35m\tpython binary_print.py <filename> [<number_of_entries>]\033[0m")
-    print("Prints the first \033[3mnumber_of_entries\033[0m entries of \033[3mfilename\033[0m file.")
-    print("If \033[3mnumber_of_entries\033[0m is not specified, 10 entries are displayed.\n")
+    print("\n\033[1;35m\tpython binary_print.py <filename> [<number_of_entries>] [<direction>]\033[0m")
+    print("Prints the entries of <filename> file.")
+    print("If <number_of_entries> is not specified, 10 entries are displayed.")
+    print("If <direction> is 'forward' or not provided, it reads from the beginning of the file.")
+    print("If <direction> is 'backward', it reads from the end of the file.\n")
     sys.exit()
 
 filename = sys.argv[1]
 t = int(sys.argv[2]) if len(sys.argv) > 2 else 10  # set t to 10 if not provided
+direction = sys.argv[3] if len(sys.argv) > 3 else 'forward'  # default direction is 'forward'
 
 # Determine the element size based on the filename
 if filename.endswith("uint32"):
@@ -24,15 +27,20 @@ else:
     sys.exit()
 
 with open(filename, "rb") as f:
-    # first one
-    chunk = f.read(8)
-    val = struct.unpack("Q", chunk)[0]
-    print(val)
-    # all the others
-    for i in range(1, t):
+    if direction == 'backward':
+        f.seek(0, 2)  # move the file pointer to the end of the file
+
+    # read and print the entries
+    i = 0
+    while i < t:
+        if direction == 'backward':
+            pos = f.tell() - elem_size
+            if pos < 0:  # stop if reached the beginning of the file
+                break
+            f.seek(pos)
         chunk = f.read(elem_size)
         if not chunk:  # stop if end of file
             break
         val = struct.unpack(format, chunk)[0]
         print(val)  # print the value
-
+        i += 1
