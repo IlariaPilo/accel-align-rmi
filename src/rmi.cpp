@@ -74,5 +74,6 @@ RMI::~RMI() {
 
 // lookup -> TODO, up to now it's a wrapper
 uint64_t RMI::lookup(uint64_t key, size_t* err) {
+    std::cerr << "HERE & SAFE" << std::endl;
     return rmi_lookup(key, err);
 }
