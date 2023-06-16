@@ -12,8 +12,8 @@ if len(sys.argv) < 2:
     sys.exit()
 
 filename = sys.argv[1]
-t = int(sys.argv[3]) if len(sys.argv) > 2 else 10  # set t to 10 if not provided
-direction = sys.argv[2] if len(sys.argv) > 3 else 'forward'  # default direction is 'forward'
+t = int(sys.argv[3]) if len(sys.argv) > 3 else 10  # set t to 10 if not provided
+direction = sys.argv[2] if len(sys.argv) > 2 else 'forward'  # default direction is 'forward'
 
 # Determine the element size based on the filename
 if filename.endswith("uint32"):
