@@ -49,7 +49,7 @@ void Reference::load_index(const char *F) {
     cerr << "Unable to open key file" << endl;
     exit(0);
   }
-  fi.read((char *) &nkeyv, 4);
+  fi.read((char *) &nkeyv, 8);
   nkeyv *= 2;
   fi.close();
   //nkeyv = MOD + 1;
@@ -59,7 +59,7 @@ void Reference::load_index(const char *F) {
     cerr << "Unable to open pos file" << endl;
     exit(0);
   }
-  fi.read((char *) &nposv, 4);
+  fi.read((char *) &nposv, 9);
   fi.close();
 
   cerr << "Mapping keyv of size: " << nkeyv * 4 <<
