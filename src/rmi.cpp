@@ -52,12 +52,7 @@ void RMI::init(const char *library_prefix) {                  // ./data/hg37_ind
     std::string param_path = get_parent_directory(lib_str) + "/rmi_data";
     int done = rmi_load(param_path.c_str());
     assert(done);
-
-    // TODO - remove
-    size_t err;
-    uint64_t pos = rmi_lookup(0, &err);
-    std::cerr << pos << err << std::endl;
-
+    
     // print elapsed time
     auto end = std::chrono::system_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
