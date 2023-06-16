@@ -1,5 +1,15 @@
 #include "header.h"
 
+// An utility function to perform /path1/path2/path3 --> path_3
+std::string get_last_directory(const std::string& directory_path) {
+    size_t last_separator = directory_path.find_last_of("/\\");
+    if (last_separator != std::string::npos) {
+        return directory_path.substr(last_separator + 1);
+    }
+    return directory_path;
+}
+
+
 class RefParser {
   string &ref;
   char mode;
@@ -253,9 +263,14 @@ Reference::Reference(const char *F, bool _enable_minimizer, char _mode): enable_
 
     load_reference(F);
   } else{
+    // F          ./data/hg37.fna
+    // F_prefix   ./data/hg37
+    // F_index    ./data/hg37_index
+    // F_library  ./data/hg37_index/hg37_index
     string F_prefix = string(F).substr(0, string(F).find_last_of("."));
     string F_index = F_prefix  + "_index";
-    rmi.init(F_prefix.c_str());
+    string F_library = F_index + "/" + get_last_directory(F_index);
+    rmi.init(F_library.c_str());
     thread t(&Reference::load_index, this, F_index.c_str()); // load index in parallel
 
     load_reference(F);
