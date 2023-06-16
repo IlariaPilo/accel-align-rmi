@@ -424,8 +424,9 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
     // ------------ FIXME ------------
     for (size_t j = i; j < i + kmer_len; j++)
       k = (k << 2) + *(Q + j);
-    //size_t hash = (k & mask) % MOD;
-    size_t hash = (k & mask);
+
+    size_t hash = (k & mask) % MOD;
+
     // ------------- END -------------
     //b[kmer_idx] = get_keyv(ref_id)[hash];     // the first position of hash
     //e[kmer_idx] = get_keyv(ref_id)[hash + 1]; // the first position of next hash
@@ -622,8 +623,9 @@ uint32_t pos_idx;
     // ------------ FIXME ------------
     for (size_t j = i; j < i + kmer_len; j++)
       k = (k << 2) + *(Q + j);
-    //size_t hash = (k & mask) % MOD;
-    size_t hash = (k & mask);
+
+    size_t hash = (k & mask) % MOD;
+    
     // ------------- END -------------
     //b[kmer_idx] = get_keyv(ref_id)[hash];     // the first position of hash
     //e[kmer_idx] = get_keyv(ref_id)[hash + 1]; // the first position of next hash
@@ -1178,8 +1180,8 @@ void AccAlign::pigeonhole_query(char *Q,
     // ------------ FIXME ------------
     for (size_t j = i; j < i + kmer_len; j++)
       k = (k << 2) + *(Q + j);
-    //size_t hash = (k & mask) % MOD;
-    size_t hash = (k & mask);
+
+    size_t hash = (k & mask) % MOD;
     // ------------- END -------------
     //b[kmer_idx] = get_keyv(ref_id)[hash];     // the first position of hash
     //e[kmer_idx] = get_keyv(ref_id)[hash + 1]; // the first position of next hash
