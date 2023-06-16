@@ -48,7 +48,7 @@ echo -e "            --- Using $thread_number threads.\n"
 ################################### KEY_GEN ###################################
 
 echo -e "\n\033[1;35m [index.sh] \033[0mCompiling the key_gen program..."
-make bin/key_gen
+make key_gen
 
 
 cd $OUTPUT_DIR                             # ----> NOW WE ARE IN hg37_index/keys_unit32
