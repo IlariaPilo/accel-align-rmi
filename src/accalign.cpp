@@ -365,7 +365,7 @@ void AccAlign::cpu_root_fn(tbb::concurrent_bounded_queue<ReadCnt> *inputQ,
       break;
     }
 
-    //tbb::task_scheduler_init init(g_ncpus);
+    tbb::task_scheduler_init init(g_ncpus);
     tbb::parallel_for(tbb::blocked_range<size_t>(0, nreads),
                       Parallel_mapper(std::get<0>(cpu_readcnt), std::get<1>(cpu_readcnt), this)
     );
@@ -2342,7 +2342,7 @@ void AccAlign::align_wrapper(int tid, int soff, int eoff, Read *ptlread, Read *p
   if (!ptlread2) {
     // single-end read alignment
     string sams[eoff];
-    //tbb::task_scheduler_init init(g_ncpus);
+    tbb::task_scheduler_init init(g_ncpus);
     tbb::parallel_for(tbb::blocked_range<size_t>(soff, eoff), Tbb_aligner(ptlread, sams, this));
 
     auto start = std::chrono::system_clock::now();
@@ -2984,7 +2984,6 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
 //    g.wait_for_all();
 //  } else {
 
-  /* FIXME
   if (is_paired) {
     graph g;
     source_node<ReadPair> input_node(g, [&](ReadPair &rp) -> bool {
@@ -3028,7 +3027,6 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
     input_node.activate();
     g.wait_for_all();
   }
-*/
 
   gzclose(in1);
   gzclose(in2);
@@ -3106,7 +3104,7 @@ int main(int ac, char **av) {
   cerr << "Using " << g_ncpus << " cpus " << endl;
   cerr << "Using kmer length " << kmer_len << " and step size " << kmer_step << endl;
 
-  //tbb::task_scheduler_init init(g_ncpus);
+  tbb::task_scheduler_init init(g_ncpus);
   make_code();
 
   // load reference once

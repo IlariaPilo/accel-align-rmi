@@ -115,6 +115,7 @@ bool Index::key_gen() {
   //use 8 bytes per item. Its a waste.
   try {
     cerr << "Attempting parallel sorting\n";
+    tbb::task_scheduler_init init(tbb::task_scheduler_init::automatic);
     tbb::parallel_sort(data.begin(), data.end(), Data());
   } catch (std::bad_alloc& e) {
     cerr << "Fall back to serial sorting (low mem)\n";
