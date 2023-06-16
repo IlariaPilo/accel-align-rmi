@@ -95,7 +95,6 @@ class Tbb_cal_key {
   }
 };
 
-// TODO - save positions somewhere (up to now, only keys)
 bool Index::key_gen() {
   size_t limit = ref.size() - kmer + 1;
   size_t vsz;

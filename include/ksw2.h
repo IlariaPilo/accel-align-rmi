@@ -236,7 +236,7 @@ static inline void ksw_backtrack(void *km,
     else if (!(tmp >> (state + 2) & 1))
       state = 0; // if requesting other states, _state_ stays the same if it is a continuation; otherwise, set to H
     if (state == 0)
-      state = tmp & 7; // TODO: probably this line can be merged into the "else if" line right above; not 100% sure
+      state = tmp & 7; // XXX: probably this line can be merged into the "else if" line right above; not 100% sure
     if (force_state >= 0)
       state = force_state;
     if (state == 0)

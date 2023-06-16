@@ -365,7 +365,7 @@ void AccAlign::cpu_root_fn(tbb::concurrent_bounded_queue<ReadCnt> *inputQ,
       break;
     }
 
-    tbb::task_scheduler_init init(g_ncpus);
+    //tbb::task_scheduler_init init(g_ncpus);
     tbb::parallel_for(tbb::blocked_range<size_t>(0, nreads),
                       Parallel_mapper(std::get<0>(cpu_readcnt), std::get<1>(cpu_readcnt), this)
     );
@@ -415,15 +415,32 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   unsigned nseed_freq = 0;
   bool high_freq = false;
 
+  uint32_t pos_idx;
+
   // Take non-overlapping seeds and find all hits
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
     uint64_t k = 0;
+    // ------------ FIXME ------------
     for (size_t j = i; j < i + kmer_len; j++)
       k = (k << 2) + *(Q + j);
-    size_t hash = (k & mask) % MOD;
-    b[kmer_idx] = get_keyv(ref_id)[hash];
-    e[kmer_idx] = get_keyv(ref_id)[hash + 1];
+    //size_t hash = (k & mask) % MOD;
+    size_t hash = (k & mask);
+    // ------------- END -------------
+    //b[kmer_idx] = get_keyv(ref_id)[hash];     // the first position of hash
+    //e[kmer_idx] = get_keyv(ref_id)[hash + 1]; // the first position of next hash
+
+    // lookup to get the position of the hash
+    pos_idx = get_lookup(ref_id, hash);
+
+    if (pos_idx == (uint32_t)-1) {
+      // FIXME key not found - what to do?
+      continue;
+    }
+
+    b[kmer_idx] = get_keyv(ref_id)[pos_idx + 1];     // the first position of hash
+    e[kmer_idx] = get_keyv(ref_id)[pos_idx + 3];     // the first position of next hash 
+
     if (e[kmer_idx] - b[kmer_idx] >= max_occ)
       nseed_freq++;
 //    if (e[kmer_idx] - b[kmer_idx] < max_occ) {
@@ -457,10 +474,11 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   for (unsigned i = 0; i < nkmers; i++) {
     if (b[i] < e[i] && ((!high_freq && e[i] - b[i] < max_occ) || high_freq)) {
 //    if (b[i] < e[i] && e[i] - b[i] < max_occ) {
+      // this one should still work
       top_pos[i] = get_posv(ref_id)[b[i]];
       rel_off[i] = i * kmer_step;
       uint32_t shift_pos = rel_off[i] + ori_slide_bk;
-      //TODO: for each chrome, happen to < the start pos
+      //XXX: for each chrome, happen to < the start pos
       if (top_pos[i] < shift_pos)
         top_pos[i] = 0; // there is insertion before this kmer
       else
@@ -533,7 +551,7 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
     uint32_t next_pos = b[min_kmer] < e[min_kmer] ? get_posv(ref_id)[b[min_kmer]] : MAX_POS;
     if (next_pos != MAX_POS) {
       uint32_t shift_pos = rel_off[min_kmer] + ori_slide_bk;
-      //TODO: for each chrome, happen to < the start pos
+      //XXX: for each chrome, happen to < the start pos
       if (next_pos < shift_pos)
         *min_item = 0; // there is insertion before this kmer
       else
@@ -595,15 +613,32 @@ void AccAlign::pigeonhole_query_sort(char *Q,
   unsigned nseed_freq = 0;
   bool high_freq = false;
 
+uint32_t pos_idx;
+
   // Take non-overlapping seeds and find all hits
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
     uint64_t k = 0;
+    // ------------ FIXME ------------
     for (size_t j = i; j < i + kmer_len; j++)
       k = (k << 2) + *(Q + j);
-    size_t hash = (k & mask) % MOD;
-    b[kmer_idx] = get_keyv(ref_id)[hash];
-    e[kmer_idx] = get_keyv(ref_id)[hash + 1];
+    //size_t hash = (k & mask) % MOD;
+    size_t hash = (k & mask);
+    // ------------- END -------------
+    //b[kmer_idx] = get_keyv(ref_id)[hash];     // the first position of hash
+    //e[kmer_idx] = get_keyv(ref_id)[hash + 1]; // the first position of next hash
+
+    // lookup to get the position of the hash
+    pos_idx = get_lookup(ref_id, hash);
+
+    if (pos_idx == (uint32_t)-1) {
+      // FIXME key not found - what to do?
+      continue;
+    }
+
+    b[kmer_idx] = get_keyv(ref_id)[pos_idx + 1];     // the first position of hash
+    e[kmer_idx] = get_keyv(ref_id)[pos_idx + 3];     // the first position of next hash 
+
     if (e[kmer_idx] - b[kmer_idx] >= max_occ)
       nseed_freq++;
 //    if (e[kmer_idx] - b[kmer_idx] < max_occ) {
@@ -611,6 +646,7 @@ void AccAlign::pigeonhole_query_sort(char *Q,
 //    }
     kmer_idx++;
   }
+
   assert(kmer_idx == nkmers);
   auto end = std::chrono::system_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -807,14 +843,14 @@ inline uint64_t AccAlign::normalize_pos(uint64_t cr, uint32_t q_pos, int k, int 
     if (pos > q_pos >> 1)
       normalized = (cr - q_pos) & (~(1 << 0));
     else
-      normalized = rid << 32;
+      normalized = rid << 32;   // FIXME - left shift count >= width of type 
   } else {
     //rev, set last bit to 1
     uint32_t rev_shift = rlen - 1 - (q_pos >> 1) + k - 1;
     if (pos > rev_shift)
       normalized = (cr - (rev_shift << 1)) | 1;
     else
-      normalized = rid << 32 | 1;
+      normalized = rid << 32 | 1;   // FIXME - left shift count >= width of type 
   }
   return normalized;
 }
@@ -1133,19 +1169,40 @@ void AccAlign::pigeonhole_query(char *Q,
   unsigned kmer_idx = 0;
   unsigned nseed_freq = 0;
 
+  uint32_t pos_idx;
+
   // Take non-overlapping seeds and find all hits
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
     uint64_t k = 0;
+    // ------------ FIXME ------------
     for (size_t j = i; j < i + kmer_len; j++)
       k = (k << 2) + *(Q + j);
-    size_t hash = (k & mask) % MOD;
-    b[kmer_idx] = get_keyv(ref_id)[hash];
-    e[kmer_idx] = get_keyv(ref_id)[hash + 1];
+    //size_t hash = (k & mask) % MOD;
+    size_t hash = (k & mask);
+    // ------------- END -------------
+    //b[kmer_idx] = get_keyv(ref_id)[hash];     // the first position of hash
+    //e[kmer_idx] = get_keyv(ref_id)[hash + 1]; // the first position of next hash
+
+    // lookup to get the position of the hash
+    pos_idx = get_lookup(ref_id, hash);
+
+    if (pos_idx == (uint32_t)-1) {
+      // FIXME key not found - what to do?
+      continue;
+    }
+
+    b[kmer_idx] = get_keyv(ref_id)[pos_idx + 1];     // the first position of hash
+    e[kmer_idx] = get_keyv(ref_id)[pos_idx + 3];     // the first position of next hash 
+
     if (e[kmer_idx] - b[kmer_idx] >= max_occ)
       nseed_freq++;
+//    if (e[kmer_idx] - b[kmer_idx] < max_occ) {
+//      ntotal_hits += (e[kmer_idx] - b[kmer_idx]);
+//    }
     kmer_idx++;
   }
+
   assert(kmer_idx == nkmers);
   auto end = std::chrono::system_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -1849,7 +1906,7 @@ void AccAlign::map_paired_read_wrapper(Read &mate1, Read &mate2) {
   if (enable_bs){
     map_paired_read(mate1, mate2, 1);
     if (mate1.best + mate2.best > mate1.best_optional + mate2.best_optional){
-      //TODO: mate1 from ct, mate2 should from ag???
+      //XXX: mate1 from ct, mate2 should from ag???
       mate1.strand = mate1.strand_optional;
       mate1.best_region = mate1.best_region_optional;
       mate1.best = mate1.best_optional;
@@ -2285,7 +2342,7 @@ void AccAlign::align_wrapper(int tid, int soff, int eoff, Read *ptlread, Read *p
   if (!ptlread2) {
     // single-end read alignment
     string sams[eoff];
-    tbb::task_scheduler_init init(g_ncpus);
+    //tbb::task_scheduler_init init(g_ncpus);
     tbb::parallel_for(tbb::blocked_range<size_t>(soff, eoff), Tbb_aligner(ptlread, sams, this));
 
     auto start = std::chrono::system_clock::now();
@@ -2926,6 +2983,8 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
 //    input_node.activate();
 //    g.wait_for_all();
 //  } else {
+
+  /* FIXME
   if (is_paired) {
     graph g;
     source_node<ReadPair> input_node(g, [&](ReadPair &rp) -> bool {
@@ -2969,12 +3028,14 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
     input_node.activate();
     g.wait_for_all();
   }
+*/
 
   gzclose(in1);
   gzclose(in2);
 
   return true;
 }
+
 
 int main(int ac, char **av) {
   if (ac < 3) {
@@ -3045,7 +3106,7 @@ int main(int ac, char **av) {
   cerr << "Using " << g_ncpus << " cpus " << endl;
   cerr << "Using kmer length " << kmer_len << " and step size " << kmer_step << endl;
 
-  tbb::task_scheduler_init init(g_ncpus);
+  //tbb::task_scheduler_init init(g_ncpus);
   make_code();
 
   // load reference once

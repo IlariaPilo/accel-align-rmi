@@ -101,6 +101,10 @@ class AccAlign {
     return refs[ref_id]->mi;
   };
 
+  // NEW!
+  uint32_t get_lookup(int ref_id, uint32_t hash) {
+    return refs[ref_id]->index_lookup(hash);
+  }
 
   void open_output(std::string &out_file);
   void close_output();

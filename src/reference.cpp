@@ -31,8 +31,8 @@ class RefParser {
 // F should be the directory, that is <reference_prefix>_index
 void Reference::load_index(const char *F) {
 
-  string keys_f = "keys_uint32";
-  string pos_f = "pos_uint32";
+  string keys_f = string(F) + "/keys_uint32";
+  string pos_f = string(F) + "/pos_uint32";
   //string fn;
   //if (mode == ' ') {
   //  fn = string(F) + ".hash";
@@ -231,9 +231,10 @@ Reference::Reference(const char *F, bool _enable_minimizer, char _mode): enable_
 
     load_reference(F);
   } else{
-    thread t(&Reference::load_index, this, F); // load index in parallel
+    string F_index = string(F).substr(0, string(F).find_last_of(".")) + "_index";
+    thread t(&Reference::load_index, this, F_index.c_str()); // load index in parallel
 
-    load_reference(F);
+    load_reference(F);    // TODO - why?
 
     t.join(); // wait for index load to finish
   }
