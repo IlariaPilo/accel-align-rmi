@@ -4,7 +4,7 @@ import struct
 # Thanks @ ChatGPT for this script!
 
 if len(sys.argv) < 2:
-    print("\n\033[1;35m\tpython binary_print.py <filename> [<number_of_entries>] [<direction>]\033[0m")
+    print("\n\033[1;35m\tpython binary_print.py <filename> [<direction>] [<number_of_entries>]\033[0m")
     print("Prints the entries of <filename> file.")
     print("If <number_of_entries> is not specified, 10 entries are displayed.")
     print("If <direction> is 'forward' or not provided, it reads from the beginning of the file.")
@@ -12,8 +12,8 @@ if len(sys.argv) < 2:
     sys.exit()
 
 filename = sys.argv[1]
-t = int(sys.argv[2]) if len(sys.argv) > 2 else 10  # set t to 10 if not provided
-direction = sys.argv[3] if len(sys.argv) > 3 else 'forward'  # default direction is 'forward'
+t = int(sys.argv[3]) if len(sys.argv) > 2 else 10  # set t to 10 if not provided
+direction = sys.argv[2] if len(sys.argv) > 3 else 'forward'  # default direction is 'forward'
 
 # Determine the element size based on the filename
 if filename.endswith("uint32"):
