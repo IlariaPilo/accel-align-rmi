@@ -87,17 +87,16 @@ void Reference::load_index(const char *F) {
 
   cerr << "Printing first 4 entries" << endl;
   cerr << "------ keyv ------" << endl;
-  cerr << keyv[0] << "[" << keyv[1] << " positions]" << endl;
-  cerr << keyv[2] << "[" << keyv[3] << " positions]" << endl;
-  cerr << keyv[4] << "[" << keyv[5] << " positions]" << endl;
-  cerr << keyv[6] << "[" << keyv[7] << " positions]" << endl;
+  cerr << keyv[0] << " [" << keyv[1] << " pos]" << endl;
+  cerr << keyv[2] << " [" << keyv[3] << " pos]" << endl;
+  cerr << keyv[4] << " [" << keyv[5] << " pos]" << endl;
+  cerr << keyv[6] << " [" << keyv[7] << " pos]" << endl;
 
   fd = open(pos_f.c_str(), O_RDONLY);
   base = reinterpret_cast<char *>(mmap(NULL, 8 + posv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
   assert(base != MAP_FAILED);
   posv = (uint32_t * )(base + 8);
 
-  // TODO - remove
   // print first 4 entries
   cerr << "------ posv ------" << endl;
   cerr << posv[0] << endl;
