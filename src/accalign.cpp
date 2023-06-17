@@ -501,9 +501,15 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   start = std::chrono::system_clock::now();
 
   vector<Region> unique_regions;
+
+  cerr << "on my way to reserve " << ntotal_hits << endl; // TODO remove
+
   unique_regions.reserve(ntotal_hits);
   size_t idx = 0;
   Region r;
+
+  cerr << "on my way to reserve " << nkmers << endl; // TODO remove
+
   r.matched_intervals.reserve(nkmers);
 //  Region unique_regions[ntotal_hits];
 //  size_t idx = 0;
@@ -674,6 +680,9 @@ uint32_t pos_idx;
   // initialize top values with first values for each kmer.
   uint32_t MAX_POS = numeric_limits<uint32_t>::max();
   vector<Region> regions;
+
+  cerr << "on my way to reserve " << ntotal_hits << endl; // TODO remove
+
   regions.reserve(ntotal_hits);
   for (unsigned i = 0; i < nkmers; i++) {
     if (b[i] < e[i] && ((!high_freq && e[i] - b[i] < max_occ) || high_freq)) {
@@ -991,6 +1000,9 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0,
 
   Region r;
   int max_interval = rlen / k;
+
+  cerr << "on my way to reserve " << max_interval << endl; // TODO remove
+
   r.matched_intervals.reserve(max_interval);
 
   while (nprocessed < ntotal_hits) {
@@ -1254,6 +1266,9 @@ void AccAlign::pigeonhole_query(char *Q,
   start = std::chrono::system_clock::now();
 
   Region r;
+
+  cerr << "on my way to reserve " << nkmers << endl; // TODO remove
+
   r.matched_intervals.reserve(nkmers);
   while (nprocessed < ntotal_hits) {
     //find min
