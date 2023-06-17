@@ -504,6 +504,11 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   vector<Region> unique_regions;
 
   cerr << "1 - on my way to reserve " << ntotal_hits << endl; // TODO remove
+  // ------------- REMOVE -------------
+  for (size_t i = 0; ntotal_hits == -8 && i < nkmers; i++) {
+    cerr << i << "] e: " << e[i] << " b: " << b[i] << endl;
+  }
+  // --------------- END --------------
 
   unique_regions.reserve(ntotal_hits);
   size_t idx = 0;
