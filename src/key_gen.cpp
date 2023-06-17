@@ -105,11 +105,10 @@ bool Index::key_gen() {
     vsz = ref.size() / step + 1;
 
   vector<Data> data(vsz, Data());
-  cerr << "hashing :limit = " << limit << ", vsz = " << vsz << endl;
+  cerr << "limit = " << limit << ", vsz = " << vsz << endl;
 
   // get the hash for each key
   tbb::parallel_for(tbb::blocked_range<size_t>(0, limit), Tbb_cal_key(data, this));
-  cerr << "hash\t" << data.size() << endl;
 
   // sort keys
   //XXX: Parallel sort uses lots of memory. Need to fix this. In general, we
@@ -155,16 +154,13 @@ bool Index::key_gen() {
     prec = uint32_t(-1); 
     size_t i_buf;
 
-    for (i = 0, i_buf = 0; i < valid; i++) {
+    for (i = 0, i_buf = 0; i < valid && i_buf < eof; i++) {
       if (data[i].key != prec) {
-        buf[i_buf++] = prec;
+        buf[i_buf++] = data[i].key;
         buf[i_buf++] = i;
         prec = data[i].key;
       }
     }
-    // add the last one
-    buf[i_buf++] = prec;
-    buf[i_buf] = i;
     fo_key.write((char *) buf, eof*2 * sizeof(uint32_t));
     delete[] buf;
 
@@ -176,16 +172,12 @@ bool Index::key_gen() {
 
     for (size_t i = 0; i < valid; i++) {
       if (data[i].key != prec) {
-        buf[0] = prec;
+        buf[0] = data[i].key;
         buf[1] = i;
         fo_key.write((char *) buf, 8);
         prec = data[i].key;
       }
     }
-    // add the last one
-    buf[0] = prec;
-    buf[1] = i;
-    fo_key.write((char *) buf, 8);
   }
   cerr << "Key generation complete!\n\n";
   fo_key.close();
