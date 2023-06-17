@@ -218,39 +218,25 @@ uint32_t Reference::index_lookup(uint32_t key) {
   uint64_t key64 = (uint64_t) key;
   // call the lookup function of the index
   guess_pos = (uint32_t) rmi.lookup(key64, &err);
-  guess_pos *= 2;
 
   // set up l and r for the bounded binary search
-  l = std::max(int32_t(0), static_cast<int32_t>(guess_pos-err*2));
-  r = std::min(static_cast<int32_t>(guess_pos+err*2), static_cast<int32_t>(nkeyv-2));
-
-  // TODO - remove
-  cerr << "------ BINSEARCH LOG ------" << endl;
-  cerr << " key is : " << key64 << endl;
+  l = std::max(int32_t(0), static_cast<int32_t>(guess_pos-err));
+  r = std::min(static_cast<int32_t>(guess_pos+err), static_cast<int32_t>(nkeyv-1));
 
   // check in the keyv array - FIXME
   while (l <= r) {
-      cerr << "------------------------" << endl;
-      cerr << " guess_pos is : " << guess_pos << endl;
-      cerr << " l is : " << l << endl;
-      cerr << " r is : " << r << endl;
-
-      assert(guess_pos%2 == 0);       // guess_pos should be even
-      guess_key = keyv[guess_pos];
-
-      cerr << " guess_key is : " << guess_key << endl;
-
+      guess_key = keyv[guess_pos*2];
       // if it's the same, done
       if (guess_key == key)
         return guess_pos;
       // else, do binary search
       if (guess_key < key) {
-          l = guess_pos + 2;
+          l = guess_pos + 1;
       } else {
-          r = guess_pos - 2;
+          r = guess_pos - 1;
       }
       // update guess_pos
-      guess_pos = l + (r-l)/2 - (r-l)%2;
+      guess_pos = l + (r-l)/2;
   }
   // not found :(
   return -1;
