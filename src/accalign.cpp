@@ -408,7 +408,8 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
                                        int ref_id) {
   int max_cov = 0;
   unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
-  size_t ntotal_hits = 0;
+  int ntotal_hits = 0;
+  //size_t ntotal_hits = 0;
   size_t b[nkmers], e[nkmers];
   unsigned kmer_idx = 0;
   unsigned ori_slide_bk = ori_slide;
@@ -507,8 +508,6 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   unique_regions.reserve(ntotal_hits);
   size_t idx = 0;
   Region r;
-
-  cerr << "2 - on my way to reserve " << nkmers << endl; // TODO remove
 
   r.matched_intervals.reserve(nkmers);
 //  Region unique_regions[ntotal_hits];
@@ -680,8 +679,6 @@ uint32_t pos_idx;
   // initialize top values with first values for each kmer.
   uint32_t MAX_POS = numeric_limits<uint32_t>::max();
   vector<Region> regions;
-
-  cerr << "3 - on my way to reserve " << ntotal_hits << endl; // TODO remove
 
   regions.reserve(ntotal_hits);
   for (unsigned i = 0; i < nkmers; i++) {
@@ -1001,8 +998,6 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0,
   Region r;
   int max_interval = rlen / k;
 
-  cerr << "4 - on my way to reserve " << max_interval << endl; // TODO remove
-
   r.matched_intervals.reserve(max_interval);
 
   while (nprocessed < ntotal_hits) {
@@ -1266,8 +1261,6 @@ void AccAlign::pigeonhole_query(char *Q,
   start = std::chrono::system_clock::now();
 
   Region r;
-
-  cerr << "5 - on my way to reserve " << nkmers << endl; // TODO remove
 
   r.matched_intervals.reserve(nkmers);
   while (nprocessed < ntotal_hits) {
