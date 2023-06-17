@@ -440,6 +440,7 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
       kmer_idx++;
       continue;
     }
+    assert(pos_idx%2 == 0);
     //std::cerr << "\033[1;32m" << " [fine] " << "\033[0m" << "hash " << hash << " is fine." << std::endl;
 
     b[kmer_idx] = get_keyv(ref_id)[pos_idx + 1];     // the first position of hash
