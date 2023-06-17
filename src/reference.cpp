@@ -223,7 +223,7 @@ uint32_t Reference::index_lookup(uint32_t key) {
   l = std::max(int32_t(0), static_cast<int32_t>(guess_pos-err*2));
   r = std::min(static_cast<int32_t>(guess_pos+err*2), static_cast<int32_t>(nkeyv-1));
 
-  // check in the keyv array
+  // check in the keyv array - FIXME
   while (l <= r) {
       assert(guess_pos%2 == 0);       // guess_pos should be even
       guess_key = keyv[guess_pos];
@@ -237,7 +237,7 @@ uint32_t Reference::index_lookup(uint32_t key) {
           r = guess_pos - 2;
       }
       // update guess_pos
-      guess_pos = l + (r-l)/2;
+      guess_pos = l + (r-l)/2 - (r-l)%2;
   }
   // not found :(
   return -1;
