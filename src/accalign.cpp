@@ -502,13 +502,13 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
 
   vector<Region> unique_regions;
 
-  cerr << "on my way to reserve " << ntotal_hits << endl; // TODO remove
+  cerr << "1 - on my way to reserve " << ntotal_hits << endl; // TODO remove
 
   unique_regions.reserve(ntotal_hits);
   size_t idx = 0;
   Region r;
 
-  cerr << "on my way to reserve " << nkmers << endl; // TODO remove
+  cerr << "2 - on my way to reserve " << nkmers << endl; // TODO remove
 
   r.matched_intervals.reserve(nkmers);
 //  Region unique_regions[ntotal_hits];
@@ -681,7 +681,7 @@ uint32_t pos_idx;
   uint32_t MAX_POS = numeric_limits<uint32_t>::max();
   vector<Region> regions;
 
-  cerr << "on my way to reserve " << ntotal_hits << endl; // TODO remove
+  cerr << "3 - on my way to reserve " << ntotal_hits << endl; // TODO remove
 
   regions.reserve(ntotal_hits);
   for (unsigned i = 0; i < nkmers; i++) {
@@ -1001,7 +1001,7 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0,
   Region r;
   int max_interval = rlen / k;
 
-  cerr << "on my way to reserve " << max_interval << endl; // TODO remove
+  cerr << "4 - on my way to reserve " << max_interval << endl; // TODO remove
 
   r.matched_intervals.reserve(max_interval);
 
@@ -1267,7 +1267,7 @@ void AccAlign::pigeonhole_query(char *Q,
 
   Region r;
 
-  cerr << "on my way to reserve " << nkmers << endl; // TODO remove
+  cerr << "5 - on my way to reserve " << nkmers << endl; // TODO remove
 
   r.matched_intervals.reserve(nkmers);
   while (nprocessed < ntotal_hits) {
