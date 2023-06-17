@@ -75,7 +75,8 @@ void Index::cal_key(size_t i, vector<Data> &data) {
     h = (h << 2) + ref[i + j];
   }
   if (!hasn) {
-    data[i / step].key = h % mod;
+    //data[i / step].key = h % mod;
+    data[i / step].key = h;
     data[i / step].pos = i;
   }
 }
@@ -151,47 +152,39 @@ bool Index::key_gen() {
     cerr << "Fast writing keys (" << eof << ")\n";
     uint32_t *buf = new uint32_t[eof*2];
     // the previous value
-    prec = data[0].key; 
-    // the number of previous values which where the same
-    same = 0;
+    prec = uint32_t(-1); 
     size_t i_buf;
 
     for (i = 0, i_buf = 0; i < valid; i++) {
       if (data[i].key != prec) {
         buf[i_buf++] = prec;
-        buf[i_buf++] = same;
+        buf[i_buf++] = i;
         prec = data[i].key;
-        same = 0;
       }
-      same++;
     }
     // add the last one
     buf[i_buf++] = prec;
-    buf[i_buf] = same;
+    buf[i_buf] = i;
     fo_key.write((char *) buf, eof*2 * sizeof(uint32_t));
     delete[] buf;
 
   } catch (std::bad_alloc& e) {
     cerr << "Fall back to slow writing keys due to low mem.\n";
     // the previous value
-    prec = data[0].key;
-    // the number of previous values which where the same
-    same = 0;
+    prec = uint32_t(-1);
     uint32_t buf[2];
 
     for (size_t i = 0; i < valid; i++) {
       if (data[i].key != prec) {
         buf[0] = prec;
-        buf[1] = same;
+        buf[1] = i;
         fo_key.write((char *) buf, 8);
         prec = data[i].key;
-        same = 0;
       }
-      same++;
     }
     // add the last one
     buf[0] = prec;
-    buf[1] = same;
+    buf[1] = i;
     fo_key.write((char *) buf, 8);
   }
   cerr << "Key generation complete!\n\n";

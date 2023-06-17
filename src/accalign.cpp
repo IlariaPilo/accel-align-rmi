@@ -426,7 +426,8 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
     for (size_t j = i; j < i + kmer_len; j++)
       k = (k << 2) + *(Q + j);
 
-    size_t hash = (k & mask) % MOD;
+    //size_t hash = (k & mask) % MOD;
+    size_t hash = (k & mask);
 
     // ------------- END -------------
     //b[kmer_idx] = get_keyv(ref_id)[hash];     // the first position of hash
@@ -440,7 +441,7 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
       kmer_idx++;
       continue;
     }
-    assert(pos_idx%2 == 0);
+    //assert(pos_idx%2 == 0);
     //std::cerr << "\033[1;32m" << " [fine] " << "\033[0m" << "hash " << hash << " is fine." << std::endl;
 
     b[kmer_idx] = get_keyv(ref_id)[pos_idx + 1];     // the first position of hash
@@ -505,11 +506,6 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   vector<Region> unique_regions;
 
   cerr << "1 - on my way to reserve " << ntotal_hits << endl; // TODO remove
-  // ------------- REMOVE -------------
-  for (size_t i = 0; ntotal_hits == -7 && i < nkmers; i++) {
-    cerr << i << "] e: " << e[i] << " b: " << b[i] << endl;
-  }
-  // --------------- END --------------
 
   unique_regions.reserve(ntotal_hits);
   size_t idx = 0;
@@ -637,7 +633,8 @@ uint32_t pos_idx;
     for (size_t j = i; j < i + kmer_len; j++)
       k = (k << 2) + *(Q + j);
 
-    size_t hash = (k & mask) % MOD;
+    //size_t hash = (k & mask) % MOD;
+    size_t hash = (k & mask);
 
     // ------------- END -------------
     //b[kmer_idx] = get_keyv(ref_id)[hash];     // the first position of hash
@@ -1198,7 +1195,9 @@ void AccAlign::pigeonhole_query(char *Q,
     for (size_t j = i; j < i + kmer_len; j++)
       k = (k << 2) + *(Q + j);
 
-    size_t hash = (k & mask) % MOD;
+    //size_t hash = (k & mask) % MOD;
+    size_t hash = (k & mask);
+
     // ------------- END -------------
     //b[kmer_idx] = get_keyv(ref_id)[hash];     // the first position of hash
     //e[kmer_idx] = get_keyv(ref_id)[hash + 1]; // the first position of next hash
