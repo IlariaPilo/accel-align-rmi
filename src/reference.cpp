@@ -228,7 +228,7 @@ uint32_t Reference::index_lookup(uint32_t key) {
       guess_key = keyv[guess_pos*2];
       // if it's the same, done
       if (guess_key == key)
-        return guess_pos;
+        return guess_pos*2;
       // else, do binary search
       if (guess_key < key) {
           l = guess_pos + 1;
