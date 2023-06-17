@@ -161,6 +161,7 @@ bool Index::key_gen() {
         prec = data[i].key;
       }
     }
+    cerr << "final i_buf " << i_buf << endl;  // TODO remove 
     fo_key.write((char *) buf, eof*2 * sizeof(uint32_t));
     delete[] buf;
 
