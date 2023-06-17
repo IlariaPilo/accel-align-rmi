@@ -217,11 +217,12 @@ uint32_t Reference::index_lookup(uint32_t key) {
   uint32_t l, r;
   uint64_t key64 = (uint64_t) key;
   // call the lookup function of the index
-  guess_pos = (uint32_t) rmi.lookup(key64, &err)*2;
+  guess_pos = (uint32_t) rmi.lookup(key64, &err);
+  guess_pos *= 2;
 
   // set up l and r for the bounded binary search
   l = std::max(int32_t(0), static_cast<int32_t>(guess_pos-err*2));
-  r = std::min(static_cast<int32_t>(guess_pos+err*2), static_cast<int32_t>(nkeyv-1));
+  r = std::min(static_cast<int32_t>(guess_pos+err*2), static_cast<int32_t>(nkeyv-2));
 
   // check in the keyv array - FIXME
   while (l <= r) {
