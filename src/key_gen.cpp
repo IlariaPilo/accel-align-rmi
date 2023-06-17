@@ -154,15 +154,14 @@ bool Index::key_gen() {
     prec = uint32_t(-1); 
     size_t i_buf;
 
-    for (i = 0, i_buf = 0; i < valid && i_buf < eof; i++) {
+    for (i = 0, i_buf = 0; i < valid && i_buf < 2*eof; i++) {
       if (data[i].key != prec) {
         buf[i_buf++] = data[i].key;
         buf[i_buf++] = i;
         prec = data[i].key;
       }
     }
-    cerr << "final key " << buf[i_buf-2] << endl;  // TODO remove 
-    fo_key.write((char *) buf, eof*2 * sizeof(uint32_t));
+    fo_key.write((char *) buf, eof*2*sizeof(uint32_t));
     delete[] buf;
 
   } catch (std::bad_alloc& e) {
