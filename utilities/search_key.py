@@ -22,7 +22,7 @@ with open(filename, "rb") as f:
         exit(0)
 
     if key == 'max':
-        f.seek(-4, 2)
+        f.seek(-8, 2)
         key_bytes = f.read(4)
         curr_key = struct.unpack('<I', key_bytes)[0]
         print("Maximum Key:", curr_key)
