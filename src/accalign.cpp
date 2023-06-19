@@ -5,7 +5,8 @@
 using namespace tbb::flow;
 using namespace std;
 
-unsigned kmer_len = 32;
+// change default to 16
+unsigned kmer_len = 16;
 int kmer_step = 1;
 uint64_t mask;
 unsigned pairdis = 1000;
@@ -438,15 +439,13 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
 
     if (pos_idx == (uint32_t)-1) {
       std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
-      kmer_idx++;
-      continue;
+      b[kmer_idx] = 0;     
+      e[kmer_idx] = 0;
+    } else {
+      b[kmer_idx] = get_keyv(ref_id)[pos_idx + 1];     // the first position of hash
+      e[kmer_idx] = get_keyv(ref_id)[pos_idx + 3];     // the first position of next hash 
     }
-    //assert(pos_idx%2 == 0);
-    //std::cerr << "\033[1;32m" << " [fine] " << "\033[0m" << "hash " << hash << " is fine." << std::endl;
-
-    b[kmer_idx] = get_keyv(ref_id)[pos_idx + 1];     // the first position of hash
-    e[kmer_idx] = get_keyv(ref_id)[pos_idx + 3];     // the first position of next hash 
-
+    
     if (e[kmer_idx] - b[kmer_idx] >= max_occ)
       nseed_freq++;
 //    if (e[kmer_idx] - b[kmer_idx] < max_occ) {
@@ -504,8 +503,6 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   start = std::chrono::system_clock::now();
 
   vector<Region> unique_regions;
-
-  cerr << "1 - on my way to reserve " << ntotal_hits << endl; // TODO remove
 
   unique_regions.reserve(ntotal_hits);
   size_t idx = 0;
@@ -625,7 +622,7 @@ void AccAlign::pigeonhole_query_sort(char *Q,
 
 uint32_t pos_idx;
 
-  // Take non-overlapping seeds and find all hits
+// Take non-overlapping seeds and find all hits
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
     uint64_t k = 0;
@@ -645,14 +642,13 @@ uint32_t pos_idx;
 
     if (pos_idx == (uint32_t)-1) {
       std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
-      kmer_idx++;
-      continue;
+      b[kmer_idx] = 0;     
+      e[kmer_idx] = 0;
+    } else {
+      b[kmer_idx] = get_keyv(ref_id)[pos_idx + 1];     // the first position of hash
+      e[kmer_idx] = get_keyv(ref_id)[pos_idx + 3];     // the first position of next hash 
     }
-    //std::cerr << "\033[1;32m" << " [fine] " << "\033[0m" << "hash " << hash << " is fine." << std::endl;
-
-    b[kmer_idx] = get_keyv(ref_id)[pos_idx + 1];     // the first position of hash
-    e[kmer_idx] = get_keyv(ref_id)[pos_idx + 3];     // the first position of next hash 
-
+    
     if (e[kmer_idx] - b[kmer_idx] >= max_occ)
       nseed_freq++;
 //    if (e[kmer_idx] - b[kmer_idx] < max_occ) {
@@ -1207,14 +1203,13 @@ void AccAlign::pigeonhole_query(char *Q,
 
     if (pos_idx == (uint32_t)-1) {
       std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
-      kmer_idx++;
-      continue;
+      b[kmer_idx] = 0;     
+      e[kmer_idx] = 0;
+    } else {
+      b[kmer_idx] = get_keyv(ref_id)[pos_idx + 1];     // the first position of hash
+      e[kmer_idx] = get_keyv(ref_id)[pos_idx + 3];     // the first position of next hash 
     }
-    //std::cerr << "\033[1;32m" << " [fine] " << "\033[0m" << "hash " << hash << " is fine." << std::endl;
-
-    b[kmer_idx] = get_keyv(ref_id)[pos_idx + 1];     // the first position of hash
-    e[kmer_idx] = get_keyv(ref_id)[pos_idx + 3];     // the first position of next hash 
-
+    
     if (e[kmer_idx] - b[kmer_idx] >= max_occ)
       nseed_freq++;
 //    if (e[kmer_idx] - b[kmer_idx] < max_occ) {
@@ -3120,7 +3115,8 @@ int main(int ac, char **av) {
   }
   if (kmer_temp != 0)
     kmer_len = kmer_temp;
-  mask = kmer_len == 32 ? ~0 : (1ULL << (kmer_len * 2)) - 1;
+  // change default to 16
+  mask = kmer_len == 16 ? ~0 : (1ULL << (kmer_len * 2)) - 1;
 
   cerr << "Using " << g_ncpus << " cpus " << endl;
   cerr << "Using kmer length " << kmer_len << " and step size " << kmer_step << endl;

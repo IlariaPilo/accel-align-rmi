@@ -221,7 +221,8 @@ int main(int argc, char **argv) {
     if (strcmp(argv[it], "-l") == 0)
       kmer_temp = atoi(argv[it + 1]);
   }
-  kmer = 32;
+  // change default to 16
+  kmer = 16;
   if (kmer_temp != 0)
     kmer = kmer_temp;
 
