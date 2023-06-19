@@ -4,7 +4,7 @@ import sys
 if len(sys.argv) < 3:
     print("\n\033[1;35m\tpython search_key.py <filename> <key>\033[0m")
     print("Search the key in <filename> file.")
-    print("Passing 'min' as key returns the minimum, passing 'max' the maximum.")
+    print("Passing 'min' as key returns the minimum, passing 'max' the maximum.\n")
     sys.exit()
 
 filename = sys.argv[1]
