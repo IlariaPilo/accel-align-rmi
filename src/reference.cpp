@@ -219,7 +219,7 @@ uint32_t Reference::index_lookup(uint32_t key) {
   // call the lookup function of the index
   guess_pos = (uint32_t) rmi.lookup(key64, &err);
 
-  cerr << "LOOKUP!" << endl;
+  cerr << "LOOKUP! [nkeyv = " << nkeyv << "]" << endl;
   cerr << " |-- key: " << key << endl;
   cerr << " |-- guess_pos: " << guess_pos << endl;
   cerr << " `-- err: " << err << endl;
@@ -230,6 +230,7 @@ uint32_t Reference::index_lookup(uint32_t key) {
 
   // check in the keyv array - FIXME
   while (l <= r) {
+      cerr << " accessing value " << guess_pos*2 << endl;
       guess_key = keyv[guess_pos*2];
       // if it's the same, done
       if (guess_key == key)
