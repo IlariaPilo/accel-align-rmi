@@ -438,7 +438,7 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
     pos_idx = get_lookup(ref_id, hash);
 
     if (pos_idx == (uint32_t)-1) {
-      //std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
+      std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
       b[kmer_idx] = 0;     
       e[kmer_idx] = 0;
     } else {
@@ -641,7 +641,7 @@ uint32_t pos_idx;
     pos_idx = get_lookup(ref_id, hash);
 
     if (pos_idx == (uint32_t)-1) {
-      //std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
+      std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
       b[kmer_idx] = 0;     
       e[kmer_idx] = 0;
     } else {
@@ -1202,7 +1202,7 @@ void AccAlign::pigeonhole_query(char *Q,
     pos_idx = get_lookup(ref_id, hash);
 
     if (pos_idx == (uint32_t)-1) {
-      //std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
+      std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
       b[kmer_idx] = 0;     
       e[kmer_idx] = 0;
     } else {
