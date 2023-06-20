@@ -439,6 +439,7 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
 
     if (pos_idx == (uint32_t)-1) {
       std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
+      std::cerr << "           " << "read " << Q << std::endl;
       b[kmer_idx] = 0;     
       e[kmer_idx] = 0;
     } else {
@@ -620,9 +621,9 @@ void AccAlign::pigeonhole_query_sort(char *Q,
   unsigned nseed_freq = 0;
   bool high_freq = false;
 
-uint32_t pos_idx;
+  uint32_t pos_idx;
 
-// Take non-overlapping seeds and find all hits
+  // Take non-overlapping seeds and find all hits
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
     uint64_t k = 0;
@@ -642,6 +643,7 @@ uint32_t pos_idx;
 
     if (pos_idx == (uint32_t)-1) {
       std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
+      std::cerr << "           " << "read " << Q << std::endl;
       b[kmer_idx] = 0;     
       e[kmer_idx] = 0;
     } else {
@@ -1203,6 +1205,7 @@ void AccAlign::pigeonhole_query(char *Q,
 
     if (pos_idx == (uint32_t)-1) {
       std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
+      std::cerr << "           " << "read " << Q << std::endl;
       b[kmer_idx] = 0;     
       e[kmer_idx] = 0;
     } else {

@@ -27,9 +27,12 @@ code = {
 # G -> 2
 # T -> 3
 
-for i in range(16):
+for i in range(15, -1, -1):
     k_i = key >> 2*i
     letter = k_i & 3
     kmer += code[letter]
 
+print('----- Kmer -----')
 print(kmer)
+print('--- Reversed ---')
+print(kmer[::-1])
