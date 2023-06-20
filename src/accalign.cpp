@@ -1205,7 +1205,10 @@ void AccAlign::pigeonhole_query(char *Q,
 
     if (pos_idx == (uint32_t)-1) {
       std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
-      std::cerr << "           " << "read " << Q << std::endl;
+      std::cerr << "           " << "read ";
+      for (size_t j = i; j < i + kmer_len; j++)
+        std::cerr << *(Q + j);
+      std::cerr << std::endl;
       b[kmer_idx] = 0;     
       e[kmer_idx] = 0;
     } else {
