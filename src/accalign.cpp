@@ -440,8 +440,22 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
     if (pos_idx == (uint32_t)-1) {
       std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
       std::cerr << "           " << "read ";
-      for (size_t j = i; j < i + kmer_len; j++)
-        std::cerr << *(Q + j);
+      for (size_t j = i; j < i + kmer_len; j++) {
+        switch(*(Q + j)) {
+          case 0:
+            std::cerr << 'A';
+            break;
+          case 1:
+            std::cerr << 'C';
+            break;
+          case 2:
+            std::cerr << 'G';
+            break;
+          case 3:
+            std::cerr << 'T';
+            break;
+        }
+      }
       std::cerr << std::endl;
       b[kmer_idx] = 0;     
       e[kmer_idx] = 0;
@@ -647,8 +661,22 @@ void AccAlign::pigeonhole_query_sort(char *Q,
     if (pos_idx == (uint32_t)-1) {
       std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
       std::cerr << "           " << "read ";
-      for (size_t j = i; j < i + kmer_len; j++)
-        std::cerr << *(Q + j);
+      for (size_t j = i; j < i + kmer_len; j++) {
+        switch(*(Q + j)) {
+          case 0:
+            std::cerr << 'A';
+            break;
+          case 1:
+            std::cerr << 'C';
+            break;
+          case 2:
+            std::cerr << 'G';
+            break;
+          case 3:
+            std::cerr << 'T';
+            break;
+        }
+      }
       std::cerr << std::endl;
       b[kmer_idx] = 0;     
       e[kmer_idx] = 0;
@@ -1212,8 +1240,22 @@ void AccAlign::pigeonhole_query(char *Q,
     if (pos_idx == (uint32_t)-1) {
       std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
       std::cerr << "           " << "read ";
-      for (size_t j = i; j < i + kmer_len; j++)
-        std::cerr << *(Q + j);
+      for (size_t j = i; j < i + kmer_len; j++) {
+        switch(*(Q + j)) {
+          case 0:
+            std::cerr << 'A';
+            break;
+          case 1:
+            std::cerr << 'C';
+            break;
+          case 2:
+            std::cerr << 'G';
+            break;
+          case 3:
+            std::cerr << 'T';
+            break;
+        }
+      }
       std::cerr << std::endl;
       b[kmer_idx] = 0;     
       e[kmer_idx] = 0;
