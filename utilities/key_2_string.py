@@ -16,11 +16,18 @@ except:
     len_ = 16
 
 kmer = ''
+kmer_rev = ''
 code = {
     0: 'A',
     1: 'C',
     2: 'G',
     3: 'T'
+}
+code_rev = {
+    0: 'T',
+    1: 'G',
+    2: 'C',
+    3: 'A'
 }
 # A -> 0
 # C -> 1
@@ -31,8 +38,9 @@ for i in range(15, -1, -1):
     k_i = key >> 2*i
     letter = k_i & 3
     kmer += code[letter]
+    kmer_rev += code_rev[letter]
 
 print('----- Kmer -----')
 print(kmer)
 print('--- Reversed ---')
-print(kmer[::-1])
+print(kmer_rev[::-1])
