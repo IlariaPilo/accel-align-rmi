@@ -434,7 +434,6 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
       k = (k << 2) + *(Q + j);
       _kmer_[_i_] = _code_[*(Q + j)];
     }
-      
 
     //size_t hash = (k & mask) % MOD;
     size_t hash = (k & mask);
@@ -447,8 +446,8 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
     pos_idx = get_lookup(ref_id, hash);
 
     if (pos_idx == (uint32_t)-1) {
-      std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
-      std::cerr << "           " << "read " << _kmer_ << std::endl;
+      //std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
+      //std::cerr << "           " << "read " << _kmer_ << std::endl;
       b[kmer_idx] = 0;     
       e[kmer_idx] = 0;
     } else {
@@ -660,8 +659,8 @@ void AccAlign::pigeonhole_query_sort(char *Q,
     pos_idx = get_lookup(ref_id, hash);
 
     if (pos_idx == (uint32_t)-1) {
-      std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
-      std::cerr << "           " << "read " << _kmer_ << std::endl;
+      //std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
+      //std::cerr << "           " << "read " << _kmer_ << std::endl;
       b[kmer_idx] = 0;     
       e[kmer_idx] = 0;
     } else {
@@ -1230,8 +1229,8 @@ void AccAlign::pigeonhole_query(char *Q,
     pos_idx = get_lookup(ref_id, hash);
 
     if (pos_idx == (uint32_t)-1) {
-      std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
-      std::cerr << "           " << "read " << _kmer_ << std::endl;
+      //std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
+      //std::cerr << "           " << "read " << _kmer_ << std::endl;
       b[kmer_idx] = 0;     
       e[kmer_idx] = 0;
     } else {
