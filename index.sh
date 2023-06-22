@@ -102,14 +102,13 @@ else
 fi
 
 # Print optimization result
-cat optimizer.out
+echo -n -e "\t" && head -1 optimizer.out && tail -10 optimizer.out | cat -n
 
 # Chose the best model and train it
 # The chosen parameters in rmi_type.txt as type, branching_factor, size (KB), avg_log2_err
 if [ ! -e rmi_type.txt ] || [ "$_redo_" == "1" ]; then
   # The file does not exist, so execute the command
-  # Chose the best model somehow - TODO
-  echo "NOT READY YET!"
+  bash "${BASE_DIR}/utilities/model_select.sh"
 else
   # The file exists, so ask the user before executing
   read type branching size avg_err max_err b_time < rmi_type.txt
@@ -124,8 +123,7 @@ else
   case "$choice" in 
     y|Y ) 
       _redo_=1 
-      # Chose the best model somehow - TODO
-      echo "NOT READY YET!"
+      bash "${BASE_DIR}/utilities/model_select.sh"
       ;;
     * ) 
       echo -e "\033[1;33m [index.sh] \033[0mcommand not executed" ;;
