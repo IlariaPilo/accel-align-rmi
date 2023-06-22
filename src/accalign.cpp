@@ -1625,6 +1625,7 @@ int AccAlign::get_mapq(int best, int secBest) {
 
 void AccAlign::map_read(Read &R, int ref_id) {
 
+std::cerr << R.name << std::endl;
   auto start = std::chrono::system_clock::now();
   vector<Region> fcandidate_regions, rcandidate_regions;
 
