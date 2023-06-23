@@ -39,7 +39,10 @@ with open(filename, "rb") as f:
     i = 0
     while i < t:
         if direction == 'backward':
-            pos = f.tell() - elem_size
+            if i == 0:
+                pos = f.tell() - elem_size 
+            else:
+                pos = f.tell() - elem_size*2 
             if pos < 0:  # stop if reached the beginning of the file
                 break
             f.seek(pos)
