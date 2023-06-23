@@ -118,7 +118,7 @@ else
   echo -e "               | SIZE (B)\t\t$size"
   echo -e "               | AVG LOG2 ERROR\t\t$avg_err"
   echo -e "               | MAX LOG2 ERROR\t\t$max_err"
-  echo -e "               | BUILD TIME (ns)\t\t$b_time"
+  echo -e "               | BUILD TIME (ns)\t$b_time"
   read -ep $'            do you want to train a new one? [y/N] ' choice
   case "$choice" in 
     y|Y ) 
