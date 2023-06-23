@@ -1231,7 +1231,6 @@ void AccAlign::pigeonhole_query(char *Q,
       //_kmer_[_i_] = _code_[*(Q + j)];
     }
       
-
     //size_t hash = (k & mask) % MOD;
     size_t hash = (k & mask);
 
@@ -1643,7 +1642,7 @@ int AccAlign::get_mapq(int best, int secBest) {
 
 void AccAlign::map_read(Read &R, int ref_id) {
 
-std::cerr << R.name << std::endl;   // TODO - remove
+  //std::cerr << R.name << std::endl;
   auto start = std::chrono::system_clock::now();
   vector<Region> fcandidate_regions, rcandidate_regions;
 
