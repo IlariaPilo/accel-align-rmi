@@ -409,8 +409,8 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
                                        int ref_id) {
   int max_cov = 0;
   unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
-  int ntotal_hits = 0;
   //size_t ntotal_hits = 0;
+  int ntotal_hits = 0;
   size_t b[nkmers], e[nkmers];
   unsigned kmer_idx = 0;
   unsigned ori_slide_bk = ori_slide;
@@ -420,19 +420,19 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   uint32_t pos_idx;
 
   // FIXME - remove
-  char _kmer_[17];
-  _kmer_[16] = 0;
+  //char _kmer_[17];
+  //_kmer_[16] = 0;
 
-  std::string _code_ = "ACGT";
+  //std::string _code_ = "ACGT";
 
   // Take non-overlapping seeds and find all hits
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
     uint64_t k = 0;
     // ------------ FIXME ------------
-    for (size_t j = i, _i_ = 0; j < i + kmer_len; j++, _i_++) {
+    for (size_t j = i /*, _i_ = 0*/; j < i + kmer_len; j++ /*, _i_++*/) {
       k = (k << 2) + *(Q + j);
-      _kmer_[_i_] = _code_[*(Q + j)];
+      //_kmer_[_i_] = _code_[*(Q + j)];
     }
 
     //size_t hash = (k & mask) % MOD;
@@ -513,6 +513,7 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
 
   vector<Region> unique_regions;
 
+  assert(ntotal_hits > 0);
   unique_regions.reserve(ntotal_hits);
   size_t idx = 0;
   Region r;
@@ -623,7 +624,8 @@ void AccAlign::pigeonhole_query_sort(char *Q,
                                      int ref_id) {
   unsigned max_cov = 0;
   unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
-  size_t ntotal_hits = 0;
+  //size_t ntotal_hits = 0;
+  int ntotal_hits = 0;
   size_t b[nkmers], e[nkmers];
   unsigned kmer_idx = 0;
   unsigned nseed_freq = 0;
@@ -632,19 +634,19 @@ void AccAlign::pigeonhole_query_sort(char *Q,
   uint32_t pos_idx;
 
     // FIXME - remove
-  char _kmer_[17];
-  _kmer_[16] = 0;
+  //char _kmer_[17];
+  //_kmer_[16] = 0;
 
-  std::string _code_ = "ACGT";
+  //std::string _code_ = "ACGT";
 
   // Take non-overlapping seeds and find all hits
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
     uint64_t k = 0;
     // ------------ FIXME ------------
-    for (size_t j = i, _i_ = 0; j < i + kmer_len; j++, _i_++) {
+    for (size_t j = i /*, _i_ = 0*/; j < i + kmer_len; j++ /*, _i_++*/) {
       k = (k << 2) + *(Q + j);
-      _kmer_[_i_] = _code_[*(Q + j)];
+      //_kmer_[_i_] = _code_[*(Q + j)];
     }
       
 
@@ -697,6 +699,7 @@ void AccAlign::pigeonhole_query_sort(char *Q,
   uint32_t MAX_POS = numeric_limits<uint32_t>::max();
   vector<Region> regions;
 
+  assert(ntotal_hits > 0);
   regions.reserve(ntotal_hits);
   for (unsigned i = 0; i < nkmers; i++) {
     if (b[i] < e[i] && ((!high_freq && e[i] - b[i] < max_occ) || high_freq)) {
@@ -1194,7 +1197,8 @@ void AccAlign::pigeonhole_query(char *Q,
                                 bool &high_freq, int ref_id) {
   int max_cov = 0;
   unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
-  size_t ntotal_hits = 0;
+  // size_t ntotal_hits = 0;
+  int ntotal_hits = 0;
   size_t b[nkmers], e[nkmers];
   unsigned kmer_idx = 0;
   unsigned nseed_freq = 0;
@@ -1202,19 +1206,19 @@ void AccAlign::pigeonhole_query(char *Q,
   uint32_t pos_idx;
 
     // FIXME - remove
-  char _kmer_[17];
-  _kmer_[16] = 0;
+  //char _kmer_[17];
+  //_kmer_[16] = 0;
 
-  std::string _code_ = "ACGT";
+  //std::string _code_ = "ACGT";
 
   // Take non-overlapping seeds and find all hits
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
     uint64_t k = 0;
     // ------------ FIXME ------------
-    for (size_t j = i, _i_ = 0; j < i + kmer_len; j++, _i_++) {
+    for (size_t j = i /*, _i_ = 0*/; j < i + kmer_len; j++ /*, _i_++*/) {
       k = (k << 2) + *(Q + j);
-      _kmer_[_i_] = _code_[*(Q + j)];
+      //_kmer_[_i_] = _code_[*(Q + j)];
     }
       
 
@@ -1624,7 +1628,7 @@ int AccAlign::get_mapq(int best, int secBest) {
 
 void AccAlign::map_read(Read &R, int ref_id) {
 
-std::cerr << R.name << std::endl;
+std::cerr << R.name << std::endl;   // TODO - remove
   auto start = std::chrono::system_clock::now();
   vector<Region> fcandidate_regions, rcandidate_regions;
 
