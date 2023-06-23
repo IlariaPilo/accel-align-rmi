@@ -420,20 +420,21 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   uint32_t pos_idx;
 
   // FIXME - remove
-  //char _kmer_[17];
-  //_kmer_[16] = 0;
+  char _kmer_[17];
+  _kmer_[16] = 0;
 
-  //std::string _code_ = "ACGT";
+  std::string _code_ = "ACGT";
 
   // Take non-overlapping seeds and find all hits
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
     uint64_t k = 0;
     // ------------ FIXME ------------
-    for (size_t j = i /*, _i_ = 0*/; j < i + kmer_len; j++ /*, _i_++*/) {
+    for (size_t j = i , _i_ = 0; j < i + kmer_len; j++ , _i_++) {
       k = (k << 2) + *(Q + j);
-      //_kmer_[_i_] = _code_[*(Q + j)];
+      _kmer_[_i_] = _code_[*(Q + j)];
     }
+    std::cerr << "read " << _kmer_ << std::endl;
 
     //size_t hash = (k & mask) % MOD;
     size_t hash = (k & mask);
