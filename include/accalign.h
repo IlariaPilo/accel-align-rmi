@@ -105,6 +105,12 @@ class AccAlign {
   uint32_t get_lookup(int ref_id, uint32_t hash) {
     return refs[ref_id]->index_lookup(hash);
   }
+  uint32_t get_nkeyv(int ref_id) {
+    return (uint32_t)refs[ref_id]->nkeyv;
+  }
+  uint32_t get_nposv(int ref_id) {
+    return (uint32_t)refs[ref_id]->nposv;
+  }
 
   void open_output(std::string &out_file);
   void close_output();
