@@ -139,8 +139,6 @@ if [ ! -e rmi.h ] || [ "$_redo_" == "1" ]; then
 else
   echo -e "\n\033[1;35m [index.sh] \033[0mIndex already exists!\n"
 fi
-echo -e "\n\033[1;35m [index.sh] \033[0mDone!\n"
-
 
 ################################### SHARED OBJECT ###################################
 # Copy Makefile in the current directory
@@ -152,3 +150,5 @@ fi
 make
 
 cd $INITIAL_DIR
+
+echo -e "\n\033[1;32m [index.sh] \033[0mDone!\n"
