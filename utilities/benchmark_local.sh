@@ -54,3 +54,10 @@ do
     >> accel_align_release.out 2>&1)
 done
 echo -e "accel-align-release execution completed.\n"
+
+# print some final considerations
+echo -e "  ========= accel-align-rmi =========\t\t  ======= accel-align-release ======="
+cat accel_align_rmi.out | grep "Total time" | awk '{ sum += $3 } END { avg = sum / NR; printf("Total time (avg): %d secs [%02d:%02d min]\t\t", avg, avg/60, avg%60) }'
+cat accel_align_release.out | grep "Total time" | awk '{ sum += $3 } END { avg = sum / NR; printf("Total time (avg): %d secs [%02d:%02d min]\n", avg, avg/60, avg%60) }'
+cat accel_align_rmi.out | grep "keyv time" | awk '{ sum += $4 } END { avg = sum / NR; printf("Lookup keyv time (avg): %.3f secs\t\t", avg) }'
+cat accel_align_release.out | grep "keyv time" | awk '{ sum += $4 } END { avg = sum / NR; printf("Lookup keyv time (avg): %.3f secs\n\n", avg) }'
