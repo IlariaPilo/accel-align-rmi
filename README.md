@@ -4,8 +4,6 @@ A version of [Accel-Align](https://github.com/raja-appuswamy/accel-align-release
 
 **_See also the [original README](./README_og.md)._**
 
----
-
 ## 0 | Clone
 The repository can be cloned by running the following command:
 ```
