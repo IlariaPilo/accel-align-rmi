@@ -7,6 +7,7 @@ set -e  # Stop if there is a failure
 if [ $# -eq 0 ]; then
     echo -e "\n\033[1;35m\tbash benchmark_local.sh <thread_number> [<number_of_executions>]\033[0m"
     echo -e "Runs some benchmarks for accel-align (with/witout rmi index)."
+    echo -e "Executables should be already present (just run make)."
     echo -e "Indices should be built in advance (with -l 16 option)."
     echo -e "<thread_number> specifies the number of threads to be used."
     echo -e "<number_of_executions> is the number of times every program is called [default is 10]\n"
@@ -29,6 +30,9 @@ if [ $# -eq 1 ]; then
 else
   n=$2
 fi
+
+echo "============= benchmarking =============="
+echo -e "Running $n times with $thread_number threads.\n" 
 
 echo "============ accel-align-rmi ============"
 for ((i=1; i<=n; i++))
