@@ -1,148 +1,105 @@
-**_IMPORTANT: this is the original README! To take a look at the specific features of this fork, go [here](./README_rmi.md)._**
+# accel-align-rmi
+
+A version of [Accel-Align](https://github.com/raja-appuswamy/accel-align-release) using the RMI index.
+
+**_See also the [original README](./README_og.md)._**
 
 ---
 
-## Overview ##
-
-Accel-align is a fast alignment tool implemented in C++ programming language.
-
-## Get started ##
-
-### Docker Container ###
-
-You can now pull a preconfigured docker container to get the binaries:
-
+## 0 | Clone
+The repository can be cloned by running the following command:
 ```
-docker run -it rajaappuswamy/accel-align
+git clone --recursive https://github.com/IlariaPilo/accel-align-rmi
 ```
 
-### Pre-requirement ###
+## 1 | Download a reference string
+The script `/data/download.sh` can be used to download and post-process a reference string. The downloaded string is called `hg37.fna`, and it is saved in the current working directory.
 
-If you prefer to do a non-docker install, download and install Intel TBB first.
-
-#### Intel TBB ####
-
-- source: https://github.com/01org/tbb/releases/tag/2019_U5
-- libtbb-dev package
-
-### Installation ###
-
-* clone (git clone --recursive https://github.com/raja-appuswamy/accel-align-release)
-* Build it: `make`
-
-### Build index ###
-
-It's mandatory to build the index before alignment. Options:
-
+## 2 | Build the index
+The index can be built by simply running:
 ```
--l INT the length of k-mers [32]
+bash index.sh <reference_string.fna>
 ```
+The script generates an output directory `<reference_string>_index`, containing all index-related files. These files include:
+- `keys_uint32` and `pos_uint32` - two binary files storing keys and positions in the index, respectively. The first value in both files is a uint64 counter of the number of entries. Then, `kes_uint32` contains pairs of uint32 (key, cumulative_pos), where cumulative_pos is the sum of positions associated to a key lower than the current one. `pos_uint32` contains simply a list of uint32 positions.
+- `optimizer.out` - the output of the RMI hyperparameter optimizer. It stores the 10 most promising architectures, as well as some statistics on their size and training time.
+- `rmi_type.txt` - the architecture of the chosen RMI index.
+- `<reference_string>_index.so` and `<reference_string>_index.sym` - the generated shared object for the index and the list of symbol names for the main functions. Notice that the list is necessary to avoid issues with different C++ standards.
 
-Example:
+## 3 | Call the aligner
+The aligner can be built with `make`, and then run normally.
 
+**_warning : up to now, only -t (number of threads) and -o (output file) options are available -> no -l! Only -l 16 is supported_**
+
+Example
 ```
-path-to-accel-align/accindex -l 32 path-to-ref/ref.fna
+./accalign -t 4 -o accalign.sam ./data/hg37.fna ./data/sv-10m-100-r.fastq
 ```
 
-It will generate the index aside the reference genome as `path-to-ref/ref.fna.hash`.
+## 4 | Utility folder
+The `utility` folder contains some useful helper scripts.
 
-### Align ###
+### benchmark_local.sh
+This script can be used to run automatic benchmarks comparing accel-align with/without learned index.
+It should be moved from the `utility` directory into a parent directory containing both `accel-align-rmi` and `accel-align-release`. Programs should be already compiled.
 
-When the alignment is triggered, the index will be loaded in memory automatically.
-
-Options:
-
+Usage
 ```
-   -t INT number of cpu threads to use [1].
-   -l INT length of seed [32].
-   -o name of output file to use.
-   -x alignment-free.
-   -w use WFA for extension. It's using KSW by default.
-   -p the maximum distance allowed between the paired-end reads [1000].
-   -d disable embedding, extend all candidates from seeding (this mode is super slow, only for benchmark).
-   Note: maximum read length and read name length supported are 512.
+    bash benchmark_local.sh <thread_number> [<number_of_executions>]
+Runs some benchmarks for accel-align (with/without rmi index).
+Executables should be already present (just run make).
+Indices should be built in advance (with -l 16 option).
+<thread_number> specifies the number of threads to be used.
+<number_of_executions> is the number of times every program is called [default is 10]
 ```
 
-### Pair-end alignment ###
+### binary_print.py
+This script can be used to take a look inside the keys_uint32 or pos_uint32 binary files.
+More in general, it can print whatever binary file having the structure:
 
-``` 
-path-to-accel-align/accalign options ref.fna read1.fastq read2.fastq
+\<number of entries> (uint64) <br>
+\<list of keys> (uint32 each) 
+
+Usage
+```
+    python3 binary_print.py <filename> [<direction>] [<number_of_entries>]
+Prints the entries of <filename> file.
+If <number_of_entries> is not specified, 10 entries are displayed.
+If <direction> is 'forward' or not provided, it reads from the beginning of the file.
+If <direction> is 'backward', it reads from the end of the file.
+```
+### key_2_string.py
+This script takes a uint32 key and recovers the 16-char long kmer that generated it.
+
+Usage
+```
+    python3 key_2_string.py <key>
+Takes the key and converts it into a kmer, assuming its length is 16.
 ```
 
-Example:
+### search_key.py
+This script searches if a given key is present in a file. It is supposed to be used only on keys_uint32 files (that is, key files generated by index.sh).
 
-``` 
-path-to-accel-align/accalign -l 32 -t 4 -o output-path/out.sam \
-path-to-ref/ref.fna input-path/read1.fastq input-path/read2.fastq
-``` 
-
-### Single-end alignment ###
-
-``` 
-path-to-accel-align/accalign options ref.fna read.fastq
+Usage
+```
+    python search_key.py <filename> <key>
+Search the key in <filename> file.
+Passing 'min' as key returns the minimum, passing 'max' the maximum.
 ```
 
-Example:
+## Docker folder
+**_warning : the Docker folder functionality is currently broken, as the newest version of tbb is not compatible with accel-align :(_** 
 
-``` 
-path-to-accel-align/accalign -l 32 -t 4 -o output-path/out.sam \
-path-to-ref/ref.fna input-path/read.fastq
-``` 
-
-### Alignment-free  mode ###
-
-Accel-Align does base-to-base align by default. However, Accel-Align supports alignment-free mapping mode where the
-position is reported without the CIGAR string.
-`-x` option will enable the alignment-free mode.
-
-Example:
-
-``` 
-path-to-accel-align/accalign -l 32 -t 4 -x -o output-path/out.sam \
-path-to-ref/ref.fna input-path/read.fastq
-``` 
-
-### Bisulfite sequencing read alignment (multiple reference) mode ###
-#### Index
-Index would generate under the same directory of reference as partX, e.g. hg37.fna.hash.part1, hg37.fna.hash.part2.
+To run the program inside a container, run the following commands:
 ```
-/media/ssd/ngs-data-analysis/code/accel-align-release/accindex \
--l 32 -s /media/ssd/ngs-data-analysis/data/fsva-hg37/hg37.fna 
+cd docker
+bash build.sh
+bash run.sh <data_directory>
 ```
+where _data_directory_ is the directory storing the reference string (and the results).
 
-#### Alignment
+The generated credentials are (with `sudo` permissions):
 ```
-/media/ssd/ngs-data-analysis/code/accel-align-release/accalign \
--l 32 -t 12 -s /media/ssd/ngs-data-analysis/data/fsva-hg37/hg37.fna \
-/media/ssd/ngs-data-analysis/yan/input/1m/sv-1m-100-r-GA.fastq > haha.sam
+USER: aligner
+PASSWORD: password
 ```
-
-#### Test
-
-##### Single-end
-
-##### Pair-end
-
-###### Simulation (simulate PE reads, and mate1 converts C to T, mate2 converts G to A)
-```
-sed 's/C/T/ig' sv-1m-100-r1.fastq > sv-1m-100-r1-CT.fastq
-sed 's/G/A/ig' sv-1m-100-r2.fastq > sv-1m-100-r2-GA.fastq
-```
-
-###### Alignment
-```
-/media/ssd/ngs-data-analysis/code/accel-align-release/accalign \
--l 32 -t 12 -s /media/ssd/ngs-data-analysis/data/fsva-hg37/hg37.fna \
-/media/ssd/ngs-data-analysis/yan/input/1m/sv-1m-100-r1-CT.fastq \
-/media/ssd/ngs-data-analysis/yan/input/1m/sv-1m-100-r2-GA.fastq \
-> /media/ssd/ngs-data-analysis/yan/output/accalign.sam
-```
-
-
-
-### Citing Accel-align ###
-If you use Accel-align in your work, please cite https://doi.org/10.1186/s12859-021-04162-z :
-
-> Yan, Y., Chaturvedi, N. & Appuswamy, R. 
-> Accel-Align: a fast sequence mapper and aligner based on the seed–embed–extend method. 
-> BMC Bioinformatics 22, 257 (2021).

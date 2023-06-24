@@ -6,7 +6,7 @@ set -e  # Stop if there is a failure
 # Check if the user has provided an argument
 if [ $# -eq 0 ]; then
     echo -e "\n\033[1;35m\tbash benchmark_local.sh <thread_number> [<number_of_executions>]\033[0m"
-    echo -e "Runs some benchmarks for accel-align (with/witout rmi index)."
+    echo -e "Runs some benchmarks for accel-align (with/without rmi index)."
     echo -e "Executables should be already present (just run make)."
     echo -e "Indices should be built in advance (with -l 16 option)."
     echo -e "<thread_number> specifies the number of threads to be used."
