@@ -29,7 +29,7 @@ The script generates an output directory `<reference_string>_index`, containing 
 ## 3 | Call the aligner
 The aligner can be built with `make`, and then run normally.
 
-**_warning : up to now, only -t (number of threads) and -o (output file) options are available -> no -l! Only -l 16 is supported_**
+**_warning : up to now, only -t (number of threads) and -o (output file) options are available!_**
 
 Example
 ```
