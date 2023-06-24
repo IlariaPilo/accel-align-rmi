@@ -16,7 +16,7 @@ fi
 # check if directories exist
 if [[ ! -d "accel-align-rmi" ]] || [[ ! -d "accel-align-release" ]]; then
     echo -e "\n\033[1;31m [error]\033[0m the current directory does not contain the required projects (accel-align-rmi / accel-align-release)."
-    echo -e "         Aborting..."
+    echo -e "         Aborting...\n"
     exit
 fi
 
