@@ -405,7 +405,7 @@ void AccAlign::cpu_root_fn(tbb::concurrent_bounded_queue<ReadCnt> *inputQ,
 void AccAlign::mark_for_extension(Read &read, char S, Region &cregion, int ref_id) {
   int rlen = strlen(read.seq);
 
-  cregion.re = cregion.rs + rlen < get_ref(ref_id).size() ? cregion.rs + rlen : get_ref(ref_id).size();
+//  cregion.re = cregion.rs + rlen < get_ref(ref_id).size() ? cregion.rs + rlen : get_ref(ref_id).size();
 
   char *strand = S == '+' ? read.fwd : read.rev;
 
@@ -747,15 +747,13 @@ void AccAlign::pghole_wrapper(Read &R,
   size_t rlen = strlen(R.seq);
   int err_threshold = 2;
 
-  // Retrieve Candidate Regions using Strobealign index
   if(enable_strobealign_extension) {
-    find_candidate_positions_using_strobealign(std::string(R.seq), fcandidate_regions, false, index, index_parameters, map_params);
-    find_candidate_positions_using_strobealign(std::string(R.seq), rcandidate_regions, true, index, index_parameters, map_params);
+    // Retrieve Candidate Regions using Strobemer
+    find_candidate_positions_using_strobealign(std::string(R.seq), fcandidate_regions, false, index, index_parameters, map_params, ref_id);
+    find_candidate_positions_using_strobealign(std::string(R.seq), rcandidate_regions, true, index, index_parameters, map_params, ref_id);
     return;
-  }
-
-  // Retrieve Candidate Regions using Accel-Align index
-  if (enable_minimizer){
+  } else if (enable_minimizer){
+    // Retrieve Candidate Regions using minimizer
     mm128_v mv = {0, 0, 0};
     void *km = nullptr;
 
@@ -776,6 +774,7 @@ void AccAlign::pghole_wrapper(Read &R,
 
     delete mv.a;
   } else {
+    // Retrieve Candidate Regions using hash-index
     bool high_freq = false;
     unsigned kmer_step = kmer_len, nfregions = 0, nrregions = 0;
     unsigned ori_slide = 0;
@@ -815,7 +814,7 @@ void AccAlign::pghole_wrapper(Read &R,
 }
 
 // @param direction: "false", if forward strang, "true" if reverse strang
-void AccAlign::find_candidate_positions_using_strobealign(std::string_view seq, vector<Region> &candidate_regions, bool direction, StrobemerIndex &index, IndexParameters &index_parameters, mapping_params &map_params){
+void AccAlign::find_candidate_positions_using_strobealign(std::string_view seq, vector<Region> &candidate_regions, bool direction, StrobemerIndex &index, IndexParameters &index_parameters, mapping_params &map_params, int ref_id){
   auto query_randstrobes = randstrobes_query(seq, index_parameters);
   auto [nonrepetitive_fraction, nams] = find_nams(query_randstrobes, index);
 
@@ -827,16 +826,15 @@ void AccAlign::find_candidate_positions_using_strobealign(std::string_view seq, 
   });
 
   Region region;
-  region.matched_intervals.reserve(1);
   for(Nam &nam: nams) {
     if(nam.is_rc == direction) {
-      region.rs = nam.ref_s;
-      region.re = nam.ref_e;
+      region.rs = nam.ref_s + get_offset(ref_id)[nam.ref_id] - nam.query_s;
+//      region.re = nam.ref_e + get_offset(ref_id)[nam.ref_id]; no need to set
       region.qs = nam.query_s;
       region.qe = nam.query_e;
       region.cov = nam.n_hits;
       region.score = (int)nam.score;
-      region.matched_intervals.push_back(Interval{nam.query_s, nam.query_e});
+      region.matched_intervals.push_back(Interval{static_cast<uint32_t>(nam.query_s), static_cast<uint32_t>(nam.query_e)});
       candidate_regions.push_back(move(region));
     }
   }
@@ -3126,25 +3124,23 @@ int main(int argc, char **argv) {
   const char *read_file_01;
   const char *read_file_02;
 
-
+  // accalign command: ./accalign -l 32 -t 7 -s <path-to-ref-genome>/<ref-genome>.fna <path-to-input-folder>/<input-file>.fq > <path-to-output-folder>/<output-file>.sam
+  // strobealign command: strobealign --use-index ref.fa reads.1.fastq.gz reads.2.fastq.gz
   if(!enable_strobealign_extension) {
-
     // Accel-Align Setup
     logger.info() << "Starting Accel-Align Setup" << std::endl;
-
 
     g_ncpus = atoi(std::to_string(opt.n_threads).c_str());
     kmer_temp = atoi(std::to_string(opt.l).c_str());
     g_out = opt.o;
     g_embed_file = opt.e;
     g_batch_file = opt.b;
-    pairdis = atoi(std::to_string(opt.p).c_str());
+//    pairdis = atoi(std::to_string(opt.p).c_str());
     enable_extension = opt.x;
     enable_wfa_extension = opt.w;
     extend_all = opt.d;
     enable_minimizer = opt.m;
     enable_bs = opt.bs;
-
 
     if (kmer_temp != 0)
       kmer_len = kmer_temp;
@@ -3168,18 +3164,11 @@ int main(int argc, char **argv) {
     }
     logger.info() << "Finished Accel-Align Setup" << std::endl;
   } else {
-
-
     // Strobealign Setup
-
-    // accalign command: ./accalign -l 32 -t 7 -s <path-to-ref-genome>/<ref-genome>.fna <path-to-input-folder>/<input-file>.fq > <path-to-output-folder>/<output-file>.sam
-    // strobealign command: strobealign --use-index ref.fa reads.1.fastq.gz reads.2.fastq.gz
 
     logger.info() << "Starting Strobealign Setup" << std::endl;
 
     // Load accalign Reference data structure without acalign index
-
-
     if(opt.ref_filename.empty()) {
       logger.error() << "Please provide a valid reference file" << std::endl;
       return 1;
@@ -3228,7 +3217,6 @@ int main(int argc, char **argv) {
     log_parameters(index_parameters, map_params, aln_params);
     logger.debug() << "Threads: " << opt.n_threads << std::endl;
 
-
     // Retrieve Strobealign index
     References references;
     Timer read_refs_timer;
@@ -3258,7 +3246,6 @@ int main(int argc, char **argv) {
   }
 
 
-
   logger.info() << "Using " << g_ncpus << " cpus " << std::endl;
   tbb::task_scheduler_init init(g_ncpus);
   make_code();
@@ -3278,7 +3265,7 @@ int main(int argc, char **argv) {
   if (opt.is_SE) {
     f.fastq(read_file_01, "\0", false, index_parameters_reference, index_reference, &map_params);
   } else if (!opt.reads_filename2.empty()) {
-    f.tbb_fastq(read_file_01, read_file_02);
+    f.tbb_fastq(read_file_01, read_file_02); // TODO
   } else {
     print_usage();
     return 0;

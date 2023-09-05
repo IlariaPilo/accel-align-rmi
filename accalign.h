@@ -74,7 +74,7 @@ class AccAlign {
                     unsigned &fbest, unsigned &rbest);
   inline uint32_t get_global_pos(uint64_t cr, int ref_id);
   inline uint64_t normalize_pos(uint64_t cr, uint32_t q_pos, int k, int rlen);
-  void find_candidate_positions_using_strobealign(std::string_view seq, vector<Region> &fcandidate_regions, bool direction, StrobemerIndex &index, IndexParameters& index_parameters, mapping_params &map_params);
+  void find_candidate_positions_using_strobealign(std::string_view seq, vector<Region> &fcandidate_regions, bool direction, StrobemerIndex &index, IndexParameters& index_parameters, mapping_params &map_params,  int ref_id);
 
  public:
   Reference **refs;
