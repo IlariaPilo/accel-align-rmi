@@ -15,7 +15,7 @@
 #include "strobealign/readlen.hpp"
 #include "strobealign/randstrobes.hpp"
 #include "strobealign/nam.hpp"
-#include "strobealign-integrator.hpp"
+#include "strobealign/strobe-index.hpp"
 
 using namespace tbb::flow;
 using namespace std;
@@ -145,7 +145,7 @@ void AccAlign::print_stats() {
 //#endif
 }
 
-bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu, IndexParameters *index_parameters, StrobemerIndex *index, mapping_params *map_params) {
+bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu, IndexParameters *index_parameters, StrobemerIndex *index, MappingParameters *map_params) {
 
   bool is_paired = false;
 
@@ -291,7 +291,7 @@ bool AccAlign::fastq(const char *F1, const char *F2, bool enable_gpu, IndexParam
   cerr << "done reading " << total_nreads << " reads from fastq file " << F1 << ", " << F2 << " in " <<
        input_io_time / 1000000.0 << " secs\n";
 
-  ReadCnt sentinel = make_tuple((Read *) NULL, (Read *) NULL, 0, (StrobemerIndex *) NULL, (IndexParameters *) NULL, (mapping_params *) NULL);
+  ReadCnt sentinel = make_tuple((Read *) NULL, (Read *) NULL, 0, (StrobemerIndex *) NULL, (IndexParameters *) NULL, (MappingParameters *) NULL);
   inputQ.push(sentinel);
 
   int size = vec_index < vec_size ? vec_index : vec_size;
@@ -352,10 +352,10 @@ class Parallel_mapper {
   AccAlign *acc_obj;
   StrobemerIndex *index;
   IndexParameters *indexParameters;
-  mapping_params *map_params;
+  MappingParameters *map_params;
 
  public:
-  Parallel_mapper(Read *_all_reads1, Read *_all_reads2, AccAlign *_acc_obj, StrobemerIndex *index, IndexParameters *indexParameters, mapping_params *map_params) :
+  Parallel_mapper(Read *_all_reads1, Read *_all_reads2, AccAlign *_acc_obj, StrobemerIndex *index, IndexParameters *indexParameters, MappingParameters *map_params) :
       all_reads1(_all_reads1), all_reads2(_all_reads2), acc_obj(_acc_obj), index(index), indexParameters(indexParameters), map_params(map_params) {}
 
   void operator()(const tbb::blocked_range<size_t> &r) const {
@@ -384,7 +384,7 @@ void AccAlign::cpu_root_fn(tbb::concurrent_bounded_queue<ReadCnt> *inputQ,
     total += nreads;
     StrobemerIndex *index = std::get<3>(cpu_readcnt);
     IndexParameters *indexParameters = std::get<4>(cpu_readcnt);
-    mapping_params *map_params = std::get<5>(cpu_readcnt);
+    MappingParameters *map_params = std::get<5>(cpu_readcnt);
     if (nreads == 0) {
       inputQ->push(cpu_readcnt);    // push sentinel back
       break;
@@ -743,7 +743,7 @@ void AccAlign::pghole_wrapper(Read &R,
                               int ref_id,
                               StrobemerIndex &index,
                               IndexParameters &index_parameters,
-                              mapping_params &map_params) {
+                              MappingParameters &map_params) {
   size_t rlen = strlen(R.seq);
   int err_threshold = 2;
 
@@ -814,7 +814,7 @@ void AccAlign::pghole_wrapper(Read &R,
 }
 
 // @param direction: "false", if forward strang, "true" if reverse strang
-void AccAlign::find_candidate_positions_using_strobealign(std::string_view seq, vector<Region> &candidate_regions, bool direction, StrobemerIndex &index, IndexParameters &index_parameters, mapping_params &map_params, int ref_id){
+void AccAlign::find_candidate_positions_using_strobealign(std::string_view seq, vector<Region> &candidate_regions, bool direction, StrobemerIndex &index, IndexParameters &index_parameters, MappingParameters &map_params, int ref_id){
   auto query_randstrobes = randstrobes_query(seq, index_parameters);
   auto [nonrepetitive_fraction, nams] = find_nams(query_randstrobes, index);
 
@@ -828,13 +828,13 @@ void AccAlign::find_candidate_positions_using_strobealign(std::string_view seq, 
   Region region;
   for(Nam &nam: nams) {
     if(nam.is_rc == direction) {
-      region.rs = nam.ref_s + get_offset(ref_id)[nam.ref_id] - nam.query_s;
+      region.rs = nam.ref_start + get_offset(ref_id)[nam.ref_id] - nam.query_start;
 //      region.re = nam.ref_e + get_offset(ref_id)[nam.ref_id]; no need to set
-      region.qs = nam.query_s;
-      region.qe = nam.query_e;
+      region.qs = nam.query_start;
+      region.qe = nam.query_end;
       region.cov = nam.n_hits;
       region.score = (int)nam.score;
-      region.matched_intervals.push_back(Interval{static_cast<uint32_t>(nam.query_s), static_cast<uint32_t>(nam.query_e)});
+      region.matched_intervals.push_back(Interval{static_cast<uint32_t>(nam.query_start), static_cast<uint32_t>(nam.query_end)});
       candidate_regions.push_back(move(region));
     }
   }
@@ -1586,7 +1586,7 @@ int AccAlign::get_mapq(int best, int secBest) {
   return mapq;
 }
 
-void AccAlign::map_read(Read &R, int ref_id, StrobemerIndex &index, IndexParameters &index_parameters, mapping_params &map_params) {
+void AccAlign::map_read(Read &R, int ref_id, StrobemerIndex &index, IndexParameters &index_parameters, MappingParameters &map_params) {
 
   auto start = std::chrono::system_clock::now();
   vector<Region> fcandidate_regions, rcandidate_regions;
@@ -1694,7 +1694,7 @@ void AccAlign::map_read(Read &R, int ref_id, StrobemerIndex &index, IndexParamet
   }
 }
 
-void AccAlign::map_read_wrapper(Read &R, StrobemerIndex *index, IndexParameters *index_parameters, mapping_params *map_params) {
+void AccAlign::map_read_wrapper(Read &R, StrobemerIndex *index, IndexParameters *index_parameters, MappingParameters *map_params) {
   auto start = std::chrono::system_clock::now();
   parse(R.seq, R.fwd, R.rev, R.rev_str);
   auto end = std::chrono::system_clock::now();
@@ -3054,17 +3054,17 @@ InputBuffer get_input_buffer(const CommandLineOptions& opt) {
   }
 }
 
-void log_parameters(const IndexParameters& index_parameters, const mapping_params& map_param, const alignment_params& aln_params) {
+void log_parameters(const IndexParameters& index_parameters, const MappingParameters& map_param, const AlignmentParameters& aln_params) {
   logger.debug() << "Using" << std::endl
-                 << "k: " << index_parameters.k << std::endl
-                 << "s: " << index_parameters.s << std::endl
-                 << "w_min: " << index_parameters.w_min << std::endl
-                 << "w_max: " << index_parameters.w_max << std::endl
+                 << "k: " << index_parameters.syncmer.k << std::endl
+                 << "s: " << index_parameters.syncmer.s << std::endl
+                 << "w_min: " << index_parameters.randstrobe.w_min << std::endl
+                 << "w_max: " << index_parameters.randstrobe.w_max << std::endl
                  << "Read length (r): " << map_param.r << std::endl
-                 << "Maximum seed length: " << index_parameters.max_dist + index_parameters.k << std::endl
-                 << "R: " << map_param.R << std::endl
-                 << "Expected [w_min, w_max] in #syncmers: [" << index_parameters.w_min << ", " << index_parameters.w_max << "]" << std::endl
-                 << "Expected [w_min, w_max] in #nucleotides: [" << (index_parameters.k - index_parameters.s + 1) * index_parameters.w_min << ", " << (index_parameters.k - index_parameters.s + 1) * index_parameters.w_max << "]" << std::endl
+                 << "Maximum seed length: " << index_parameters.randstrobe.max_dist + index_parameters.syncmer.k << std::endl
+                 << "R: " << map_param.rescue_level << std::endl
+                 << "Expected [w_min, w_max] in #syncmers: [" << index_parameters.randstrobe.w_min << ", " << index_parameters.randstrobe.w_max << "]" << std::endl
+                 << "Expected [w_min, w_max] in #nucleotides: [" << (index_parameters.syncmer.k - index_parameters.syncmer.s + 1) * index_parameters.randstrobe.w_min << ", " << (index_parameters.syncmer.k - index_parameters.syncmer.s + 1) * index_parameters.randstrobe.w_max << "]" << std::endl
                  << "A: " << aln_params.match << std::endl
                  << "B: " << aln_params.mismatch << std::endl
                  << "O: " << aln_params.gap_open << std::endl
@@ -3120,7 +3120,7 @@ int main(int argc, char **argv) {
   const char *reference_file;
   StrobemerIndex *index_reference;
   IndexParameters *index_parameters_reference;
-  mapping_params map_params;
+  MappingParameters map_params;
   const char *read_file_01;
   const char *read_file_02;
 
@@ -3197,7 +3197,7 @@ int main(int argc, char **argv) {
     );
     index_parameters_reference = &index_parameters;
     logger.debug() << index_parameters << '\n';
-    alignment_params aln_params;
+    AlignmentParameters aln_params;
     aln_params.match = opt.A;
     aln_params.mismatch = opt.B;
     aln_params.gap_open = opt.O;
@@ -3205,14 +3205,17 @@ int main(int argc, char **argv) {
     aln_params.end_bonus = opt.end_bonus;
 
 
-    map_params.r = opt.r;
-    map_params.max_secondary = opt.max_secondary;
-    map_params.dropoff_threshold = opt.dropoff_threshold;
-    map_params.R = opt.R;
-    map_params.maxTries = opt.maxTries;
-    map_params.is_sam_out = opt.is_sam_out;
-    map_params.cigar_eqx = opt.cigar_eqx;
-    map_params.output_unmapped = opt.output_unmapped;
+    MappingParameters map_param;
+    map_param.r = opt.r;
+    map_param.max_secondary = opt.max_secondary;
+    map_param.dropoff_threshold = opt.dropoff_threshold;
+    map_param.rescue_level = opt.rescue_level;
+    map_param.max_tries = opt.max_tries;
+    map_param.is_sam_out = opt.is_sam_out;
+    map_param.cigar_ops = opt.cigar_eqx ? CigarOps::EQX : CigarOps::M;
+    map_param.output_unmapped = opt.output_unmapped;
+    map_param.details = opt.details;
+    map_param.verify();
 
     log_parameters(index_parameters, map_params, aln_params);
     logger.debug() << "Threads: " << opt.n_threads << std::endl;

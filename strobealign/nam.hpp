@@ -2,17 +2,18 @@
 #define STROBEALIGN_NAM_HPP
 
 #include <vector>
-#include "../strobealign-integrator.hpp"
+#include <array>
+#include "strobe-index.hpp"
 #include "randstrobes.hpp"
 
 // Non-overlapping approximate match
 struct Nam {
     int nam_id;
-    int query_s;
-    int query_e;
+    int query_start;
+    int query_end;
     int query_prev_hit_startpos;
-    int ref_s;
-    int ref_e;
+    int ref_start;
+    int ref_end;
     int ref_prev_hit_startpos;
     int n_hits = 0;
     int ref_id;
@@ -22,11 +23,11 @@ struct Nam {
     bool is_rc = false;
 
     int ref_span() const {
-        return ref_e - ref_s;
+        return ref_end - ref_start;
     }
 
     int query_span() const {
-        return query_e - query_s;
+        return query_end - query_start;
     }
 };
 
@@ -38,7 +39,7 @@ std::pair<float, std::vector<Nam>> find_nams(
 std::vector<Nam> find_nams_rescue(
     const QueryRandstrobeVector &query_randstrobes,
     const StrobemerIndex& index,
-    unsigned int filter_cutoff
+    unsigned int rescue_cutoff
 );
 
 std::ostream& operator<<(std::ostream& os, const Nam& nam);

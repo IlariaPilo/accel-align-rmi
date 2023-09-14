@@ -3,45 +3,44 @@
 namespace {
 
 struct Hit {
-    int query_s;
-    int query_e;
-    int ref_s;
-    int ref_e;
-    bool is_rc = false;
+    int query_start;
+    int query_end;
+    int ref_start;
+    int ref_end;
 };
 
-void add_to_hits_per_ref(
+inline void add_to_hits_per_ref(
     robin_hood::unordered_map<unsigned int, std::vector<Hit>>& hits_per_ref,
-    int query_s,
-    int query_e,
-    bool is_rc,
+    int query_start,
+    int query_end,
     const StrobemerIndex& index,
-    RandstrobeMapEntry randstrobe_map_entry,
-    int min_diff
+    size_t position
 ) {
-    randstrobe_map_entry.for_each(index.flat_vector, [&](const RefRandstrobe& rr) {
-        int ref_s = rr.position;
-        int ref_e = rr.position + rr.strobe2_offset() + index.k();
-        int diff = std::abs((query_e - query_s) - (ref_e - ref_s));
+    int min_diff = std::numeric_limits<int>::max();
+    for (const auto hash = index.get_hash(position); index.get_hash(position) == hash; ++position) {
+        int ref_start = index.get_strobe1_position(position);
+        int ref_end = ref_start + index.strobe2_offset(position) + index.k();
+        int diff = std::abs((query_end - query_start) - (ref_end - ref_start));
         if (diff <= min_diff) {
-            hits_per_ref[rr.reference_index()].push_back(Hit{query_s, query_e, ref_s, ref_e, is_rc});
+            hits_per_ref[index.reference_index(position)].push_back(Hit{query_start, query_end, ref_start, ref_end});
             min_diff = diff;
         }
-    });
+    }
 }
 
-std::vector<Nam> merge_hits_into_nams(
+void merge_hits_into_nams(
     robin_hood::unordered_map<unsigned int, std::vector<Hit>>& hits_per_ref,
     int k,
-    bool sort
+    bool sort,
+    bool is_revcomp,
+    std::vector<Nam>& nams  // inout
 ) {
-    std::vector<Nam> nams;
     int nam_id_cnt = 0;
     for (auto &[ref_id, hits] : hits_per_ref) {
         if (sort) {
             std::sort(hits.begin(), hits.end(), [](const Hit& a, const Hit& b) -> bool {
                     // first sort on query starts, then on reference starts
-                    return (a.query_s < b.query_s) || ( (a.query_s == b.query_s) && (a.ref_s < b.ref_s) );
+                    return (a.query_start < b.query_start) || ( (a.query_start == b.query_start) && (a.ref_start < b.ref_start) );
                 }
             );
         }
@@ -53,24 +52,24 @@ std::vector<Nam> merge_hits_into_nams(
             for (auto & o : open_nams) {
 
                 // Extend NAM
-                if (( o.is_rc == h.is_rc) && (o.query_prev_hit_startpos < h.query_s) && (h.query_s <= o.query_e ) && (o.ref_prev_hit_startpos < h.ref_s) && (h.ref_s <= o.ref_e) ){
-                    if ( (h.query_e > o.query_e) && (h.ref_e > o.ref_e) ) {
-                        o.query_e = h.query_e;
-                        o.ref_e = h.ref_e;
+                if ((o.query_prev_hit_startpos < h.query_start) && (h.query_start <= o.query_end ) && (o.ref_prev_hit_startpos < h.ref_start) && (h.ref_start <= o.ref_end) ){
+                    if ( (h.query_end > o.query_end) && (h.ref_end > o.ref_end) ) {
+                        o.query_end = h.query_end;
+                        o.ref_end = h.ref_end;
 //                        o.previous_query_start = h.query_s;
 //                        o.previous_ref_start = h.ref_s; // keeping track so that we don't . Can be caused by interleaved repeats.
-                        o.query_prev_hit_startpos = h.query_s; // log the last strobemer hit in case of outputting paf
-                        o.ref_prev_hit_startpos = h.ref_s; // log the last strobemer hit in case of outputting paf
+                        o.query_prev_hit_startpos = h.query_start; // log the last strobemer hit in case of outputting paf
+                        o.ref_prev_hit_startpos = h.ref_start; // log the last strobemer hit in case of outputting paf
                         o.n_hits ++;
 //                        o.score += (float)1/ (float)h.count;
                         is_added = true;
                         break;
                     }
-                    else if ((h.query_e <= o.query_e) && (h.ref_e <= o.ref_e)) {
+                    else if ((h.query_end <= o.query_end) && (h.ref_end <= o.ref_end)) {
 //                        o.previous_query_start = h.query_s;
 //                        o.previous_ref_start = h.ref_s; // keeping track so that we don't . Can be caused by interleaved repeats.
-                        o.query_prev_hit_startpos = h.query_s; // log the last strobemer hit in case of outputting paf
-                        o.ref_prev_hit_startpos = h.ref_s; // log the last strobemer hit in case of outputting paf
+                        o.query_prev_hit_startpos = h.query_start; // log the last strobemer hit in case of outputting paf
+                        o.ref_prev_hit_startpos = h.ref_start; // log the last strobemer hit in case of outputting paf
                         o.n_hits ++;
 //                        o.score += (float)1/ (float)h.count;
                         is_added = true;
@@ -84,27 +83,27 @@ std::vector<Nam> merge_hits_into_nams(
                 Nam n;
                 n.nam_id = nam_id_cnt;
                 nam_id_cnt ++;
-                n.query_s = h.query_s;
-                n.query_e = h.query_e;
-                n.ref_s = h.ref_s;
-                n.ref_e = h.ref_e;
+                n.query_start = h.query_start;
+                n.query_end = h.query_end;
+                n.ref_start = h.ref_start;
+                n.ref_end = h.ref_end;
                 n.ref_id = ref_id;
 //                n.previous_query_start = h.query_s;
 //                n.previous_ref_start = h.ref_s;
-                n.query_prev_hit_startpos = h.query_s;
-                n.ref_prev_hit_startpos = h.ref_s;
+                n.query_prev_hit_startpos = h.query_start;
+                n.ref_prev_hit_startpos = h.ref_start;
                 n.n_hits = 1;
-                n.is_rc = h.is_rc;
+                n.is_rc = is_revcomp;
 //                n.score += (float)1 / (float)h.count;
                 open_nams.push_back(n);
             }
 
             // Only filter if we have advanced at least k nucleotides
-            if (h.query_s > prev_q_start + k) {
+            if (h.query_start > prev_q_start + k) {
 
                 // Output all NAMs from open_matches to final_nams that the current hit have passed
                 for (auto &n : open_nams) {
-                    if (n.query_e < h.query_s) {
+                    if (n.query_end < h.query_start) {
                         int n_max_span = std::max(n.query_span(), n.ref_span());
                         int n_min_span = std::min(n.query_span(), n.ref_span());
                         float n_score;
@@ -116,10 +115,10 @@ std::vector<Nam> merge_hits_into_nams(
                 }
 
                 // Remove all NAMs from open_matches that the current hit have passed
-                auto c = h.query_s;
-                auto predicate = [c](decltype(open_nams)::value_type const &nam) { return nam.query_e < c; };
+                auto c = h.query_start;
+                auto predicate = [c](decltype(open_nams)::value_type const &nam) { return nam.query_end < c; };
                 open_nams.erase(std::remove_if(open_nams.begin(), open_nams.end(), predicate), open_nams.end());
-                prev_q_start = h.query_s;
+                prev_q_start = h.query_start;
             }
         }
 
@@ -133,6 +132,18 @@ std::vector<Nam> merge_hits_into_nams(
             n.score = n_score;
             nams.push_back(n);
         }
+    }
+}
+
+std::vector<Nam> merge_hits_into_nams_forward_and_reverse(
+    std::array<robin_hood::unordered_map<unsigned int, std::vector<Hit>>, 2>& hits_per_ref,
+    int k,
+    bool sort
+) {
+    std::vector<Nam> nams;
+    for (size_t is_revcomp = 0; is_revcomp < 2; ++is_revcomp) {
+        auto& hits_oriented = hits_per_ref[is_revcomp];
+        merge_hits_into_nams(hits_oriented, k, sort, is_revcomp, nams);
     }
     return nams;
 }
@@ -149,60 +160,61 @@ std::pair<float, std::vector<Nam>> find_nams(
     const QueryRandstrobeVector &query_randstrobes,
     const StrobemerIndex& index
 ) {
-    robin_hood::unordered_map<unsigned int, std::vector<Hit>> hits_per_ref;
-    hits_per_ref.reserve(100);
-
+    std::array<robin_hood::unordered_map<unsigned int, std::vector<Hit>>, 2> hits_per_ref;
+    hits_per_ref[0].reserve(100);
+    hits_per_ref[1].reserve(100);
     int nr_good_hits = 0, total_hits = 0;
     for (const auto &q : query_randstrobes) {
-        auto ref_hit = index.find(q.hash);
-        if (ref_hit != index.end()) {
+        size_t position = index.find(q.hash);
+        if (position != index.end()){
             total_hits++;
-            if (ref_hit->second.count() > index.filter_cutoff) {
+            if (index.is_filtered(position)) {
                 continue;
             }
             nr_good_hits++;
-            add_to_hits_per_ref(hits_per_ref, q.start, q.end, q.is_reverse, index, ref_hit->second, 100'000);
+            add_to_hits_per_ref(hits_per_ref[q.is_reverse], q.start, q.end, index, position);
         }
     }
     float nonrepetitive_fraction = total_hits > 0 ? ((float) nr_good_hits) / ((float) total_hits) : 1.0;
-
-    auto nams = merge_hits_into_nams(hits_per_ref, index.k(), false);
+    auto nams = merge_hits_into_nams_forward_and_reverse(hits_per_ref, index.k(), false);
     return make_pair(nonrepetitive_fraction, nams);
 }
 
 /*
  * Find a query’s NAMs, using also some of the randstrobes that occur more often
  * than filter_cutoff.
+ *
  */
 std::vector<Nam> find_nams_rescue(
     const QueryRandstrobeVector &query_randstrobes,
     const StrobemerIndex& index,
-    unsigned int filter_cutoff
+    unsigned int rescue_cutoff
 ) {
     struct RescueHit {
+        size_t position;
         unsigned int count;
-        RandstrobeMapEntry randstrobe_map_entry;
-        unsigned int query_s;
-        unsigned int query_e;
-        bool is_rc;
+        unsigned int query_start;
+        unsigned int query_end;
 
         bool operator< (const RescueHit& rhs) const {
-            return std::tie(count, query_s, query_e, is_rc)
-                < std::tie(rhs.count, rhs.query_s, rhs.query_e, rhs.is_rc);
+            return std::tie(count, query_start, query_end)
+                < std::tie(rhs.count, rhs.query_start, rhs.query_end);
         }
     };
 
-    robin_hood::unordered_map<unsigned int, std::vector<Hit>> hits_per_ref;
+    std::array<robin_hood::unordered_map<unsigned int, std::vector<Hit>>, 2> hits_per_ref;
     std::vector<RescueHit> hits_fw;
     std::vector<RescueHit> hits_rc;
-    hits_per_ref.reserve(100);
+    hits_per_ref[0].reserve(100);
+    hits_per_ref[1].reserve(100);
     hits_fw.reserve(5000);
     hits_rc.reserve(5000);
 
     for (auto &qr : query_randstrobes) {
-        auto ref_hit = index.find(qr.hash);
-        if (ref_hit != index.end()) {
-            RescueHit rh{ref_hit->second.count(), ref_hit->second, qr.start, qr.end, qr.is_reverse};
+        size_t position = index.find(qr.hash);
+        if (position != index.end()) {
+            unsigned int count = index.get_count(position);
+            RescueHit rh{position, count, qr.start, qr.end};
             if (qr.is_reverse){
                 hits_rc.push_back(rh);
             } else {
@@ -213,21 +225,23 @@ std::vector<Nam> find_nams_rescue(
 
     std::sort(hits_fw.begin(), hits_fw.end());
     std::sort(hits_rc.begin(), hits_rc.end());
+    size_t is_revcomp = 0;
     for (auto& rescue_hits : {hits_fw, hits_rc}) {
         int cnt = 0;
         for (auto &rh : rescue_hits) {
-            if ((rh.count > filter_cutoff && cnt >= 5) || rh.count > 1000) {
+            if ((rh.count > rescue_cutoff && cnt >= 5) || rh.count > 1000) {
                 break;
             }
-            add_to_hits_per_ref(hits_per_ref, rh.query_s, rh.query_e, rh.is_rc, index, rh.randstrobe_map_entry, 1000);
+            add_to_hits_per_ref(hits_per_ref[is_revcomp], rh.query_start, rh.query_end, index, rh.position);
             cnt++;
         }
+        is_revcomp++;
     }
 
-    return merge_hits_into_nams(hits_per_ref, index.k(), true);
+    return merge_hits_into_nams_forward_and_reverse(hits_per_ref, index.k(), true);
 }
 
 std::ostream& operator<<(std::ostream& os, const Nam& n) {
-    os << "Nam(query: " << n.query_s << ".." << n.query_e << ", ref: " << n.ref_s << ".." << n.ref_e << ", score=" << n.score << ")";
+    os << "Nam(ref_id=" << n.ref_id << ", query: " << n.query_start << ".." << n.query_end << ", ref: " << n.ref_start << ".." << n.ref_end << ", score=" << n.score << ")";
     return os;
 }

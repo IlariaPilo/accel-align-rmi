@@ -10,9 +10,9 @@
 #include <cassert>
 #include "aligner.hpp"
 
-aln_info Aligner::align(const std::string &query, const std::string &ref) const {
+AlignmentInfo Aligner::align(const std::string &query, const std::string &ref) const {
     m_align_calls++;
-    aln_info aln;
+    AlignmentInfo aln;
     int32_t maskLen = query.length() / 2;
     maskLen = std::max(maskLen, 15);
     if (ref.length() > 2000){
@@ -26,7 +26,13 @@ aln_info Aligner::align(const std::string &query, const std::string &ref) const 
     StripedSmithWaterman::Alignment alignment_ssw;
 
     // query must be NULL-terminated
-    ssw_aligner.Align(query.c_str(), ref.c_str(), ref.size(), filter, &alignment_ssw, maskLen, 1);
+    auto flag = ssw_aligner.Align(query.c_str(), ref.c_str(), ref.size(), filter, &alignment_ssw, maskLen);
+    if (flag != 0) {
+        aln.edit_distance = 100000;
+        aln.ref_start = 0;
+        aln.sw_score = -100000;
+        return aln;
+    }
 
     aln.edit_distance = alignment_ssw.mismatches;
     aln.cigar = Cigar(alignment_ssw.cigar);
@@ -144,10 +150,10 @@ std::tuple<size_t, size_t, int> highest_scoring_segment(
     return std::make_tuple(best_start, best_end, best_score);
 }
 
-aln_info hamming_align(
+AlignmentInfo hamming_align(
     const std::string &query, const std::string &ref, int match, int mismatch, int end_bonus
 ) {
-    aln_info aln;
+    AlignmentInfo aln;
     if (query.length() != ref.length()) {
         return aln;
     }

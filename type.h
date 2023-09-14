@@ -2,7 +2,7 @@
 
 #include "const.h"
 #include "minimap.h"
-#include "strobealign-integrator.hpp"
+#include "strobealign/strobe-index.hpp"
 #include "strobealign/indexparameters.hpp"
 #include "strobealign/aln.hpp"
 
@@ -74,7 +74,7 @@ class Reference {
   ~Reference();
 };
 
-typedef std::tuple<Read *, Read *, int, StrobemerIndex*, IndexParameters*, mapping_params*> ReadCnt;
+typedef std::tuple<Read *, Read *, int, StrobemerIndex*, IndexParameters*, MappingParameters*> ReadCnt;
 
 typedef std::tuple<Read *, Read *> ReadPair;
 

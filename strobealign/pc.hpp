@@ -13,7 +13,7 @@
 #include <unordered_map>
 #include <optional>
 
-#include "../strobealign-integrator.hpp"
+#include "strobe-index.hpp"
 #include "aln.hpp"
 #include "refs.hpp"
 #include "fastq.hpp"
@@ -39,11 +39,12 @@ public:
     bool is_interleaved{false};
 
     void rewind_reset();
-    size_t read_records(std::vector<klibpp::KSeq> &records1,
-            std::vector<klibpp::KSeq> &records2,
-            std::vector<klibpp::KSeq> &records3,
-            AlignmentStatistics &statistics,
-            int read_count=-1);
+    size_t read_records(
+        std::vector<klibpp::KSeq> &records1,
+        std::vector<klibpp::KSeq> &records2,
+        std::vector<klibpp::KSeq> &records3,
+        int read_count=-1
+    );
 };
 
 
@@ -62,8 +63,8 @@ public:
 
 
 void perform_task(InputBuffer &input_buffer, OutputBuffer &output_buffer,
-                  AlignmentStatistics& statistics, int& done, const alignment_params &aln_params,
-                  const mapping_params &map_param, const IndexParameters& index_parameters, const References& references, const StrobemerIndex& index, const std::string& read_group_id);
+                  AlignmentStatistics& statistics, int& done, const AlignmentParameters &aln_params,
+                  const MappingParameters &map_param, const IndexParameters& index_parameters, const References& references, const StrobemerIndex& index, const std::string& read_group_id);
 
 bool same_name(const std::string& n1, const std::string& n2);
 
