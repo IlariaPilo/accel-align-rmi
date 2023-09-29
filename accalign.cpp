@@ -27,15 +27,14 @@ unsigned pairdis = 1000;
 string g_out, g_batch_file, g_embed_file;
 char rcsymbol[6] = "TGCAN";
 uint8_t code[256];
-bool enable_extension = true, enable_wfa_extension = false, extend_all = false,
-enable_minimizer = false, enable_bs = false, enable_strobealign_extension = false;
-
+bool enable_extension = true, enable_wfa_extension = false, extend_all = false, enable_bs = false;
+//enable_minimizer = false, enable_strobealign_extension = false
 
 int g_ncpus = 1;
 float delTime = 0, mapqTime = 0, keyvTime = 0, posvTime = 0, sortTime = 0;
 float mm_cal = 0, mm_fetch = 0, mm_hit_cnt = 0;
 int8_t mat[25];
-
+SType g_stype = SType::Hash; 
 
 // Strobealign specific
 static Logger& logger = Logger::get();
@@ -738,12 +737,12 @@ void AccAlign::pghole_wrapper(Read &R,
   size_t rlen = strlen(R.seq);
   int err_threshold = 2;
 
-  if(enable_strobealign_extension) {
+  if(g_stype == SType::Strobemer) {
     // Retrieve Candidate Regions using Strobemer
     find_candidate_positions_using_strobealign(std::string(R.seq), fcandidate_regions, false, ref_id);
     find_candidate_positions_using_strobealign(std::string(R.seq), rcandidate_regions, true, ref_id);
     return;
-  } else if (enable_minimizer){
+  } else if (g_stype == SType::Minimizer){
     // Retrieve Candidate Regions using minimizer
     mm128_v mv = {0, 0, 0};
     void *km = nullptr;
@@ -762,9 +761,8 @@ void AccAlign::pghole_wrapper(Read &R,
       mid_occ = 5000;
       fetch_candidates(mv, mid_occ, rlen, err_threshold, fcandidate_regions, rcandidate_regions, fbest, rbest, ref_id);
     }
-
     delete mv.a;
-  } else {
+  } else if (g_stype == SType::Hash){
     // Retrieve Candidate Regions using hash-index
     bool high_freq = false;
     unsigned kmer_step = kmer_len, nfregions = 0, nrregions = 0;
@@ -1359,7 +1357,7 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
   int mac_occ_1 = MAX_OCC, mac_occ_2 = MAX_OCC;
   int err_threshold = 2;
 
-  if (enable_minimizer) {
+  if (g_stype == SType::Minimizer) {
     //  mm(mate1.fwd, min_rlen, 2, region_f1, region_r1, best_f1, best_r1);
     //  mm(mate2.fwd, min_rlen, 2, region_f2, region_r2, best_f2, best_r2);
 
@@ -1457,7 +1455,7 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
 
     kfree(km, mv1.a);
     kfree(km, mv2.a);
-  } else {
+  } else if (g_stype == SType::Hash) {
 
     while (slide1 < slide && slide2 < slide) {
 //  while (kmer_step1 > 0 && kmer_step2 > 0) {
@@ -3089,17 +3087,14 @@ std::string sam_header(const References& references, const std::string& read_gro
 int main(int argc, char **argv) {
 
   int opn = 1;
-  while (opn < argc && !enable_strobealign_extension) {
-    if (std::string(argv[opn]) == "--strobe-mode") {
-      enable_strobealign_extension = true;
-    }
-    opn++;
+  if (std::string(argv[opn]) == "--strobe-mode") {
+    g_stype = SType::Strobemer;
   }
+  opn++;
 
-  auto opt = parse_command_line_arguments(argc, argv, enable_strobealign_extension);
+  auto opt = parse_command_line_arguments(argc, argv, g_stype == SType::Strobemer);
   logger.set_level(opt.verbose ? LOG_DEBUG : LOG_INFO);
   logger.info() << std::setprecision(2) << std::fixed;
-
 
   // General Setup
   logger.info() << "Starting General Setup" << std::endl;
@@ -3119,9 +3114,9 @@ int main(int argc, char **argv) {
 
   // accalign command: ./accalign -l 32 -t 7 -s <path-to-ref-genome>/<ref-genome>.fna <path-to-input-folder>/<input-file>.fq > <path-to-output-folder>/<output-file>.sam
   // strobealign command: strobealign --use-index ref.fa reads.1.fastq.gz reads.2.fastq.gz
-  if(!enable_strobealign_extension) {
+  if (g_stype != SType::Strobemer) {
     // Accel-Align Setup
-    logger.info() << "Starting Accel-Align Setup" << std::endl;
+    logger.info() << "Starting Accel-Align Setup (hash seed)" << std::endl;
 
     g_ncpus = atoi(std::to_string(opt.n_threads).c_str());
     kmer_temp = atoi(std::to_string(opt.l).c_str());
@@ -3132,7 +3127,8 @@ int main(int argc, char **argv) {
     enable_extension = opt.x;
     enable_wfa_extension = opt.w;
     extend_all = opt.d;
-    enable_minimizer = opt.m;
+    if (opt.m)
+      g_stype = SType::Minimizer;
     enable_bs = opt.bs;
 
     if (kmer_temp != 0)
@@ -3146,10 +3142,10 @@ int main(int argc, char **argv) {
 
     // load reference once
     if (enable_bs){
-      r[0] = new Reference(opt.ref_filename.c_str(), enable_minimizer, 'c', true);
-      r[1] = new Reference(opt.ref_filename.c_str(), enable_minimizer, 'g', true);
+      r[0] = new Reference(opt.ref_filename.c_str(), g_stype, 'c', true);
+      r[1] = new Reference(opt.ref_filename.c_str(), g_stype, 'g', true);
     } else {
-      r[0] = new Reference(opt.ref_filename.c_str(), enable_minimizer, ' ', true);
+      r[0] = new Reference(opt.ref_filename.c_str(), g_stype, ' ', true);
     }
 
     if (enable_extension && !enable_wfa_extension) {
@@ -3158,8 +3154,7 @@ int main(int argc, char **argv) {
     logger.info() << "Finished Accel-Align Setup" << std::endl;
   } else {
     // Strobealign Setup
-
-    logger.info() << "Starting Strobealign Setup" << std::endl;
+    logger.info() << "Starting Accel-Align Setup (strobmer seed)" << std::endl;
 
     // Load accalign Reference data structure without acalign index
     if(opt.ref_filename.empty()) {
@@ -3167,7 +3162,7 @@ int main(int argc, char **argv) {
       return 1;
     }
     reference_file = opt.ref_filename.c_str();
-    r[0] = new Reference(reference_file, enable_minimizer, ' ', false);
+    r[0] = new Reference(reference_file, g_stype, ' ', false);
 
     if (opt.c >= 64 || opt.c <= 0) {
       throw BadParameter("c must be greater than 0 and less than 64");
@@ -3248,7 +3243,6 @@ int main(int argc, char **argv) {
   size_t total_begin = time(NULL);
 
   auto start = std::chrono::system_clock::now();
-
 
   read_file_01 = opt.reads_filename1.c_str();
   if(!opt.is_SE) {

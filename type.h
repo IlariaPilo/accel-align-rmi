@@ -6,6 +6,14 @@
 #include "strobealign/indexparameters.hpp"
 #include "strobealign/aln.hpp"
 
+//seedtype
+enum class SType {
+  Hash,
+  Strobemer,
+  Minimizer,
+  LearntIndex // TODO
+};
+
 struct Alignment {
   std::string cigar_string;
   int ref_begin;
@@ -65,11 +73,11 @@ class Reference {
   uint32_t *keyv, *posv;
   uint32_t nposv, nkeyv;
   mm_idx_t *mi;
-  bool enable_minimizer;
+  SType g_stype;
   bool load_accalign_index;
   char mode; // 'c' c-> t; 'g' g->a; ' ' original
 
-  Reference(const char *F, bool _enable_minimizer, char mode, bool load_accalign_index);
+  Reference(const char *F, SType g_stype, char mode, bool load_accalign_index);
 
   ~Reference();
 };
