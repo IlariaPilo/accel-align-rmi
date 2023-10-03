@@ -810,9 +810,10 @@ void AccAlign::find_candidate_positions_using_strobealign(char *seq, vector<Regi
   if (nams.empty() || nonrepetitive_fraction < 0.7) {
     nams = find_nams_rescue(query_randstrobes, *index_reference, map_params.rescue_cutoff);
   }
-  std::sort(nams.begin(), nams.end(), [](const Nam &a, const Nam &b) -> bool {
-    return a.score > b.score;
-  });
+
+//  std::sort(nams.begin(), nams.end(), [](const Nam &a, const Nam &b) -> bool {
+//    return a.score > b.score;
+//  });
 
   Region region;
   for(Nam &nam: nams) {
@@ -828,6 +829,17 @@ void AccAlign::find_candidate_positions_using_strobealign(char *seq, vector<Regi
     }
   }
 
+  // sort and remove duplicates
+  std::sort(candidate_regions.begin(), candidate_regions.end(),
+            [](const Region &a, const Region &b) -> bool {
+              return a.rs < b.rs;
+            });
+
+  auto newEnd = std::unique(candidate_regions.begin(), candidate_regions.end(),
+                            [](const Region& a, const Region& b) {
+                              return a.rs == b.rs;
+                            });
+  candidate_regions.resize(std::distance(candidate_regions.begin(), newEnd));
 }
 
 void AccAlign::merge_interval(Region &r, uint32_t last_q_pos, int32_t k) {
