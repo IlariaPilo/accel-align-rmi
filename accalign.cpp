@@ -34,7 +34,7 @@ int g_ncpus = 1;
 float delTime = 0, mapqTime = 0, keyvTime = 0, posvTime = 0, sortTime = 0;
 float mm_cal = 0, mm_fetch = 0, mm_hit_cnt = 0;
 int8_t mat[25];
-SType g_stype = SType::Hash; 
+SType g_stype = SType::Hash;
 
 // Strobealign specific
 static Logger& logger = Logger::get();
@@ -739,8 +739,8 @@ void AccAlign::pghole_wrapper(Read &R,
 
   if(g_stype == SType::Strobemer) {
     // Retrieve Candidate Regions using Strobemer
-    find_candidate_positions_using_strobealign(std::string(R.seq), fcandidate_regions, false, ref_id);
-    find_candidate_positions_using_strobealign(std::string(R.seq), rcandidate_regions, true, ref_id);
+    find_candidate_positions_using_strobealign(R.seq, fcandidate_regions, false, ref_id);
+    find_candidate_positions_using_strobealign(R.seq, rcandidate_regions, true, ref_id);
     return;
   } else if (g_stype == SType::Minimizer){
     // Retrieve Candidate Regions using minimizer
@@ -803,8 +803,8 @@ void AccAlign::pghole_wrapper(Read &R,
 }
 
 // @param direction: "false", if forward strang, "true" if reverse strang
-void AccAlign::find_candidate_positions_using_strobealign(std::string_view seq, vector<Region> &candidate_regions, bool direction, int ref_id){
-  auto query_randstrobes = randstrobes_query(seq, *index_parameters_reference);
+void AccAlign::find_candidate_positions_using_strobealign(char *seq, vector<Region> &candidate_regions, bool direction, int ref_id){
+  auto query_randstrobes = randstrobes_query(string(seq), *index_parameters_reference);
   auto [nonrepetitive_fraction, nams] = find_nams(query_randstrobes, *index_reference);
 
   if (nams.empty() || nonrepetitive_fraction < 0.7) {
@@ -1357,7 +1357,22 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
   int mac_occ_1 = MAX_OCC, mac_occ_2 = MAX_OCC;
   int err_threshold = 2;
 
-  if (g_stype == SType::Minimizer) {
+  if(g_stype == SType::Strobemer) {
+    // Retrieve Candidate Regions using Strobemer
+    find_candidate_positions_using_strobealign(mate1.seq, region_f1, false, ref_id);
+    find_candidate_positions_using_strobealign(mate1.seq, region_r1, true, ref_id);
+    find_candidate_positions_using_strobealign(mate2.seq, region_f2, false, ref_id);
+    find_candidate_positions_using_strobealign(mate2.seq, region_r2, true, ref_id);
+
+    // filter based on pairdis
+    flag_f1 = new bool[region_f1.size()]();
+    flag_r1 = new bool[region_r1.size()]();
+    flag_f2 = new bool[region_f2.size()]();
+    flag_r2 = new bool[region_r2.size()]();
+    has_f1r2 = pairdis_filter(region_f1, region_r2, flag_f1, flag_r2, best_f1, next_f1, best_r2, next_r2);
+    has_r1f2 = pairdis_filter(region_r1, region_f2, flag_r1, flag_f2, best_r1, next_r1, best_f2, next_f2);
+
+  } else if (g_stype == SType::Minimizer) {
     //  mm(mate1.fwd, min_rlen, 2, region_f1, region_r1, best_f1, best_r1);
     //  mm(mate2.fwd, min_rlen, 2, region_f2, region_r2, best_f2, best_r2);
 
