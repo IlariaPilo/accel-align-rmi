@@ -3139,13 +3139,25 @@ int main(int argc, char **argv) {
   IndexParameters *index_parameters_reference = nullptr;
   MappingParameters map_params;
 
+  g_ncpus = atoi(std::to_string(opt.n_threads).c_str());
+  tbb::task_scheduler_init init(g_ncpus);
+  logger.info() << "Using " << g_ncpus << " cpus " << std::endl;
+  make_code();
+
+  // load reference once
+  if (enable_bs){
+    r[0] = new Reference(opt.ref_filename.c_str(), g_stype, 'c', true);
+    r[1] = new Reference(opt.ref_filename.c_str(), g_stype, 'g', true);
+  } else {
+    r[0] = new Reference(opt.ref_filename.c_str(), g_stype, ' ', true);
+  }
+
   // accalign command: ./accalign -l 32 -t 7 -s <path-to-ref-genome>/<ref-genome>.fna <path-to-input-folder>/<input-file>.fq > <path-to-output-folder>/<output-file>.sam
   // strobealign command: strobealign --use-index ref.fa reads.1.fastq.gz reads.2.fastq.gz
   if (g_stype != SType::Strobemer) {
     // Accel-Align Setup
     logger.info() << "Starting Accel-Align Setup (hash seed)" << std::endl;
 
-    g_ncpus = atoi(std::to_string(opt.n_threads).c_str());
     kmer_temp = atoi(std::to_string(opt.l).c_str());
     g_out = opt.o;
     g_embed_file = opt.e;
@@ -3164,17 +3176,6 @@ int main(int argc, char **argv) {
 
     cerr << "Using kmer length " << kmer_len << " and step size " << kmer_step << endl;
 
-    tbb::task_scheduler_init init(g_ncpus);
-    make_code();
-
-    // load reference once
-    if (enable_bs){
-      r[0] = new Reference(opt.ref_filename.c_str(), g_stype, 'c', true);
-      r[1] = new Reference(opt.ref_filename.c_str(), g_stype, 'g', true);
-    } else {
-      r[0] = new Reference(opt.ref_filename.c_str(), g_stype, ' ', true);
-    }
-
     if (enable_extension && !enable_wfa_extension) {
       ksw_gen_simple_mat(5, mat, SC_MCH, SC_MIS, SC_AMBI);
     }
@@ -3188,8 +3189,6 @@ int main(int argc, char **argv) {
       logger.error() << "Please provide a valid reference file" << std::endl;
       return 1;
     }
-    reference_file = opt.ref_filename.c_str();
-    r[0] = new Reference(reference_file, g_stype, ' ', false);
 
     if (opt.c >= 64 || opt.c <= 0) {
       throw BadParameter("c must be greater than 0 and less than 64");
@@ -3249,24 +3248,19 @@ int main(int argc, char **argv) {
       throw InvalidFasta("No reference sequences found");
     }
 
+    // Read Strobealign index from the provided file
     index_reference = new StrobemerIndex(references, index_parameters);
 
-    // Read Strobealign index from the provided file
     Timer read_index_timer;
     std::string sti_path = opt.ref_filename + index_parameters.filename_extension();
     logger.info() << "Reading index from " << sti_path << '\n';
     index_reference->read(sti_path);
     logger.info() << "Total time reading index: " << read_index_timer.elapsed() << " s\n";
 
-
     logger.info() << "Running in " << (opt.is_SE ? "single-end" : "paired-end") << " mode" << std::endl;
     logger.info() << "Finished Strobealign Setup" << std::endl;
   }
 
-
-  logger.info() << "Using " << g_ncpus << " cpus " << std::endl;
-  tbb::task_scheduler_init init(g_ncpus);
-  make_code();
   size_t total_begin = time(NULL);
 
   auto start = std::chrono::system_clock::now();
