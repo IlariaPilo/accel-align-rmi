@@ -521,15 +521,18 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
       // otherwise, check if last min element's coverage was high enough to make it a candidate region
 
       if (min_pos == last_pos) {
-        r.matched_intervals.push_back(Interval{last_qs, last_qs + kmer_len});
+        merge_interval(r, last_qs, kmer_len);
+//        r.matched_intervals.push_back(Interval{last_qs, last_qs + kmer_len});
         last_cov++;
       } else {
         if (nprocessed != 0) {
           r.cov = last_cov;
           r.rs = last_pos;
-          r.matched_intervals.push_back(Interval{last_qs, last_qs + kmer_len});
+          merge_interval(r, last_qs, kmer_len);
+          extend_interval( r, Q,  rlen,  ref_id);
+//          r.matched_intervals.push_back(Interval{last_qs, last_qs + kmer_len});
           r.qs = r.matched_intervals[0].s; //the first match seed, so left extension could be accurate
-          r.qe = r.qs + kmer_len;
+          r.qe = r.matched_intervals[0].e;
 
           if (last_cov > max_cov)
             max_cov = last_cov;
@@ -566,9 +569,11 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   if (last_pos != MAX_POS) {
     r.cov = last_cov;
     r.rs = last_pos;
-    r.matched_intervals.push_back(Interval{last_qs, last_qs + kmer_len});
+    merge_interval(r, last_qs, kmer_len);
+    extend_interval( r, Q,  rlen,  ref_id);
+//    r.matched_intervals.push_back(Interval{last_qs, last_qs + kmer_len});
     r.qs = r.matched_intervals[0].s; //the first match seed, so left extension could be accurate
-    r.qe = r.qs + kmer_len;
+    r.qe = r.matched_intervals[0].e;
 
     if (last_cov > max_cov)
       max_cov = last_cov;
@@ -845,9 +850,15 @@ void AccAlign::find_candidate_positions_using_strobealign(char *seq, vector<Regi
   //TODO merge and extend the interval...
 }
 
+// if last_q_pos is in range of match_interval, merge them togeter; k is the length of the interval (kmer_len)
 void AccAlign::merge_interval(Region &r, uint32_t last_q_pos, int32_t k) {
-  last_q_pos = (last_q_pos >> 1) - k + 1; //q_pos format: pos << 1 | z
+  if (g_stype==SType::Minimizer)
+    last_q_pos = (last_q_pos >> 1) - k + 1; //q_pos format: pos << 1 | z
+
   vector<Interval> &match_interval = r.matched_intervals;
+
+  if (!r.matched_intervals.size())
+    match_interval.push_back(Interval{last_q_pos, last_q_pos + k});
 
   for (Interval &interval: match_interval) {
     if (last_q_pos >= interval.s && last_q_pos <= interval.e) {
@@ -859,6 +870,29 @@ void AccAlign::merge_interval(Region &r, uint32_t last_q_pos, int32_t k) {
   //no overlap, new interval
   match_interval.push_back(Interval{last_q_pos, last_q_pos + k});
   return;
+}
+
+void AccAlign::extend_interval(Region &r, char*Q, int rlen, int ref_id) {
+  for (size_t i = 0; i < r.matched_intervals.size(); ++i) {
+    Interval &interval = r.matched_intervals[i];
+
+    size_t left = i == 0 ? 0 : r.matched_intervals[i - 1].e;
+    for(size_t j = 0; j + left < interval.s; ++j){
+      if (Q[interval.s - j] != get_ref(ref_id).c_str()[r.rs + interval.s - j]){
+        interval.s = interval.s - j + 1;
+        break;
+      }
+    }
+
+    size_t right = i == r.matched_intervals.size() - 1 ? rlen : r.matched_intervals[i + 1].s;
+    for(size_t j = 0; interval.e + j < right; ++j){
+      if (Q[interval.e + j] != get_ref(ref_id).c_str()[r.rs + interval.e + j]){
+        interval.e = interval.e + j - 1;
+        break;
+      }
+    }
+  }
+
 }
 
 //rid<<32 | lastPos<<1 | strand
@@ -1271,15 +1305,18 @@ void AccAlign::pigeonhole_query(char *Q,
       // if previous min element was same as current one, increment coverage.
       // otherwise, check if last min element's coverage was high enough to make it a candidate region
       if (min_pos == last_pos) {
-        r.matched_intervals.push_back(Interval{last_qs, last_qs + kmer_len});
+        merge_interval(r, last_qs, kmer_len);
+//        r.matched_intervals.push_back(Interval{last_qs, last_qs + kmer_len});
         last_cov++;
       } else {
         if (last_cov >= err_threshold) {
           r.cov = last_cov;
           r.rs = last_pos;
-          r.matched_intervals.push_back(Interval{last_qs, last_qs + kmer_len});
+          merge_interval(r, last_qs, kmer_len);
+          extend_interval( r, Q,  rlen,  ref_id);
+//          r.matched_intervals.push_back(Interval{last_qs, last_qs + kmer_len});
           r.qs = r.matched_intervals[0].s; //let it be the first match seed, so the left extension could be accurate
-          r.qe = r.qs + kmer_len;
+          r.qe = r.matched_intervals[0].e;
 
           if (last_cov >= max_cov) {
             max_cov = last_cov;
@@ -1314,9 +1351,11 @@ void AccAlign::pigeonhole_query(char *Q,
     if (last_cov >= err_threshold) {
       r.cov = last_cov;
       r.rs = last_pos;
-      r.matched_intervals.push_back(Interval{last_qs, last_qs + kmer_len});
+      merge_interval(r, last_qs, kmer_len);
+      extend_interval( r, Q,  rlen,  ref_id);
+//      r.matched_intervals.push_back(Interval{last_qs, last_qs + kmer_len});
       r.qs = r.matched_intervals[0].s; //let it be the first match seed, so the left extension could be accurate
-      r.qe = r.qs + kmer_len;
+      r.qe = r.matched_intervals[0].e;
 
       if (last_cov >= max_cov) {
         max_cov = last_cov;
