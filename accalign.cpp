@@ -817,7 +817,7 @@ void AccAlign::find_candidate_positions_using_strobealign(char *seq, vector<Regi
 
   Region region;
   for(Nam &nam: nams) {
-    if(nam.is_rc == direction) {
+    if((nam.is_rc == direction) && (nam.ref_start + get_offset(ref_id)[nam.ref_id] >= nam.query_start)) {
       region.rs = nam.ref_start + get_offset(ref_id)[nam.ref_id] - nam.query_start;
 //      region.re = nam.ref_e + get_offset(ref_id)[nam.ref_id]; no need to set
       region.qs = nam.query_start;
@@ -839,7 +839,10 @@ void AccAlign::find_candidate_positions_using_strobealign(char *seq, vector<Regi
                             [](const Region& a, const Region& b) {
                               return a.rs == b.rs;
                             });
+
   candidate_regions.resize(std::distance(candidate_regions.begin(), newEnd));
+
+  //TODO merge and extend the interval...
 }
 
 void AccAlign::merge_interval(Region &r, uint32_t last_q_pos, int32_t k) {
