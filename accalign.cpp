@@ -1759,17 +1759,19 @@ void AccAlign::map_read_wrapper(Read &R) {
   auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
   parse_time += elapsed.count();
 
-  map_read(R, 0);
   R.ref_id = 0;
+  map_read(R, 0);
 
   if (enable_bs){
+    R.ref_id = 1;
     map_read(R, 1);
     if (R.best > R.best_optional){
       R.strand = R.strand_optional;
       R.best_region = R.best_region_optional;
       R.best = R.best_optional;
       R.secBest = R.secBest_optional;
-      R.ref_id = 1;
+    } else {
+      R.ref_id = 0; //reset ref_id
     }
   } else {
     return;
@@ -1965,10 +1967,13 @@ void AccAlign::map_paired_read_wrapper(Read &mate1, Read &mate2) {
   auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
   parse_time += elapsed.count();
 
-  map_paired_read(mate1, mate2, 0);
   mate1.ref_id = 0;
   mate2.ref_id = 0;
+  map_paired_read(mate1, mate2, 0);
+
   if (enable_bs){
+    mate1.ref_id = 1;
+    mate2.ref_id = 1;
     map_paired_read(mate1, mate2, 1);
     if (mate1.best + mate2.best > mate1.best_optional + mate2.best_optional){
       //TODO: mate1 from ct, mate2 should from ag???
@@ -1981,9 +1986,9 @@ void AccAlign::map_paired_read_wrapper(Read &mate1, Read &mate2) {
       mate2.best_region = mate2.best_region_optional;
       mate2.best = mate2.best_optional;
       mate2.secBest = mate2.secBest_optional;
-
-      mate1.ref_id = 1;
-      mate2.ref_id = 1;
+    } else { //reset
+      mate1.ref_id = 0;
+      mate2.ref_id = 0;
     }
   } else {
     return;
