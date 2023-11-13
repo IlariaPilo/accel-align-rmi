@@ -1884,16 +1884,16 @@ void AccAlign::map_paired_read(Read &mate1, Read &mate2, int ref_id) {
     map_read_wrapper(mate2);
     if (mate1.strand == '*' && mate2.strand == '*')
       return;
-    else if ((mate1.strand != '*' && mate2.strand != '*' && mate1.best_region.embed_dist < mate2.best_region.embed_dist)
-    || mate2.strand == '*'){
-      mate2.strand = '*';
-      mate2.force_align = true;
-      mate2.pos = mate1.best_region.rs;
-    }else{
-      mate1.strand = '*';
-      mate1.force_align = true;
-      mate1.pos = mate2.best_region.rs;
-    }
+//    else if ((mate1.strand != '*' && mate2.strand != '*' && mate1.best_region.embed_dist < mate2.best_region.embed_dist)
+//    || mate2.strand == '*'){
+//      mate2.strand = '*';
+//      mate2.force_align = true;
+//      mate2.pos = mate1.best_region.rs;
+//    }else{
+//      mate1.strand = '*';
+//      mate1.force_align = true;
+//      mate1.pos = mate2.best_region.rs;
+//    }
     return;
   }
 
