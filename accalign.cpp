@@ -29,7 +29,7 @@ char rcsymbol[6] = "TGCAN";
 uint8_t code[256];
 bool enable_extension = true, enable_wfa_extension = false, extend_all = false, enable_bs = false;
 //enable_minimizer = false, enable_strobealign_extension = false
-
+int min_match = 21; //at leach min_match chars are matched, otherwise will regard as unalign
 int g_ncpus = 1;
 float delTime = 0, mapqTime = 0, keyvTime = 0, posvTime = 0, sortTime = 0;
 float mm_cal = 0, mm_fetch = 0, mm_hit_cnt = 0;
@@ -2604,7 +2604,7 @@ void AccAlign::score_region(Read &r, char *qseq, Region &region,
       cigar_string << beginclip << 'S';
 
     unsigned i = 0;
-    int edit_mismatch = 0;
+    int edit_mismatch = 0, matched = 0;
     unsigned ref_pos = region.rs, read_pos = beginclip;
     while (i < extension->n_cigar) {
       int count = extension->cigar[i] >> 4;
@@ -2621,6 +2621,7 @@ void AccAlign::score_region(Read &r, char *qseq, Region &region,
             if (get_ref(r.ref_id).c_str()[ref_pos] != qseq[read_pos])
               edit_mismatch++;
           }
+          matched += count;
           break;
         case 'D':edit_mismatch += count;
           ref_pos += count;
@@ -2635,11 +2636,16 @@ void AccAlign::score_region(Read &r, char *qseq, Region &region,
     if (endclip)
       cigar_string << endclip << 'S';
 
-    r.mapq = get_mapq(r.best, r.secBest);
-    a.cigar_string = cigar_string.str();
-    a.ref_begin = 0;
-    region.score = extension->dp_score;
-    a.mismatches = edit_mismatch;
+    if (matched < min_match + edit_mismatch){
+      r.strand = '*';  // less than min_match chars are matched --> not align
+    } else {
+      r.mapq = get_mapq(r.best, r.secBest);
+      a.cigar_string = cigar_string.str();
+      a.ref_begin = 0;
+      region.score = extension->dp_score;
+      a.mismatches = edit_mismatch;
+    }
+
     free(extension);
   }
 
