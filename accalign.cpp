@@ -2028,15 +2028,15 @@ void AccAlign::print_paired_sam(Read &R, Read &R2) {
   ss << '\t' << (unfill(R) ? 0 : (int) R.mapq);
   ss << '\t' << (unfill(R) ? "*" : R.cigar) << '\t';
 
-  if (R.strand == '*' || R2.strand == '*')
+  if (unfill(R) || unfill(R2))
     ss << '*';
   else
     ss << (get_name(R.ref_id)[R.tid] == get_name(R.ref_id)[R2.tid] ? "=" : get_name(R.ref_id)[R2.tid].c_str());
 
-  ss << '\t' << (strand2 == '*' ? 0 : R2.pos);
+  ss << '\t' << (unfill(R2) ? 0 : R2.pos);
 
   int isize = 0;
-  if (R.strand != '*' && R2.strand != '*') {
+  if (!unfill(R) && !unfill(R2)) {
     if (R.pos > R2.pos)
       isize = R2.pos - R.pos - strlen(R.seq);
     else
@@ -2076,12 +2076,12 @@ void AccAlign::print_paired_sam(Read &R, Read &R2) {
   ss << '\t' << (unfill(R2) ? 0 : (int) R2.mapq);
   ss << '\t' << (unfill(R2) ? "*" : R2.cigar) << '\t';
 
-  if (R.strand == '*' || R2.strand == '*')
+  if (unfill(R)|| unfill(R2) )
     ss << '*';
   else
     ss << (get_name(R2.ref_id)[R.tid] == get_name(R2.ref_id)[R2.tid] ? "=" : get_name(R2.ref_id)[R.tid].c_str());
 
-  ss << '\t' << (strand2 == '*' ? 0 : R.pos);
+  ss << '\t' << (unfill(R2) ? 0 : R.pos);
   ss << '\t' << -isize;
   if (strand2 == '-') {
     std::reverse(R2.qua, R2.qua + strlen(R2.qua));
@@ -2106,158 +2106,159 @@ void AccAlign::print_paired_sam(Read &R, Read &R2) {
   sam_time += elapsed.count();
 }
 
-void AccAlign::snprintf_pair_sam(Read &R, string *s, Read &R2, string *s2) {
-  auto start = std::chrono::system_clock::now();
-
-  // 60 is the approximate length for all int
-  int size;
-  if (!enable_extension) {
-    size = 60;
-  } else {
-    size = 60 + strlen(R.seq); //assume the length of cigar will not longer than the read
-  }
-  char strand1 = R.strand;
-  char strand2 = R2.strand;
-
-  //mate 1
-  string rname = R.name;
-  string nn = rname.substr(0, rname.find_last_of("/"));
-
-  uint16_t flag = 0x1;
-  if (strand1 == '*')
-    flag |= 0x4;
-  if (strand2 == '*')
-    flag |= 0x8;
-  if (!(flag & 0x4) && !(flag & 0x8))
-    flag |= 0x2;
-  if (strand1 == '-')
-    flag |= 0x10;
-  if (strand2 == '-')
-    flag |= 0x20;
-  flag |= 0x40;
-
-  int isize = 0;
-  if (R.strand != '*' && R2.strand != '*') {
-    if (R.pos > R2.pos)
-      isize = R2.pos - R.pos - strlen(R.seq);
-    else
-      isize = R2.pos - R.pos + strlen(R2.seq);
-  }
-
-  string format = "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tAS:i:%d\n";
-  if (R.strand == '+' && R2.strand != '*') {
-    size += strlen(R.name) + get_name(R.ref_id)[R.tid].length() + get_name(R.ref_id)[R2.tid].length() + 2 * strlen(R.seq);
-    char buf[size];
-    snprintf(buf, size, format.c_str(), nn.c_str(), flag, get_name(R.ref_id)[R.tid].c_str(), R.pos,
-             (int) R.mapq, R.cigar, get_name(R.ref_id)[R.tid] == get_name(R.ref_id)[R2.tid] ? "=" : get_name(R.ref_id)[R2.tid].c_str(),
-             R2.pos, isize, R.seq, R.qua, R.nm, R.as);
-    *s = buf;
-  } else if (R.strand == '-' && R2.strand != '*') {
-    size += strlen(R.name) + get_name(R.ref_id)[R.tid].length() + get_name(R.ref_id)[R2.tid].length() + 2 * strlen(R.seq);
-    char buf[size];
-    std::reverse(R.qua, R.qua + strlen(R.qua));
-    snprintf(buf, size, format.c_str(), nn.c_str(), flag, get_name(R.ref_id)[R.tid].c_str(), R.pos,
-             (int) R.mapq, R.cigar, get_name(R.ref_id)[R.tid] == get_name(R.ref_id)[R2.tid] ? "=" : get_name(R.ref_id)[R2.tid].c_str(),
-             R2.pos, isize, R.rev_str, R.qua, R.nm, R.as);
-    *s = buf;
-  } else if (R.strand == '+' && R2.strand == '*') {
-    size += strlen(R.name) + get_name(R.ref_id)[R.tid].length() + 2 * strlen(R.seq);
-    char buf[size];
-    snprintf(buf, size, format.c_str(),
-             nn.c_str(), flag, get_name(R.ref_id)[R.tid].c_str(), R.pos, (int) R.mapq, R.cigar, "*", 0,
-             isize, R.seq, R.qua, R.nm, R.as);
-    *s = buf;
-  } else if (R.strand == '-' && R2.strand == '*') {
-    size += strlen(R.name) + get_name(R.ref_id)[R2.tid].length() + 2 * strlen(R.seq);
-    char buf[size];
-    std::reverse(R.qua, R.qua + strlen(R.qua));
-    snprintf(buf, size, format.c_str(),
-             nn.c_str(), flag, get_name(R.ref_id)[R.tid].c_str(), R.pos, (int) R.mapq, R.cigar, "*", 0,
-             isize, R.rev_str, R.qua, R.nm, R.as);
-    *s = buf;
-  } else if (R.strand == '*' && R2.strand != '*') {
-    size += strlen(R.name) + get_name(R.ref_id)[R2.tid].length() + 2 * strlen(R.seq);
-    char buf[size];
-    snprintf(buf, size, format.c_str(),
-             nn.c_str(), flag, "*", 0, 0, "*", get_name(R.ref_id)[R2.tid].c_str(), R2.pos,
-             isize, R.seq, R.qua, R.nm, R.as);
-    *s = buf;
-  } else if (R.strand == '*' && R2.strand == '*') {
-    size += strlen(R.name) + 2 * strlen(R.seq);
-    char buf[size];
-    snprintf(buf, size, format.c_str(),
-             nn.c_str(), flag, "*", 0, 0, "*", "*", 0,
-             isize, R.seq, R.qua, R.nm, R.as);
-    *s = buf;
-  }
-
-  //for mate2
-  string rname2 = R2.name;
-  string nn2 = rname2.substr(0, rname2.find_last_of("/"));
-
-  flag = 0x1;
-  if (strand2 == '*')
-    flag |= 0x4;
-  if (strand1 == '*')
-    flag |= 0x8;
-  if (!(flag & 0x4) && !(flag & 0x8))
-    flag |= 0x2;
-  if (strand2 == '-')
-    flag |= 0x10;
-  if (strand1 == '-')
-    flag |= 0x20;
-  flag |= 0x80;
-
-  if (R2.strand == '+' && R.strand != '*') {
-    size += strlen(R2.name) + get_name(R2.ref_id)[R2.tid].length() + get_name(R2.ref_id)[R.tid].length() + 2 * strlen(R2.seq);
-    char buf[size];
-    snprintf(buf, size, format.c_str(), nn2.c_str(), flag, get_name(R2.ref_id)[R2.tid].c_str(), R2.pos,
-             (int) R2.mapq, R2.cigar, get_name(R2.ref_id)[R.tid] == get_name(R2.ref_id)[R2.tid] ? "=" : get_name(R2.ref_id)[R.tid].c_str(),
-             R.pos, -isize, R2.seq, R2.qua, R2.nm, R2.as);
-    *s2 = buf;
-  } else if (R2.strand == '-' && R.strand != '*') {
-    size += strlen(R2.name) + get_name(R2.ref_id)[R2.tid].length() + get_name(R2.ref_id)[R.tid].length() + 2 * strlen(R2.seq);
-    char buf[size];
-    std::reverse(R2.qua, R2.qua + strlen(R2.qua));
-    snprintf(buf, size, format.c_str(), nn2.c_str(), flag, get_name(R2.ref_id)[R2.tid].c_str(), R2.pos,
-             (int) R2.mapq, R2.cigar, get_name(R2.ref_id)[R.tid] == get_name(R2.ref_id)[R2.tid] ? "=" : get_name(R2.ref_id)[R.tid].c_str(),
-             R.pos, -isize, R2.rev_str, R2.qua, R2.nm, R2.as);
-    *s2 = buf;
-  } else if (R2.strand == '+' && R.strand == '*') {
-    size += strlen(R2.name) + get_name(R2.ref_id)[R2.tid].length() + 2 * strlen(R2.seq);
-    char buf[size];
-    snprintf(buf, size, format.c_str(),
-             nn2.c_str(), flag, get_name(R2.ref_id)[R2.tid].c_str(), R2.pos, (int) R2.mapq, R2.cigar, "*", 0,
-             -isize, R2.seq, R2.qua, R2.nm, R2.as);
-    *s2 = buf;
-  } else if (R2.strand == '-' && R.strand == '*') {
-    size += strlen(R2.name) + get_name(R2.ref_id)[R.tid].length() + 2 * strlen(R2.seq);
-    char buf[size];
-    std::reverse(R2.qua, R2.qua + strlen(R2.qua));
-    snprintf(buf, size, format.c_str(),
-             nn2.c_str(), flag, get_name(R2.ref_id)[R2.tid].c_str(), R2.pos, (int) R2.mapq, R2.cigar, "*", 0,
-             -isize, R2.rev_str, R2.qua, R2.nm, R2.as);
-    *s2 = buf;
-  } else if (R2.strand == '*' && R.strand != '*') {
-    size += strlen(R2.name) + get_name(R2.ref_id)[R.tid].length() + 2 * strlen(R2.seq);
-    char buf[size];
-    snprintf(buf, size, format.c_str(),
-             nn2.c_str(), flag, "*", 0, 0, "*", get_name(R2.ref_id)[R.tid].c_str(), R.pos,
-             -isize, R2.seq, R2.qua, R2.nm, R2.as);
-    *s2 = buf;
-  } else if (R2.strand == '*' && R.strand == '*') {
-    size += strlen(R2.name) + 2 * strlen(R2.seq);
-    char buf[size];
-    snprintf(buf, size, format.c_str(),
-             nn2.c_str(), flag, "*", 0, 0, "*", "*", 0,
-             -isize, R2.seq, R2.qua, R2.nm, R2.as);
-    *s2 = buf;
-  }
-
-  auto end = std::chrono::system_clock::now();
-  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-  sam_pre_time += elapsed.count();
-}
+//// This is not updated --> need to check if want to use
+//void AccAlign::snprintf_pair_sam(Read &R, string *s, Read &R2, string *s2) {
+//  auto start = std::chrono::system_clock::now();
+//
+//  // 60 is the approximate length for all int
+//  int size;
+//  if (!enable_extension) {
+//    size = 60;
+//  } else {
+//    size = 60 + strlen(R.seq); //assume the length of cigar will not longer than the read
+//  }
+//  char strand1 = R.strand;
+//  char strand2 = R2.strand;
+//
+//  //mate 1
+//  string rname = R.name;
+//  string nn = rname.substr(0, rname.find_last_of("/"));
+//
+//  uint16_t flag = 0x1;
+//  if (strand1 == '*')
+//    flag |= 0x4;
+//  if (strand2 == '*')
+//    flag |= 0x8;
+//  if (!(flag & 0x4) && !(flag & 0x8))
+//    flag |= 0x2;
+//  if (strand1 == '-')
+//    flag |= 0x10;
+//  if (strand2 == '-')
+//    flag |= 0x20;
+//  flag |= 0x40;
+//
+//  int isize = 0;
+//  if (R.strand != '*' && R2.strand != '*') {
+//    if (R.pos > R2.pos)
+//      isize = R2.pos - R.pos - strlen(R.seq);
+//    else
+//      isize = R2.pos - R.pos + strlen(R2.seq);
+//  }
+//
+//  string format = "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tAS:i:%d\n";
+//  if (R.strand == '+' && !unfill(R2)) {
+//    size += strlen(R.name) + get_name(R.ref_id)[R.tid].length() + get_name(R.ref_id)[R2.tid].length() + 2 * strlen(R.seq);
+//    char buf[size];
+//    snprintf(buf, size, format.c_str(), nn.c_str(), flag, get_name(R.ref_id)[R.tid].c_str(), R.pos,
+//             (int) R.mapq, R.cigar, get_name(R.ref_id)[R.tid] == get_name(R.ref_id)[R2.tid] ? "=" : get_name(R.ref_id)[R2.tid].c_str(),
+//             R2.pos, isize, R.seq, R.qua, R.nm, R.as);
+//    *s = buf;
+//  } else if (R.strand == '-' && !unfill(R2)) {
+//    size += strlen(R.name) + get_name(R.ref_id)[R.tid].length() + get_name(R.ref_id)[R2.tid].length() + 2 * strlen(R.seq);
+//    char buf[size];
+//    std::reverse(R.qua, R.qua + strlen(R.qua));
+//    snprintf(buf, size, format.c_str(), nn.c_str(), flag, get_name(R.ref_id)[R.tid].c_str(), R.pos,
+//             (int) R.mapq, R.cigar, get_name(R.ref_id)[R.tid] == get_name(R.ref_id)[R2.tid] ? "=" : get_name(R.ref_id)[R2.tid].c_str(),
+//             R2.pos, isize, R.rev_str, R.qua, R.nm, R.as);
+//    *s = buf;
+//  } else if (R.strand == '+' && unfill(R2)) {
+//    size += strlen(R.name) + get_name(R.ref_id)[R.tid].length() + 2 * strlen(R.seq);
+//    char buf[size];
+//    snprintf(buf, size, format.c_str(),
+//             nn.c_str(), flag, get_name(R.ref_id)[R.tid].c_str(), R.pos, (int) R.mapq, R.cigar, "*", 0,
+//             isize, R.seq, R.qua, R.nm, R.as);
+//    *s = buf;
+//  } else if (R.strand == '-' && unfill(R2)) {
+//    size += strlen(R.name) + get_name(R.ref_id)[R2.tid].length() + 2 * strlen(R.seq);
+//    char buf[size];
+//    std::reverse(R.qua, R.qua + strlen(R.qua));
+//    snprintf(buf, size, format.c_str(),
+//             nn.c_str(), flag, get_name(R.ref_id)[R.tid].c_str(), R.pos, (int) R.mapq, R.cigar, "*", 0,
+//             isize, R.rev_str, R.qua, R.nm, R.as);
+//    *s = buf;
+//  } else if (unfill(R) && R2.strand != '*') {
+//    size += strlen(R.name) + get_name(R.ref_id)[R2.tid].length() + 2 * strlen(R.seq);
+//    char buf[size];
+//    snprintf(buf, size, format.c_str(),
+//             nn.c_str(), flag, "*", 0, 0, "*", get_name(R.ref_id)[R2.tid].c_str(), R2.pos,
+//             isize, R.seq, R.qua, R.nm, R.as);
+//    *s = buf;
+//  } else if (unfill(R) && unfill(R)) {
+//    size += strlen(R.name) + 2 * strlen(R.seq);
+//    char buf[size];
+//    snprintf(buf, size, format.c_str(),
+//             nn.c_str(), flag, "*", 0, 0, "*", "*", 0,
+//             isize, R.seq, R.qua, R.nm, R.as);
+//    *s = buf;
+//  }
+//
+//  //for mate2
+//  string rname2 = R2.name;
+//  string nn2 = rname2.substr(0, rname2.find_last_of("/"));
+//
+//  flag = 0x1;
+//  if (strand2 == '*')
+//    flag |= 0x4;
+//  if (strand1 == '*')
+//    flag |= 0x8;
+//  if (!(flag & 0x4) && !(flag & 0x8))
+//    flag |= 0x2;
+//  if (strand2 == '-')
+//    flag |= 0x10;
+//  if (strand1 == '-')
+//    flag |= 0x20;
+//  flag |= 0x80;
+//
+//  if (R2.strand == '+' && R.strand != '*') {
+//    size += strlen(R2.name) + get_name(R2.ref_id)[R2.tid].length() + get_name(R2.ref_id)[R.tid].length() + 2 * strlen(R2.seq);
+//    char buf[size];
+//    snprintf(buf, size, format.c_str(), nn2.c_str(), flag, get_name(R2.ref_id)[R2.tid].c_str(), R2.pos,
+//             (int) R2.mapq, R2.cigar, get_name(R2.ref_id)[R.tid] == get_name(R2.ref_id)[R2.tid] ? "=" : get_name(R2.ref_id)[R.tid].c_str(),
+//             R.pos, -isize, R2.seq, R2.qua, R2.nm, R2.as);
+//    *s2 = buf;
+//  } else if (R2.strand == '-' && R.strand != '*') {
+//    size += strlen(R2.name) + get_name(R2.ref_id)[R2.tid].length() + get_name(R2.ref_id)[R.tid].length() + 2 * strlen(R2.seq);
+//    char buf[size];
+//    std::reverse(R2.qua, R2.qua + strlen(R2.qua));
+//    snprintf(buf, size, format.c_str(), nn2.c_str(), flag, get_name(R2.ref_id)[R2.tid].c_str(), R2.pos,
+//             (int) R2.mapq, R2.cigar, get_name(R2.ref_id)[R.tid] == get_name(R2.ref_id)[R2.tid] ? "=" : get_name(R2.ref_id)[R.tid].c_str(),
+//             R.pos, -isize, R2.rev_str, R2.qua, R2.nm, R2.as);
+//    *s2 = buf;
+//  } else if (R2.strand == '+' && R.strand == '*') {
+//    size += strlen(R2.name) + get_name(R2.ref_id)[R2.tid].length() + 2 * strlen(R2.seq);
+//    char buf[size];
+//    snprintf(buf, size, format.c_str(),
+//             nn2.c_str(), flag, get_name(R2.ref_id)[R2.tid].c_str(), R2.pos, (int) R2.mapq, R2.cigar, "*", 0,
+//             -isize, R2.seq, R2.qua, R2.nm, R2.as);
+//    *s2 = buf;
+//  } else if (R2.strand == '-' && R.strand == '*') {
+//    size += strlen(R2.name) + get_name(R2.ref_id)[R.tid].length() + 2 * strlen(R2.seq);
+//    char buf[size];
+//    std::reverse(R2.qua, R2.qua + strlen(R2.qua));
+//    snprintf(buf, size, format.c_str(),
+//             nn2.c_str(), flag, get_name(R2.ref_id)[R2.tid].c_str(), R2.pos, (int) R2.mapq, R2.cigar, "*", 0,
+//             -isize, R2.rev_str, R2.qua, R2.nm, R2.as);
+//    *s2 = buf;
+//  } else if (R2.strand == '*' && R.strand != '*') {
+//    size += strlen(R2.name) + get_name(R2.ref_id)[R.tid].length() + 2 * strlen(R2.seq);
+//    char buf[size];
+//    snprintf(buf, size, format.c_str(),
+//             nn2.c_str(), flag, "*", 0, 0, "*", get_name(R2.ref_id)[R.tid].c_str(), R.pos,
+//             -isize, R2.seq, R2.qua, R2.nm, R2.as);
+//    *s2 = buf;
+//  } else if (R2.strand == '*' && R.strand == '*') {
+//    size += strlen(R2.name) + 2 * strlen(R2.seq);
+//    char buf[size];
+//    snprintf(buf, size, format.c_str(),
+//             nn2.c_str(), flag, "*", 0, 0, "*", "*", 0,
+//             -isize, R2.seq, R2.qua, R2.nm, R2.as);
+//    *s2 = buf;
+//  }
+//
+//  auto end = std::chrono::system_clock::now();
+//  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+//  sam_pre_time += elapsed.count();
+//}
 
 void AccAlign::print_sam(Read &R) {
   auto start = std::chrono::system_clock::now();
