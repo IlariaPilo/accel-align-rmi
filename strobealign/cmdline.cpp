@@ -185,6 +185,9 @@ CommandLineOptions do_accalign_setup(args::ArgumentParser parser, int argc, char
   // l
   args::ValueFlag<int> l(parser, "INT", "k-mer size", {'l'});
 
+  // k
+  args::ValueFlag<int> k(parser, "INT", "k-mer step", {'k'});
+
   // o
   args::ValueFlag<std::string> o(parser, "STRING", "Name of the output file", {'o'});
 
@@ -243,6 +246,7 @@ CommandLineOptions do_accalign_setup(args::ArgumentParser parser, int argc, char
   if (threads) { opt.n_threads = args::get(threads); }
 
   if(l) {opt.l = args::get(l);}
+  if(k) {opt.k = args::get(k);}
   if(o) {opt.o = args::get(o);}
   if(e) {opt.e = args::get(e);}
   if(b) {opt.b = args::get(b);}

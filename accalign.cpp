@@ -21,7 +21,7 @@ using namespace tbb::flow;
 using namespace std;
 
 unsigned kmer_len = 32;
-int kmer_step = 1;
+int kmer_step = 32;
 uint64_t mask;
 unsigned pairdis = 1000;
 string g_out, g_batch_file, g_embed_file;
@@ -770,7 +770,8 @@ void AccAlign::pghole_wrapper(Read &R,
   } else if (g_stype == SType::Hash){
     // Retrieve Candidate Regions using hash-index
     bool high_freq = false;
-    unsigned kmer_step = kmer_len, nfregions = 0, nrregions = 0;
+//    unsigned kmer_step = kmer_len;
+    unsigned nfregions = 0, nrregions = 0;
     unsigned ori_slide = 0;
     unsigned slide = kmer_len < rlen - kmer_len ? kmer_len : rlen - kmer_len;
 
@@ -1404,7 +1405,7 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
                                    bool &has_f1r2, bool &has_r1f2, int ref_id) {
   int min_rlen = strlen(mate1.seq) < strlen(mate2.seq) ? strlen(mate1.seq) : strlen(mate2.seq);
   unsigned slide = kmer_len < min_rlen - kmer_len ? kmer_len : min_rlen - kmer_len;
-  unsigned kmer_step1 = kmer_len, kmer_step2 = kmer_len;
+//  unsigned kmer_step1 = kmer_len, kmer_step2 = kmer_len;
   unsigned slide1 = 0, slide2 = 0;
 
   bool high_freq_1 = false, high_freq_2 = false; //read is from high repetitive region
@@ -1531,8 +1532,8 @@ void AccAlign::pghole_wrapper_pair(Read &mate1, Read &mate2,
       if (has_f1r2 || has_r1f2)
         break;
 
-      pghole_wrapper_mates(mate1, region_f1, region_r1, best_f1, best_r1, slide1, kmer_step1, mac_occ_1, high_freq_1, ref_id);
-      pghole_wrapper_mates(mate2, region_f2, region_r2, best_f2, best_r2, slide2, kmer_step2, mac_occ_2, high_freq_2, ref_id);
+      pghole_wrapper_mates(mate1, region_f1, region_r1, best_f1, best_r1, slide1, kmer_step, mac_occ_1, high_freq_1, ref_id);
+      pghole_wrapper_mates(mate2, region_f2, region_r2, best_f2, best_r2, slide2, kmer_step, mac_occ_2, high_freq_2, ref_id);
 
       // filter based on pairdis
       flag_f1 = new bool[region_f1.size()]();
@@ -3210,7 +3211,7 @@ int main(int argc, char **argv) {
     return 0;
   }
 
-  int kmer_temp = 0;
+  int kmer_temp = 0, kmer_step_tmp = 0;
   Reference **r = new Reference*[2];
   const char *reference_file;
   const char *read_file_01;
@@ -3239,6 +3240,7 @@ int main(int argc, char **argv) {
     logger.info() << "Starting Accel-Align Setup (hash seed)" << std::endl;
 
     kmer_temp = atoi(std::to_string(opt.l).c_str());
+    kmer_step_tmp = atoi(std::to_string(opt.k).c_str());
     g_out = opt.o;
     g_embed_file = opt.e;
     g_batch_file = opt.b;
@@ -3252,6 +3254,8 @@ int main(int argc, char **argv) {
 
     if (kmer_temp != 0)
       kmer_len = kmer_temp;
+    if (kmer_step_tmp != 0)
+      kmer_step = kmer_step_tmp;
     mask = kmer_len == 32 ? ~0 : (1ULL << (kmer_len * 2)) - 1;
 
     cerr << "Using kmer length " << kmer_len << " and step size " << kmer_step << endl;
