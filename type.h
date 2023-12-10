@@ -38,6 +38,48 @@ struct Region {
     else
       return X.rs < Y.rs;
   }
+
+  // if last_q_pos is in range of match_interval, merge them togeter; k is the length of the interval (kmer_len)
+  void merge_interval(SType g_stype, uint32_t last_q_pos, int32_t k) {
+    if (g_stype==SType::Minimizer)
+      last_q_pos = (last_q_pos >> 1) - k + 1; //q_pos format: pos << 1 | z
+
+    if (!matched_intervals.size())
+      matched_intervals.push_back(Interval{last_q_pos, last_q_pos + k});
+
+    Interval &interval = matched_intervals.back();
+    if (last_q_pos >= interval.s && last_q_pos <= interval.e) {
+      interval.e = last_q_pos + k;
+      return;
+    }
+
+    //no overlap, new interval
+    matched_intervals.push_back(Interval{last_q_pos, last_q_pos + k});
+    return;
+  }
+
+  void extend_interval(const char*ref, char*Q, int rlen) {
+    for (size_t i = 0; i < matched_intervals.size(); ++i) {
+      Interval &interval = matched_intervals[i];
+
+      size_t left = i == 0 ? 0 : matched_intervals[i - 1].e;
+      for(size_t j = 0; j + left < interval.s; ++j){
+        if (Q[interval.s - j] != ref[rs + interval.s - j]){
+          interval.s = interval.s - j + 1;
+          break;
+        }
+      }
+
+      size_t right = i == matched_intervals.size() - 1 ? rlen : matched_intervals[i + 1].s;
+      for(size_t j = 0; interval.e + j < right; ++j){
+        if (Q[interval.e + j] != ref[rs + interval.e + j]){
+          interval.e = interval.e + j - 1;
+          break;
+        }
+      }
+    }
+  }
+
 };
 
 struct Read {
