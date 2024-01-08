@@ -106,20 +106,22 @@ struct Read {
 
 class Reference {
  public:
-  void load_index(const char *F);
+  void load_index(const char *F, unsigned kmer_len);
+  void load_index_rsc(const char *F, unsigned kmer_len_rsc);
   void load_reference(const char *F);
 
   std::string ref;
   std::vector<std::string> name;
   std::vector<uint32_t> offset;
-  uint32_t *keyv, *posv;
-  uint32_t nposv, nkeyv;
+  uint32_t *keyv, *posv, *keyv_rsc, *posv_rsc;
+  uint32_t nposv, nkeyv, nposv_rsc, nkeyv_rsc;
   mm_idx_t *mi;
   SType g_stype;
   bool load_accalign_index;
   char mode; // 'c' c-> t; 'g' g->a; ' ' original
+  unsigned kmer_len, kmer_len_rsc;
 
-  Reference(const char *F, SType g_stype, char mode, bool load_accalign_index);
+  Reference(const char *F, unsigned kmer_len, unsigned kmer_len_rsc, SType g_stype, char mode, bool load_accalign_index);
 
   ~Reference();
 };

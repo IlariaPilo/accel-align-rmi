@@ -37,6 +37,7 @@ struct CommandLineOptions {
   int max_seed_len;
   int k { 20 };
   int l { 0 };
+  int l2 { 0 };
   int u { 7 };
   int s { 16 };
   int c { 8 };

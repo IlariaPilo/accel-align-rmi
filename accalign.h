@@ -34,29 +34,29 @@ class AccAlign {
                      vector<Region> &rregion, unsigned &fbest, unsigned &fnext, unsigned &rbest,
                      unsigned &rnext, int &best_threshold, int &next_threshold, int ref_id);
   void pghole_wrapper(Read &R, vector<Region> &fcandidate_regions, vector<Region> &rcandidate_regions,
-                      unsigned &fbest, unsigned &rbest, int ref_id);
+                      unsigned &fbest, unsigned &rbest, int ref_id, unsigned kmer_len);
   void pigeonhole_query_topcov(char *Q, size_t rlen, vector<Region> &candidate_regions, char S, int err_threshold,
                                unsigned kmer_step, unsigned max_occ, unsigned &best, unsigned ori_slide, int ref_id);
   void pghole_wrapper_mates(Read &R, vector<Region> &fcandidate_regions, vector<Region> &rcandidate_regions,
                             unsigned &fbest, unsigned &rbest, unsigned ori_slide, unsigned kmer_step, unsigned max_occ,
-                            bool &high_freq, int ref_id);
+                            bool &high_freq, int ref_id, unsigned kmer_len);
   void pigeonhole_query(char *Q, size_t rlen, vector<Region> &candidate_regions, char S,
                         unsigned &best, unsigned ori_slide, int err_threshold, unsigned kmer_step,
-                        unsigned max_occ, bool &high_freq, int ref_id);
+                        unsigned max_occ, bool &high_freq, int ref_id, unsigned kmer_len);
   void pghole_wrapper_pair(Read &mate1, Read &mate2,
                            vector<Region> &region_f1, vector<Region> &region_r1,
                            vector<Region> &region_f2, vector<Region> &region_r2,
                            unsigned &best_f1, unsigned &best_r1, unsigned &best_f2, unsigned &best_r2,
                            unsigned &next_f1, unsigned &next_r1, unsigned &next_f2, unsigned &next_r2,
                            bool *&flag_f1, bool *&flag_r1, bool *&flag_f2, bool *&flag_r2,
-                           bool &has_f1r2, bool &has_r1f2, int ref_id);
+                           bool &has_f1r2, bool &has_r1f2, int ref_id, unsigned kmer_len);
   void pigeonhole_query_sort(char *Q, size_t rlen, vector<Region> &candidate_regions, char S,
                              unsigned err_threshold, unsigned kmer_step, unsigned max_occ,
                              unsigned &best, unsigned ori_slide, int ref_id);
   bool pairdis_filter(vector<Region> &in_regions1, vector<Region> &in_regions2,
                       bool flag1[], bool flag2[],
                       unsigned &best1, unsigned &next1, unsigned &best2, unsigned &next2);
-  void mark_for_extension(Read &read, char S, Region &cregion, int ref_id);
+  void mark_for_extension(Read &read, char S, Region &cregion, int ref_id, unsigned kmer_len);
   void save_region(Read &R, size_t rlen, Region &region,
                    Alignment &a);
   void score_region(Read &r, char *qseq, Region &region,
@@ -113,16 +113,16 @@ class AccAlign {
   void close_output();
   bool fastq(const char *F1, const char *F2, bool enable_gpu);
   void print_stats();
-  void map_read(Read &R, int ref_id);
+  void map_read(Read &R, int ref_id, unsigned kmer_len);
   void align_read(Read &R);
   void out_sam(string *sam);
   void snprintf_sam(Read &R, string *s);
   void snprintf_pair_sam(Read &R, string *s, Read &R2, string *s2);
-  void map_paired_read(Read &mate1, Read &mate2, int ref_id);
-  void map_read_wrapper(Read &R);
-  void map_paired_read_wrapper(Read &mate1, Read &mate2);
+  void map_paired_read(Read &mate1, Read &mate2, int ref_id, unsigned kmer_len);
+  void map_read_wrapper(Read &R, unsigned kmer_len);
+  void map_paired_read_wrapper(Read &mate1, Read &mate2, unsigned kmer_len);
   void wfa_align_read(Read &R);
-  void rectify_start_pos(char *strand, Region &region, unsigned rlen, int ref_id);
+  void rectify_start_pos(char *strand, Region &region, unsigned rlen, int ref_id, unsigned kmer_len);
   void print_paired_sam(Read &R, Read &R2);
   void print_sam(Read &R);
   bool tbb_fastq(const char *F1, const char *F2);

@@ -28,14 +28,14 @@ class RefParser {
   }
 };
 
-void Reference::load_index(const char *F) {
+void Reference::load_index(const char *F, unsigned kmer_len) {
   string fn;
   if (mode == ' ')
-    fn = string(F) + ".hash";
+    fn = string(F) + ".kmer" + to_string(kmer_len) + ".hash";
   else if (mode == 'c')
-    fn = string(F) + ".hash.part1";
+    fn = string(F) + ".kmer" + to_string(kmer_len) + ".hash.part1";
   else if (mode == 'g')
-    fn = string(F) + ".hash.part2";
+    fn = string(F) + ".kmer" + to_string(kmer_len) + ".hash.part2";
 
   cerr << "loading hashtable from " << fn << endl;
   ifstream fi;
@@ -72,6 +72,55 @@ void Reference::load_index(const char *F) {
   assert(base != MAP_FAILED);
   posv = (uint32_t * )(base + 4);
   keyv = posv + nposv;
+  cerr << "Mapping done" << endl;
+  cerr << "done loading hashtable\n";
+
+}
+
+void Reference::load_index_rsc(const char *F, unsigned kmer_len) {
+  string fn;
+  if (mode == ' ')
+    fn = string(F) + ".kmer" + to_string(kmer_len) + ".hash";
+  else if (mode == 'c')
+    fn = string(F) + ".kmer" + to_string(kmer_len) + ".hash.part1";
+  else if (mode == 'g')
+    fn = string(F) + ".kmer" + to_string(kmer_len) + ".hash.part2";
+
+  cerr << "loading hashtable from " << fn << endl;
+  ifstream fi;
+  fi.open(fn.c_str(), ios::binary);
+  if (!fi) {
+    cerr << "Unable to open index file " << fn << endl;
+    exit(0);
+  }
+  fi.read((char *) &nposv_rsc, 4);
+  fi.close();
+  nkeyv_rsc = MOD + 1;
+
+  cerr << "Mapping keyv_rsc of size: " << nkeyv_rsc * 4 <<
+       " and posv_rsc of size " << (size_t) nposv_rsc * 4 <<
+       " from index file " << fn << endl;
+  size_t posv_sz = (size_t) nposv_rsc * sizeof(uint32_t);
+  size_t keyv_sz = (size_t) nkeyv_rsc * sizeof(uint32_t);
+  int fd = open(fn.c_str(), O_RDONLY);
+
+#if __linux__
+  #include <linux/version.h>
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,22)
+#define _MAP_POPULATE_AVAILABLE
+#endif
+#endif
+
+#ifdef _MAP_POPULATE_AVAILABLE
+#define MMAP_FLAGS (MAP_PRIVATE | MAP_POPULATE)
+#else
+#define MMAP_FLAGS MAP_PRIVATE
+#endif
+
+  char *base = reinterpret_cast<char *>(mmap(NULL, 4 + posv_sz + keyv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
+  assert(base != MAP_FAILED);
+  posv_rsc = (uint32_t * )(base + 4);
+  keyv_rsc = posv_rsc + nposv_rsc;
   cerr << "Mapping done" << endl;
   cerr << "done loading hashtable\n";
 
@@ -160,7 +209,7 @@ void Reference::load_reference(const char *F){
   }
 }
 
-Reference::Reference(const char *F, SType _g_stype, char _mode, bool load_accalign_index): g_stype(_g_stype), mode(_mode){
+Reference::Reference(const char *F, unsigned kmer_len, unsigned kmer_len_rsc, SType _g_stype, char _mode, bool load_accalign_index): g_stype(_g_stype), mode(_mode){
   auto start = std::chrono::system_clock::now();
 
   if (g_stype == SType::Minimizer){
@@ -178,8 +227,10 @@ Reference::Reference(const char *F, SType _g_stype, char _mode, bool load_accali
   } else{
     load_reference(F);
     if(load_accalign_index) {
-      thread t(&Reference::load_index, this, F); // load index in parallel
+      thread t(&Reference::load_index, this, F, kmer_len); // load index in parallel
       t.join(); // wait for index load to finish
+      thread t_rsc(&Reference::load_index_rsc, this, F, kmer_len_rsc); // load index in parallel
+      t_rsc.join(); // wait for index load to finish
     }
   }
 
@@ -196,6 +247,12 @@ Reference::~Reference() {
     size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
     char *base = (char *) posv - 4;
     int r = munmap(base, posv_sz + keyv_sz);
+    assert(r == 0);
+
+    size_t posv_sz_rsc  = (size_t) nposv_rsc * sizeof(uint32_t);
+    size_t keyv_sz_rsc  = (size_t) nkeyv_rsc  * sizeof(uint32_t);
+    char *base_rsc  = (char *) posv_rsc  - 4;
+    r = munmap(base_rsc , posv_sz_rsc  + keyv_sz_rsc);
     assert(r == 0);
   }
 }
