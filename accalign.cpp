@@ -20,7 +20,7 @@
 using namespace tbb::flow;
 using namespace std;
 
-int as_thre = 0;
+//int as_thre = 0;
 //unsigned kmer_len = 32, kmer_len_rsc = 21;
 //int kmer_step = 32;
 uint64_t mask;
@@ -2896,19 +2896,20 @@ AccAlign::~AccAlign() {
 
 struct tbb_map {
   AccAlign *accalign;
+  unsigned kmer_len;
 
  public:
-  tbb_map(AccAlign *obj) : accalign(obj) {}
+  tbb_map(AccAlign *obj, unsigned _kmer_len) : accalign(obj), kmer_len(_kmer_len) {}
 
   Read *operator()(Read *r) {
-//    accalign->map_read_wrapper(*r);
+    accalign->map_read_wrapper(*r, kmer_len);
     return r;
   }
 
   ReadPair operator()(ReadPair p) {
-//    Read *mate1 = std::get<0>(p);
-//    Read *mate2 = std::get<1>(p);
-//    accalign->map_paired_read_wrapper(*mate1, *mate2);
+    Read *mate1 = std::get<0>(p);
+    Read *mate2 = std::get<1>(p);
+    accalign->map_paired_read_wrapper(*mate1, *mate2, kmer_len);
     return p;
   }
 
@@ -2916,9 +2917,10 @@ struct tbb_map {
 
 struct tbb_align {
   AccAlign *accalign;
+  unsigned kmer_len, kmer_len_rsc;
 
  public:
-  tbb_align(AccAlign *obj) : accalign(obj) {}
+  tbb_align(AccAlign *obj, unsigned _kmer_len, unsigned _kmer_len_rsc) : accalign(obj), kmer_len(_kmer_len), kmer_len_rsc(_kmer_len_rsc) {}
 
   Read *operator()(Read *r) {
     accalign->align_read(*r);
@@ -2930,6 +2932,14 @@ struct tbb_align {
     Read *mate2 = std::get<1>(p);
     accalign->align_read(*mate1);
     accalign->align_read(*mate2);
+
+    unsigned mismatch_thr = mate1->rlen / kmer_len + 1;
+    unsigned as_thre = (mate1->rlen - mismatch_thr) * SC_MCH - mismatch_thr * SC_MIS;
+    if (mate1->as < as_thre || mate1->as < as_thre){
+      mate1->force_align = false;
+      mate2->force_align = false;
+      accalign->map_paired_read_wrapper(*mate1, *mate2, kmer_len_rsc);
+    }
 
     //forcealign to other mate, but other mate is set as unaligned during the extension check, so both mates are unalign
     if (mate1->strand == '*' && mate2->force_align){
@@ -2991,7 +3001,7 @@ struct tbb_score {
   }
 };
 
-bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
+bool AccAlign::tbb_fastq(const char *F1, const char *F2, unsigned kmer_len, unsigned kmer_len_src) {
   gzFile in1 = gzopen(F1, "rt");
   if (in1 == Z_NULL)
     return false;
@@ -3078,8 +3088,8 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
 
     int max_objects = 1000000;
     limiter_node<ReadPair> lnode(g, max_objects);
-    function_node<ReadPair, ReadPair> map_node(g, unlimited, tbb_map(this));
-    function_node<ReadPair, ReadPair> align_node(g, unlimited, tbb_align(this));
+    function_node<ReadPair, ReadPair> map_node(g, unlimited, tbb_map(this, kmer_len));
+    function_node<ReadPair, ReadPair> align_node(g, unlimited, tbb_align(this, kmer_len, kmer_len_src));
     function_node<ReadPair, continue_msg> score_node(g, 1, tbb_score(this));
 
     make_edge(score_node, lnode.decrement);
@@ -3319,7 +3329,7 @@ int main(int argc, char **argv) {
   if (opt.is_SE) {
     f.fastq(read_file_01, "\0", false);
   } else if (!opt.reads_filename2.empty()) {
-    f.tbb_fastq(read_file_01, read_file_02); // TODO
+    f.tbb_fastq(read_file_01, read_file_02, kmer_len, kmer_len_rsc); // TODO
   } else {
     print_usage();
     return 0;

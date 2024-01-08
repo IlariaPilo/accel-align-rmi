@@ -125,7 +125,7 @@ class AccAlign {
   void rectify_start_pos(char *strand, Region &region, unsigned rlen, int ref_id, unsigned kmer_len);
   void print_paired_sam(Read &R, Read &R2);
   void print_sam(Read &R);
-  bool tbb_fastq(const char *F1, const char *F2);
+  bool tbb_fastq(const char *F1, const char *F2, unsigned kmer_len, unsigned kmer_len_src);
   int get_mapq(int best, int secbest);
   int get_tid(Read &R);
 //  void merge_interval(Region &r, uint32_t last_q_pos, int32_t k);
