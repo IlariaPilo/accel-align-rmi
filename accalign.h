@@ -96,12 +96,19 @@ class AccAlign {
       return refs[ref_id]->offset;
   };
 
-  uint32_t* get_keyv(int ref_id){
-    return refs[ref_id]->keyv;
+  //TODO: update the hard code
+  uint32_t* get_keyv(int ref_id, unsigned kmer_len){
+    if (kmer_len == 32)
+      return refs[ref_id]->keyv;
+    if (kmer_len == 21)
+      return refs[ref_id]->keyv_rsc;
   };
 
-  uint32_t* get_posv(int ref_id){
-    return refs[ref_id]->posv;
+  uint32_t* get_posv(int ref_id, unsigned kmer_len){
+    if (kmer_len == 32)
+      return refs[ref_id]->posv;
+    if (kmer_len == 21)
+      return refs[ref_id]->posv_rsc;
   };
 
   mm_idx_t* get_mi(int ref_id){

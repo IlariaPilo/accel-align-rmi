@@ -97,6 +97,25 @@ struct Read {
 
   friend gzFile &operator>>(gzFile &in, Read &r);
 
+  void parse(bool enable_bs, uint8_t code[]) {
+    char rcsymbol[6] = "TGCAN";
+
+    for (size_t i = 0; i < rlen; i++) {
+      char tmp_c = seq[i];
+      if (enable_bs && (tmp_c == 'c' || tmp_c == 'C')){
+        tmp_c = 'T';
+      }
+      uint8_t c = *(code + tmp_c);
+      fwd[i] = c;
+      rev[rlen - 1 - i] = c == 4 ? c : 3 - c;
+      rev_str[rlen - 1 - i] = rcsymbol[c];
+    }
+
+    *(fwd + rlen) = '\0';
+    *(rev + rlen) = '\0';
+    *(rev_str + rlen) = '\0';
+  }
+
   Read() {
     best = INT_MAX;
     secBest = INT_MAX;
