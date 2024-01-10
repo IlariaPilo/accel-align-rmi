@@ -1,5 +1,6 @@
 import sys
 import struct
+import argparse
 
 # Thanks @ ChatGPT for this script!
 
@@ -21,17 +22,18 @@ def recover_substring(int_substring, l):
         int_substring = int_substring >> 2
     return substring
 
-if len(sys.argv) < 2:
-    print("\n\033[1;35m\tpython binary_print.py <filename> [<direction>] [<number_of_entries>]\033[0m")
-    print("Prints the entries of <filename> file.")
-    print("If <number_of_entries> is not specified, 10 entries are displayed.")
-    print("If <direction> is 'forward' or not provided, it reads from the beginning of the file.")
-    print("If <direction> is 'backward', it reads from the end of the file.\n")
-    sys.exit()
+parser = argparse.ArgumentParser(description='Visualize the content of keys and pos files generated from a reference string.')
+parser.add_argument('filename', help='Specify the filename (mandatory)')
+parser.add_argument('-n', '--num_entries', type=int, default=10, help='Number of entries (default: 10)')
+direction_group = parser.add_mutually_exclusive_group()
+direction_group.add_argument('-b', '--backward', action='store_true', help='Read backward (default: off)')
+direction_group.add_argument('-f', '--forward', action='store_true', help='Read forward (default: on)')
+args = parser.parse_args()
 
-filename = sys.argv[1]
-t = int(sys.argv[3]) if len(sys.argv) > 3 else 10  # set t to 10 if not provided
-direction = sys.argv[2] if len(sys.argv) > 2 else 'forward'  # default direction is 'forward'
+filename = args.filename
+n_entries = args.num_entries
+backward = args.backward
+forward = args.forward
 
 # Determine the configuration based on the filename
 if filename.endswith("keys_uint32"):
@@ -50,49 +52,48 @@ else:
     print("Sorry, I don't know this file!\nAccepted files: keys_uint32, keys_uint64, pos_uint32")
     sys.exit()
 
-print(f'Begin reading file {filename}. Pair mode {"enabled" if pair else "disabled"}.')
+print(f'🧬 Reading file {filename} 🧬')
 
 with open(filename, "rb") as f:
     # first one
     chunk = f.read(8)
     N = struct.unpack("Q", chunk)[0]
     print('File length = ', N)
-
     # counter for the entries
     i = 0
-    # FIXME up to now only forward
-    while i < t and i < N:
-        print(f'[{i}]', end=' ')
-        chunk = f.read(elem_size)
-        val1 = struct.unpack(format, chunk)[0]
-        # if we are in pair mode, read again 32 bit
+    if forward:
+        while i < n_entries and i < N:
+            print(f'[{i}]', end=' ')
+            chunk = f.read(elem_size)
+            val1 = struct.unpack(format, chunk)[0]
+            # if we are in pair mode, read again 32 bit
+            if pair:
+                chunk = f.read(4)
+                val2 = struct.unpack('<I', chunk)[0]
+                print(recover_substring(val1,elem_size*4), val2)
+            else:
+                print(val1)
+            i += 1
+    elif backward:
         if pair:
-            chunk = f.read(4)
-            val2 = struct.unpack('<I', chunk)[0]
-            print(recover_substring(val1,elem_size*4), val2)
+            full_size = elem_size + 4
         else:
-            print(val1)
-        i += 1
-        
-
-
-    # if direction == 'backward':
-    #     f.seek(0, 2)  # move the file pointer to the end of the file
-
-    # # read and print the entries
-    # i = 0
-    # while i < t:
-    #     if direction == 'backward':
-    #         if i == 0:
-    #             pos = f.tell() - elem_size 
-    #         else:
-    #             pos = f.tell() - elem_size*2 
-    #         if pos < 0:  # stop if reached the beginning of the file
-    #             break
-    #         f.seek(pos)
-    #     chunk = f.read(elem_size)
-    #     if not chunk:  # stop if end of file
-    #         break
-    #     val = struct.unpack(format, chunk)[0]
-    #     print(val)  # print the value
-    #     i += 1
+            full_size = 4
+        # move the pointer to the end
+        f.seek(0, 2)
+        # get position of the last entry
+        pos_f = f.tell() - full_size
+        while i < n_entries and i < N:
+            print(f'[{N-i-1}]', end=' ')
+            f.seek(pos_f)
+            chunk = f.read(elem_size)
+            val1 = struct.unpack(format, chunk)[0]
+            # if we are in pair mode, read again 32 bit
+            if pair:
+                chunk = f.read(4)
+                val2 = struct.unpack('<I', chunk)[0]
+                print(recover_substring(val1,elem_size*4), val2)
+            else:
+                print(val1)
+            i += 1
+            pos_f -= full_size
