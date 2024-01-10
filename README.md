@@ -1,40 +1,40 @@
-# accel-align-rmi
+# 🧬 accel-align-rmi
 
 A version of [Accel-Align](https://github.com/raja-appuswamy/accel-align-release) using the RMI index.
 
 **_See also the [original README](./README_og.md)._**
 
-## 0 | Clone
-The repository can be cloned by running the following command:
-```
+## 🐑 Clone the repository
+The repository can be cloned by running:
+```sh
 git clone --recursive https://github.com/IlariaPilo/accel-align-rmi
 ```
 
-## 1 | Download a reference string
-The script [/data/download.sh](./data/download.sh) can be used to download and post-process a reference string. The downloaded string is called `hg37.fna`, and it is saved in the current working directory.
+## ⏬ Download a reference string【 optional 】
+The script [`/data/download.sh`](./data/download.sh) can be used to download and post-process a reference string. The downloaded string is called `hg37.fna`, and it is saved in the current working directory.
 
-## 2 | Build the index
-The index can be built by simply running:
-```
+## 📚 Build the index
+The index can be built by running:
+```sh
 bash index.sh <reference_string.fna>
 ```
 The script generates an output directory `<reference_string>_index`, containing all index-related files. These files include:
-- `keys_uint32` and `pos_uint32` - two binary files storing keys and positions in the index, respectively. The first value in both files is a uint64 counter of the number of entries. Then, `kes_uint32` contains pairs of uint32 (key, cumulative_pos), where cumulative_pos is the sum of positions associated to a key lower than the current one. `pos_uint32` contains simply a list of uint32 positions.
+- `keys_uint32` and `pos_uint32` - two binary files storing keys and positions in the index, respectively. The first value in both files is a uint64 counter of the number of entries. Then, `keys_uint32` contains pairs of uint32 (key, cumulative_pos), where cumulative_pos is the sum of positions associated to a key lower than the current one. `pos_uint32` contains simply a list of uint32 positions.
 - `optimizer.out` - the output of the RMI hyperparameter optimizer. It stores the 10 most promising architectures, as well as some statistics on their size and training time.
 - `rmi_type.txt` - the architecture of the chosen RMI index.
 - `<reference_string>_index.so` and `<reference_string>_index.sym` - the generated shared object for the index and the list of symbol names for the main functions. Notice that the list is necessary to avoid issues with different C++ standards.
 
-## 3 | Call the aligner
+## 🔎 Call the aligner
 The aligner can be built with `make`, and then run normally.
 
-**_warning : up to now, only -t (number of threads) and -o (output file) options are available!_**
+**_⚠️ Up to now, only -t (number of threads) and -o (output file) options are available!_**
 
 Example
-```
+```sh
 ./accalign -t 4 -o accalign.sam ./data/hg37.fna ./data/sv-10m-100-r.fastq
 ```
 
-## 4 | Utility folder
+## 🧩 Utility folder
 The `utility` folder contains some useful helper scripts.
 
 ### benchmark_local.sh
@@ -85,8 +85,8 @@ Search the key in <filename> file.
 Passing 'min' as key returns the minimum, passing 'max' the maximum.
 ```
 
-## 5 | Docker folder
-**_warning : the Docker folder functionality is currently broken, as the newest version of tbb is not compatible with accel-align :(_** 
+## 🐋 Docker folder
+**_⚠️ The Docker folder functionality is currently broken, as the newest version of tbb is not compatible with accel-align :(_** 
 
 To run the program inside a container, run the following commands:
 ```
