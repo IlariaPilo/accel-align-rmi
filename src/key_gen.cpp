@@ -152,7 +152,6 @@ class Index {
       // the previous value
       prec = uint32_t(-1); 
       size_t i_buf;
-      uint32_t lsp, msp;
 
       for (i = 0, i_buf = 0; i < valid && i_buf < elements; i++) {
         if (data[i].key != prec) {
@@ -288,7 +287,6 @@ class Index {
       // the previous value
       prec = uint64_t(-1);
       uint32_t buf[3];
-      uint32_t lsp, msp;
 
       for (size_t i = 0; i < valid; i++) {
         if (data[i].key != prec) {
