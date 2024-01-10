@@ -33,7 +33,7 @@ args = parser.parse_args()
 filename = args.filename
 n_entries = args.num_entries
 backward = args.backward
-forward = args.forward
+forward = not backward
 
 # Determine the configuration based on the filename
 if filename.endswith("keys_uint32"):
