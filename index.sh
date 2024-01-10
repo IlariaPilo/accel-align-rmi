@@ -67,7 +67,7 @@ base_name=$(basename $ref_name .fna)        # hg37
 OUTPUT_DIR="${dir_name}/${base_name}_index${kmer_len}"   # ./data/hg37_index32
 OUTPUT_DIR=$(realpath $OUTPUT_DIR)
 
-echo -e "\n\033[1;35m [index.sh] \033[0mBuilding index on file $base_name.fna"
+echo -e "\n\033[1;96m [index.sh] \033[0mBuilding index on file $base_name.fna"
 echo -e "            --- Using $thread_number threads."
 echo -e "            --- kmer length is $kmer_len."
 
@@ -91,13 +91,13 @@ echo -e "            --- generating files 'keys_uint${bit_len}' and 'pos_uint32'
 
 ################################### KEY_GEN ###################################
 
-echo -e "\n\033[1;35m [index.sh] \033[0mCompiling the key_gen program..."
+echo -e "\n\033[1;96m [index.sh] \033[0mCompiling the key_gen program..."
 make key_gen
 
 mkdir -p $OUTPUT_DIR
 cd $OUTPUT_DIR                             # ----> NOW WE ARE IN hg37_index/keys_unit32
 
-echo -e "\n\033[1;35m [index.sh] \033[0mRunning key_gen..."
+echo -e "\n\033[1;96m [index.sh] \033[0mRunning key_gen..."
 if [ ! -e $keys_name ] || [ ! -e $pos_name ]; then
   # The file does not exist, so execute the command
   "${BASE_DIR}/key_gen" -L $kmer_len $ref_name
@@ -118,7 +118,7 @@ exit 0
 
 ################################### INDEX ###################################
 
-echo -e "\n\033[1;35m [index.sh] \033[0mBuilding the index..."
+echo -e "\n\033[1;96m [index.sh] \033[0mBuilding the index..."
 # Build the index - if it has not being compiled yet
 if ! [ -e "${BASE_DIR}/rmi/target/release/rmi" ] && ! [ -e ./rmi ]; then
   cd "${BASE_DIR}/rmi" && cargo build --release
@@ -178,11 +178,11 @@ fi
 if [ ! -e rmi.h ] || [ "$_redo_" == "1" ]; then
   # Get the parameters
   read type branching _ _ _ _ < rmi_type.txt
-  echo -e "\n\033[1;35m [index.sh] \033[0mTraining the $type ($branching) index"
+  echo -e "\n\033[1;96m [index.sh] \033[0mTraining the $type ($branching) index"
   # Train the model
   ./rmi ./keys_uint32 rmi $type $branching
 else
-  echo -e "\n\033[1;35m [index.sh] \033[0mIndex already exists!\n"
+  echo -e "\n\033[1;96m [index.sh] \033[0mIndex already exists!\n"
 fi
 
 ################################### SHARED OBJECT ###################################
