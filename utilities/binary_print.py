@@ -72,6 +72,7 @@ with open(filename, "rb") as f:
             print(recover_substring(val1,elem_size*4), val2)
         else:
             print(val1)
+        i += 1
         
 
 
