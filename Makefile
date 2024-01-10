@@ -34,7 +34,7 @@ accalign: ${CPUSRC} ${HEADERS}
 	${CXX} -o $@ ${CPUSRC} ${ACCLDFLAGS} ${TBBFLAGS} ${CXXFLAGS} -ldl -pthread
 
 stats: ${STATSSRC} ${HEADERS}
-	${CC} -o $@ ${STATSSRC} ${ACCLDFLAGS} ${CFLAGS} -fopenmp
+	${CXX} -o $@ ${STATSSRC} ${ACCLDFLAGS} ${CXXFLAGS} -fopenmp
 
 clean:
 	$(MAKE) -C WFA-paper clean
