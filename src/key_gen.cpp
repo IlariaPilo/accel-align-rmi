@@ -20,22 +20,6 @@ struct Data {
 
 };
 
-template<typename T>
-class Tbb_cal_key {
-  vector<Data<T>> &data;
-  Index *index_obj;
-
- public:
-  Tbb_cal_key(vector<Data<T>> &_data, Index *_index_obj) :
-      data(_data), index_obj(_index_obj) {}
-
-  void operator()(const tbb::blocked_range<size_t> &r) const {
-    for (size_t i = r.begin(); i != r.end(); ++i) {
-      index_obj->cal_key(i, data);
-    }
-  }
-};
-
 class Index {
  private:
   string ref;
@@ -94,242 +78,258 @@ class Index {
       data[i / step].pos = i;
     }
   }
-  // generates 32 bit key
-  bool key_gen32() {
-    size_t limit = ref.size() - kmer + 1;
-    size_t vsz;
-    if (step == 1)
-      vsz = limit;
-    else
-      vsz = ref.size() / step + 1;
-
-    vector<Data<uint32_t>> data(vsz, Data<uint32_t>());
-    cerr << "limit = " << limit << ", vsz = " << vsz << endl;
-
-    // get the hash for each key
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, limit), Tbb_cal_key<uint32_t>(data, this));
-
-    // sort keys
-    //XXX: Parallel sort uses lots of memory. Need to fix this. In general, we
-    //use 8 bytes per item. Its a waste.
-    try {
-      cerr << "Attempting parallel sorting\n";
-      tbb::task_scheduler_init init(tbb::task_scheduler_init::automatic);
-      tbb::parallel_sort(data.begin(), data.end(), Data<uint32_t>());
-    } catch (std::bad_alloc& e) {
-      cerr << "Fall back to serial sorting (low mem)\n";
-      sort(data.begin(), data.end(), Data<uint32_t>());
-    }
-    
-    string fn = "keys_uint32";
-
-    ofstream fo_key(fn.c_str(), ios::binary);
-
-    // determine the number of valid and unique entries
-    uint32_t prec = uint32_t(-1);
-    uint64_t eof = 0;
-    size_t valid;   // the number of entries different than -1
-
-    size_t i;
-
-    for (i = 0; i < data.size() && data[i].key != uint32_t(-1); i++) {
-      if (data[i].key != prec) {
-          prec = data[i].key;
-          eof ++;
-        }
-    }
-    valid = i;
-    cerr << "Found " << eof << " valid keys and " << valid << " valid positions out of " <<
-        data.size() << " total\n\n";
-    // The number of entries is required to be a 64-bit value
-    fo_key.write((char *) &eof, 8);
-
-    // write out keys
-    try {
-      cerr << "Fast writing 32 keys (" << eof << ")\n";
-      size_t elements = eof*2;
-      uint32_t *buf = new uint32_t[elements];
-      // the previous value
-      prec = uint32_t(-1); 
-      size_t i_buf;
-
-      for (i = 0, i_buf = 0; i < valid && i_buf < elements; i++) {
-        if (data[i].key != prec) {
-          //this is what we have to change
-          buf[i_buf++] = data[i].key;
-          buf[i_buf++] = i;
-          prec = data[i].key;
-        }
-      }
-      fo_key.write((char *) buf, elements*sizeof(uint32_t));
-      delete[] buf;
-
-    } catch (std::bad_alloc& e) {
-      cerr << "Fall back to slow writing keys due to low mem.\n";
-      // the previous value
-      prec = uint32_t(-1);
-      uint32_t buf[2];
-      uint32_t lsp, msp;
-
-      for (size_t i = 0; i < valid; i++) {
-        if (data[i].key != prec) {
-          buf[0] = data[i].key;
-          buf[1] = i;
-          fo_key.write((char *) buf, 8);
-          prec = data[i].key;
-        }
-      }
-    }
-    cerr << "Key generation complete!\n\n";
-    fo_key.close();
-
-    // now, write positions
-    fn = "pos_uint32";
-
-    ofstream fo_pos(fn.c_str(), ios::binary);
-
-    eof = (uint64_t) valid;
-    fo_pos.write((char *) &eof, 8);
-
-    try {
-      cerr << "Fast writing posv (" << eof << ")\n";
-      uint32_t *buf = new uint32_t[eof];
-      for (i = 0; i < eof; i++) {
-        buf[i] = data[i].pos;
-      }
-      fo_pos.write((char *) buf, eof * sizeof(uint32_t));
-      delete[] buf;
-    } catch (std::bad_alloc& e) {
-      cerr << "Fall back to slow writing posv due to low mem.\n";
-      for (i = 0; i < eof; i++) {
-        fo_pos.write((char *) &data[i].pos, 4);
-      }
-    }
-
-    cerr << "Position generation complete!\n\n";
-    fo_pos.close();
-
-    return true;
-  }
-
-  bool key_gen64() {
-    size_t limit = ref.size() - kmer + 1;
-    size_t vsz;
-    if (step == 1)
-      vsz = limit;
-    else
-      vsz = ref.size() / step + 1;
-
-    vector<Data<uint64_t>> data(vsz, Data<uint64_t>());
-    cerr << "limit = " << limit << ", vsz = " << vsz << endl;
-
-    // get the hash for each key
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, limit), Tbb_cal_key<uint64_t>(data, this));
-
-    // sort keys
-    //XXX: Parallel sort uses lots of memory. Need to fix this. In general, we
-    //use 8 bytes per item. Its a waste.
-    try {
-      cerr << "Attempting parallel sorting\n";
-      tbb::task_scheduler_init init(tbb::task_scheduler_init::automatic);
-      tbb::parallel_sort(data.begin(), data.end(), Data<uint64_t>());
-    } catch (std::bad_alloc& e) {
-      cerr << "Fall back to serial sorting (low mem)\n";
-      sort(data.begin(), data.end(), Data<uint64_t>());
-    }
-    
-    string fn = "keys_uint64";
-    ofstream fo_key(fn.c_str(), ios::binary);
-
-    // determine the number of valid and unique entries
-    uint64_t prec = uint64_t(-1);
-    uint64_t eof = 0;
-    size_t valid;   // the number of entries different than -1
-
-    size_t i;
-
-    for (i = 0; i < data.size() && data[i].key != uint64_t(-1); i++) {
-      if (data[i].key != prec) {
-          prec = data[i].key;
-          eof ++;
-        }
-    }
-    valid = i;
-    cerr << "Found " << eof << " valid keys and " << valid << " valid positions out of " <<
-        data.size() << " total\n\n";
-    // The number of entries is required to be a 64-bit value
-    fo_key.write((char *) &eof, 8);
-
-    // write out keys
-    try {
-      cerr << "Fast writing 64 keys (" << eof << ")\n";
-      size_t elements = eof*3;
-      uint32_t *buf = new uint32_t[elements];
-      // the previous value
-      prec = uint64_t(-1);
-      size_t i_buf;
-      uint32_t lsp, msp;
-
-      for (i = 0, i_buf = 0; i < valid && i_buf < elements; i++) {
-        if (data[i].key != prec) {
-          //this is what we have to change
-          buf[i_buf] = data[i].key;
-          i_buf += 2;
-          buf[i_buf++] = i;
-          prec = data[i].key;
-        }
-      }
-      fo_key.write((char *) buf, elements*sizeof(uint32_t));
-      delete[] buf;
-
-    } catch (std::bad_alloc& e) {
-      cerr << "Fall back to slow writing keys due to low mem.\n";
-      // the previous value
-      prec = uint64_t(-1);
-      uint32_t buf[3];
-
-      for (size_t i = 0; i < valid; i++) {
-        if (data[i].key != prec) {
-          buf[0] = data[i].key;
-          buf[2] = i;
-          fo_key.write((char *) buf, 12);
-          prec = data[i].key;
-        }
-      }
-    }
-    cerr << "Key generation complete!\n\n";
-    fo_key.close();
-
-    // now, write positions
-    fn = "pos_uint32";
-
-    ofstream fo_pos(fn.c_str(), ios::binary);
-
-    eof = (uint64_t) valid;
-    fo_pos.write((char *) &eof, 8);
-
-    try {
-      cerr << "Fast writing posv (" << eof << ")\n";
-      uint32_t *buf = new uint32_t[eof];
-      for (i = 0; i < eof; i++) {
-        buf[i] = data[i].pos;
-      }
-      fo_pos.write((char *) buf, eof * sizeof(uint32_t));
-      delete[] buf;
-    } catch (std::bad_alloc& e) {
-      cerr << "Fall back to slow writing posv due to low mem.\n";
-      for (i = 0; i < eof; i++) {
-        fo_pos.write((char *) &data[i].pos, 4);
-      }
-    }
-
-    cerr << "Position generation complete!\n\n";
-    fo_pos.close();
-
-    return true;
-  }
-
+  // generates keys
+  bool key_gen32();
+  bool key_gen64();
 };
+
+template<typename T>
+class Tbb_cal_key {
+  vector<Data<T>> &data;
+  Index *index_obj;
+
+ public:
+  Tbb_cal_key(vector<Data<T>> &_data, Index *_index_obj) :
+      data(_data), index_obj(_index_obj) {}
+
+  void operator()(const tbb::blocked_range<size_t> &r) const {
+    for (size_t i = r.begin(); i != r.end(); ++i) {
+      index_obj->cal_key(i, data);
+    }
+  }
+};
+
+bool Index::key_gen32() {
+  size_t limit = ref.size() - kmer + 1;
+  size_t vsz;
+  if (step == 1)
+    vsz = limit;
+  else
+    vsz = ref.size() / step + 1;
+
+  vector<Data<uint32_t>> data(vsz, Data<uint32_t>());
+  cerr << "limit = " << limit << ", vsz = " << vsz << endl;
+
+  // get the hash for each key
+  tbb::parallel_for(tbb::blocked_range<size_t>(0, limit), Tbb_cal_key<uint32_t>(data, this));
+
+  // sort keys
+  //XXX: Parallel sort uses lots of memory. Need to fix this. In general, we
+  //use 8 bytes per item. Its a waste.
+  try {
+    cerr << "Attempting parallel sorting\n";
+    tbb::task_scheduler_init init(tbb::task_scheduler_init::automatic);
+    tbb::parallel_sort(data.begin(), data.end(), Data<uint32_t>());
+  } catch (std::bad_alloc& e) {
+    cerr << "Fall back to serial sorting (low mem)\n";
+    sort(data.begin(), data.end(), Data<uint32_t>());
+  }
+  
+  string fn = "keys_uint32";
+
+  ofstream fo_key(fn.c_str(), ios::binary);
+
+  // determine the number of valid and unique entries
+  uint32_t prec = uint32_t(-1);
+  uint64_t eof = 0;
+  size_t valid;   // the number of entries different than -1
+
+  size_t i;
+
+  for (i = 0; i < data.size() && data[i].key != uint32_t(-1); i++) {
+    if (data[i].key != prec) {
+        prec = data[i].key;
+        eof ++;
+      }
+  }
+  valid = i;
+  cerr << "Found " << eof << " valid keys and " << valid << " valid positions out of " <<
+      data.size() << " total\n\n";
+  // The number of entries is required to be a 64-bit value
+  fo_key.write((char *) &eof, 8);
+
+  // write out keys
+  try {
+    cerr << "Fast writing 32 keys (" << eof << ")\n";
+    size_t elements = eof*2;
+    uint32_t *buf = new uint32_t[elements];
+    // the previous value
+    prec = uint32_t(-1); 
+    size_t i_buf;
+
+    for (i = 0, i_buf = 0; i < valid && i_buf < elements; i++) {
+      if (data[i].key != prec) {
+        //this is what we have to change
+        buf[i_buf++] = data[i].key;
+        buf[i_buf++] = i;
+        prec = data[i].key;
+      }
+    }
+    fo_key.write((char *) buf, elements*sizeof(uint32_t));
+    delete[] buf;
+
+  } catch (std::bad_alloc& e) {
+    cerr << "Fall back to slow writing keys due to low mem.\n";
+    // the previous value
+    prec = uint32_t(-1);
+    uint32_t buf[2];
+
+    for (size_t i = 0; i < valid; i++) {
+      if (data[i].key != prec) {
+        buf[0] = data[i].key;
+        buf[1] = i;
+        fo_key.write((char *) buf, 8);
+        prec = data[i].key;
+      }
+    }
+  }
+  cerr << "Key generation complete!\n\n";
+  fo_key.close();
+
+  // now, write positions
+  fn = "pos_uint32";
+
+  ofstream fo_pos(fn.c_str(), ios::binary);
+
+  eof = (uint64_t) valid;
+  fo_pos.write((char *) &eof, 8);
+
+  try {
+    cerr << "Fast writing posv (" << eof << ")\n";
+    uint32_t *buf = new uint32_t[eof];
+    for (i = 0; i < eof; i++) {
+      buf[i] = data[i].pos;
+    }
+    fo_pos.write((char *) buf, eof * sizeof(uint32_t));
+    delete[] buf;
+  } catch (std::bad_alloc& e) {
+    cerr << "Fall back to slow writing posv due to low mem.\n";
+    for (i = 0; i < eof; i++) {
+      fo_pos.write((char *) &data[i].pos, 4);
+    }
+  }
+
+  cerr << "Position generation complete!\n\n";
+  fo_pos.close();
+
+  return true;
+}
+
+bool Index::key_gen64() {
+  size_t limit = ref.size() - kmer + 1;
+  size_t vsz;
+  if (step == 1)
+    vsz = limit;
+  else
+    vsz = ref.size() / step + 1;
+
+  vector<Data<uint64_t>> data(vsz, Data<uint64_t>());
+  cerr << "limit = " << limit << ", vsz = " << vsz << endl;
+
+  // get the hash for each key
+  tbb::parallel_for(tbb::blocked_range<size_t>(0, limit), Tbb_cal_key<uint64_t>(data, this));
+
+  // sort keys
+  //XXX: Parallel sort uses lots of memory. Need to fix this. In general, we
+  //use 8 bytes per item. Its a waste.
+  try {
+    cerr << "Attempting parallel sorting\n";
+    tbb::task_scheduler_init init(tbb::task_scheduler_init::automatic);
+    tbb::parallel_sort(data.begin(), data.end(), Data<uint64_t>());
+  } catch (std::bad_alloc& e) {
+    cerr << "Fall back to serial sorting (low mem)\n";
+    sort(data.begin(), data.end(), Data<uint64_t>());
+  }
+  
+  string fn = "keys_uint64";
+  ofstream fo_key(fn.c_str(), ios::binary);
+
+  // determine the number of valid and unique entries
+  uint64_t prec = uint64_t(-1);
+  uint64_t eof = 0;
+  size_t valid;   // the number of entries different than -1
+
+  size_t i;
+
+  for (i = 0; i < data.size() && data[i].key != uint64_t(-1); i++) {
+    if (data[i].key != prec) {
+        prec = data[i].key;
+        eof ++;
+      }
+  }
+  valid = i;
+  cerr << "Found " << eof << " valid keys and " << valid << " valid positions out of " <<
+      data.size() << " total\n\n";
+  // The number of entries is required to be a 64-bit value
+  fo_key.write((char *) &eof, 8);
+
+  // write out keys
+  try {
+    cerr << "Fast writing 64 keys (" << eof << ")\n";
+    size_t elements = eof*3;
+    uint32_t *buf = new uint32_t[elements];
+    // the previous value
+    prec = uint64_t(-1);
+    size_t i_buf;
+
+    for (i = 0, i_buf = 0; i < valid && i_buf < elements; i++) {
+      if (data[i].key != prec) {
+        //this is what we have to change
+        buf[i_buf] = data[i].key;
+        i_buf += 2;
+        buf[i_buf++] = i;
+        prec = data[i].key;
+      }
+    }
+    fo_key.write((char *) buf, elements*sizeof(uint32_t));
+    delete[] buf;
+
+  } catch (std::bad_alloc& e) {
+    cerr << "Fall back to slow writing keys due to low mem.\n";
+    // the previous value
+    prec = uint64_t(-1);
+    uint32_t buf[3];
+
+    for (size_t i = 0; i < valid; i++) {
+      if (data[i].key != prec) {
+        buf[0] = data[i].key;
+        buf[2] = i;
+        fo_key.write((char *) buf, 12);
+        prec = data[i].key;
+      }
+    }
+  }
+  cerr << "Key generation complete!\n\n";
+  fo_key.close();
+
+  // now, write positions
+  fn = "pos_uint32";
+
+  ofstream fo_pos(fn.c_str(), ios::binary);
+
+  eof = (uint64_t) valid;
+  fo_pos.write((char *) &eof, 8);
+
+  try {
+    cerr << "Fast writing posv (" << eof << ")\n";
+    uint32_t *buf = new uint32_t[eof];
+    for (i = 0; i < eof; i++) {
+      buf[i] = data[i].pos;
+    }
+    fo_pos.write((char *) buf, eof * sizeof(uint32_t));
+    delete[] buf;
+  } catch (std::bad_alloc& e) {
+    cerr << "Fall back to slow writing posv due to low mem.\n";
+    for (i = 0; i < eof; i++) {
+      fo_pos.write((char *) &data[i].pos, 4);
+    }
+  }
+
+  cerr << "Position generation complete!\n\n";
+  fo_pos.close();
+
+  return true;
+}
 
 int main(int argc, char **argv) {
   if (argc < 2) {
