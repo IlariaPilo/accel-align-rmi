@@ -116,7 +116,7 @@ fi
 
 ################################### INDEX ###################################
 
-echo -e "\n\033[1;96m [index.sh] \033[0mBuilding the index..."
+echo -e "\n\033[1;96m [index.sh] \033[0mCompiling the index generation program..."
 # Build the index - if it has not being compiled yet
 if ! [ -e "${BASE_DIR}/rmi/target/release/rmi" ] && ! [ -e ./rmi ]; then
   cd "${BASE_DIR}/rmi" && cargo build --release
@@ -127,6 +127,7 @@ if [[ ! -e ./rmi ]]; then
   cp "${BASE_DIR}/rmi/target/release/rmi" .
 fi
 
+echo -e "\n\033[1;96m [index.sh] \033[0mRunning the optimizer..."
 # Run RMI optimization - if not present
 if [ ! -e optimizer.out ] || [ "$_redo_" == "1" ]; then
   # The file does not exist, so execute the command
@@ -173,6 +174,7 @@ else
   esac
 fi
 
+echo -e "\n\033[1;96m [index.sh] \033[0mBuilding the index..."
 if [ ! -e rmi.h ] || [ "$_redo_" == "1" ]; then
   # Get the parameters
   read type branching _ _ _ _ < rmi_type.txt
