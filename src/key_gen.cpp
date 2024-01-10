@@ -20,6 +20,22 @@ struct Data {
 
 };
 
+template<typename T>
+class Tbb_cal_key {
+  vector<Data<T>> &data;
+  Index *index_obj;
+
+ public:
+  Tbb_cal_key(vector<Data<T>> &_data, Index *_index_obj) :
+      data(_data), index_obj(_index_obj) {}
+
+  void operator()(const tbb::blocked_range<size_t> &r) const {
+    for (size_t i = r.begin(); i != r.end(); ++i) {
+      index_obj->cal_key(i, data);
+    }
+  }
+};
+
 class Index {
  private:
   string ref;
@@ -315,22 +331,6 @@ class Index {
     return true;
   }
 
-};
-
-template<typename T>
-class Tbb_cal_key {
-  vector<Data<T>> &data;
-  Index *index_obj;
-
- public:
-  Tbb_cal_key(vector<Data<T>> &_data, Index *_index_obj) :
-      data(_data), index_obj(_index_obj) {}
-
-  void operator()(const tbb::blocked_range<size_t> &r) const {
-    for (size_t i = r.begin(); i != r.end(); ++i) {
-      index_obj->cal_key(i, data);
-    }
-  }
 };
 
 int main(int argc, char **argv) {
