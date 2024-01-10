@@ -114,8 +114,6 @@ else
   esac
 fi
 
-exit 0
-
 ################################### INDEX ###################################
 
 echo -e "\n\033[1;96m [index.sh] \033[0mBuilding the index..."
