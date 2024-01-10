@@ -14,12 +14,18 @@ git clone --recursive https://github.com/IlariaPilo/accel-align-rmi
 The script [`/data/download.sh`](./data/download.sh) can be used to download and post-process a reference string. The downloaded string is called `hg37.fna`, and it is saved in the current working directory.
 
 ## 📚 Build the index
-The index can be built by running:
+The learned index must be built offline, before running the aligner. This can be done by using the [`index.sh`](./index.sh) script:
 ```sh
-bash index.sh <reference_string.fna>
+bash index.sh [OPTIONS] <reference.fna>
 ```
-The script generates an output directory `<reference_string>_index`, containing all index-related files. These files include:
-- `keys_uint32` and `pos_uint32` - two binary files storing keys and positions in the index, respectively. The first value in both files is a uint64 counter of the number of entries. Then, `keys_uint32` contains pairs of uint32 (key, cumulative_pos), where cumulative_pos is the sum of positions associated to a key lower than the current one. `pos_uint32` contains simply a list of uint32 positions.
+The script supports the following options:
+```
+  -t, --threads  THREADS  The number of threads to be used. Default = all
+  -l, --len      LEN      The length of the kmer. Default = 32
+  -h, --help              Display this help message
+```
+It generates an output directory `<reference_string>_index<LEN>`, containing all index-related files, including:
+- `keys_uintXX` and `pos_uint32` - two binary files storing keys and positions in the index, respectively. The first value in both files is a uint64 counter of the number of entries. Then, `keys_uintXX` contains pairs (uintXX key, uint32 cumulative_pos), where cumulative_pos is the sum of positions associated to a key lower than the current one. XX is equal to 32 if LEN <= 16 (meaning the kmer fits in 32 bits), to 64 otherwise. `pos_uint32` contains simply a list of uint32 positions.
 - `optimizer.out` - the output of the RMI hyperparameter optimizer. It stores the 10 most promising architectures, as well as some statistics on their size and training time.
 - `rmi_type.txt` - the architecture of the chosen RMI index.
 - `<reference_string>_index.so` and `<reference_string>_index.sym` - the generated shared object for the index and the list of symbol names for the main functions. Notice that the list is necessary to avoid issues with different C++ standards.
@@ -34,7 +40,7 @@ Example
 ./accalign -t 4 -o accalign.sam ./data/hg37.fna ./data/sv-10m-100-r.fastq
 ```
 
-## 🧩 Utility folder
+## 🛠️ Utility folder
 The `utility` folder contains some useful helper scripts.
 
 ### benchmark_local.sh
@@ -51,21 +57,20 @@ Indices should be built in advance (with -l 16 option).
 <number_of_executions> is the number of times every program is called [default is 10]
 ```
 
-### binary_print.py
-This [script](./utilities/binary_print.sh) can be used to take a look inside the keys_uint32 or pos_uint32 binary files.
-More in general, it can print whatever binary file having the structure:
+### 🔬 binary_print.py
+This [script](./utilities/binary_print.sh) can be used to display the content of `keys_uint32`, `keys_uint64` or `pos_uint32` binary files in a human-readable format.
 
-\<number of entries> (uint64) <br>
-\<list of keys> (uint32 each) 
+```sh
+python3 binary_print.py [OPTIONS] <filename>
+```
+It supports the following options:
+```
+  -n, --num_entries N   Number of entries to be displayed. Default = 10
+  -b, --backward        Read backward. Default = off
+  -f, --forward         Read forward. Default = on
+  -h, --help            Show this help message and exit
+```
 
-Usage
-```
-    python3 binary_print.py <filename> [<direction>] [<number_of_entries>]
-Prints the entries of <filename> file.
-If <number_of_entries> is not specified, 10 entries are displayed.
-If <direction> is 'forward' or not provided, it reads from the beginning of the file.
-If <direction> is 'backward', it reads from the end of the file.
-```
 ### key_2_string.py
 This [script](./utilities/key_2_string.py) takes a uint32 key and recovers the 16-char long kmer that generated it.
 
