@@ -132,14 +132,14 @@ fi
 # Run RMI optimization - if not present
 if [ ! -e optimizer.out ] || [ "$_redo_" == "1" ]; then
   # The file does not exist, so execute the command
-  ./rmi --threads $thread_number --optimize optimizer.json ./keys_uint32 > optimizer.out
+  ./rmi --threads $thread_number --optimize optimizer.json "./keys_uint${bit_len}" > optimizer.out
 else
   # The file exists, so ask the user before executing
   read -ep $'\033[1;33m [index.sh] \033[0moptimizer output already exists. Do you want to execute the command anyway? [y/N] ' choice
   case "$choice" in 
     y|Y )
       _redo_=1  
-      ./rmi --threads $thread_number --optimize optimizer.json ./keys_uint32 > optimizer.out
+      ./rmi --threads $thread_number --optimize optimizer.json "./keys_uint${bit_len}" > optimizer.out
       ;;
     * ) 
       echo -e "\033[1;33m [index.sh] \033[0mcommand not executed" ;;
@@ -180,7 +180,7 @@ if [ ! -e rmi.h ] || [ "$_redo_" == "1" ]; then
   read type branching _ _ _ _ < rmi_type.txt
   echo -e "\n\033[1;96m [index.sh] \033[0mTraining the $type ($branching) index"
   # Train the model
-  ./rmi ./keys_uint32 rmi $type $branching
+  ./rmi "./keys_uint${bit_len}" rmi $type $branching
 else
   echo -e "\n\033[1;96m [index.sh] \033[0mIndex already exists!\n"
 fi

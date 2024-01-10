@@ -150,7 +150,7 @@ bool Index::key_gen32() {
 
   // write out keys
   try {
-    cerr << "Fast writing 32 keys (" << eof << ")\n";
+    cerr << "Fast writing uint32 keys (" << eof << ")\n";
     size_t elements = eof*2;
     uint32_t *buf = new uint32_t[elements];
     // the previous value
@@ -265,7 +265,7 @@ bool Index::key_gen64() {
 
   // write out keys
   try {
-    cerr << "Fast writing 64 keys (" << eof << ")\n";
+    cerr << "Fast writing uint64 keys (" << eof << ")\n";
     size_t elements = eof*3;
     uint32_t *buf = new uint32_t[elements];
     // the previous value
