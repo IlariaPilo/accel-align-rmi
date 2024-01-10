@@ -100,14 +100,14 @@ cd $OUTPUT_DIR                             # ----> NOW WE ARE IN hg37_index/keys
 echo -e "\n\033[1;96m [index.sh] \033[0mRunning key_gen..."
 if [ ! -e $keys_name ] || [ ! -e $pos_name ]; then
   # The file does not exist, so execute the command
-  "${BASE_DIR}/key_gen" -L $kmer_len $ref_name
+  "${BASE_DIR}/key_gen" -l $kmer_len $ref_name
 else
   # The file exists, so ask the user before executing
   read -ep $'\033[1;33m [index.sh] \033[0mkey_gen output already exists. Do you want to execute the command anyway? [y/N] ' choice
   case "$choice" in 
     y|Y )
       _redo_=1 
-      "${BASE_DIR}/key_gen" -L $kmer_len $ref_name 
+      "${BASE_DIR}/key_gen" -l $kmer_len $ref_name 
       ;;
     * ) 
       echo -e "\033[1;33m [index.sh] \033[0mcommand not executed" ;;
