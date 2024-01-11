@@ -381,7 +381,7 @@ Reference::Reference(const char *F, int bit_len, bool _enable_minimizer, char _m
     // F_library  ./data/hg37_index32/hg37_index
     string F_prefix = string(F).substr(0, string(F).find_last_of("."));
     string F_index = F_prefix  + "_index" + to_string(bit_len);
-    string F_library = F_index + "/" + get_last_directory(F_prefix) + "_index" + to_string(bit_len);
+    string F_library = F_index + "/" + get_last_directory(F_prefix) + "_index";
     rmi.init(F_library.c_str());
     thread t([this, F]() {load_index(F);});
     //thread t(&Reference::load_index, this, F_index.c_str()); // load index in parallel
