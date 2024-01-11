@@ -101,6 +101,8 @@ class AccAlign {
 
   // NEW!
   uint32_t get_lookup(int ref_id, uint64_t hash) {
+    // TODO remove
+    cout << "called get_lookup\n";
     return refs[ref_id]->index_lookup(hash);
   }
   uint32_t get_nkeyv(int ref_id) {
