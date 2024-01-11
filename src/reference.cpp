@@ -383,7 +383,7 @@ Reference::Reference(const char *F, int bit_len, bool _enable_minimizer, char _m
     string F_index = F_prefix  + "_index" + to_string(bit_len/2);
     string F_library = F_index + "/" + get_last_directory(F_index);
     rmi.init(F_library.c_str());
-    thread t([this, F]() {load_index(F);});
+    thread t([this, F_index]() {load_index(F_index.c_str());});
     //thread t(&Reference::load_index, this, F_index.c_str()); // load index in parallel
 
     load_reference(F);
