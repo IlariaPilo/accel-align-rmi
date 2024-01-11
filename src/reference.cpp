@@ -50,8 +50,8 @@ void Reference::load_index32(const char *F) {
     cerr << "Unable to open key file" << endl;
     exit(0);
   }
-  fi.read((char *) &nkeyv, 8);
-  nkeyv *= 2;
+  fi.read((char *) &nkeyv_true, 8);
+  nkeyv = nkeyv_true*2;
   fi.close();
 
   fi.open(pos_f.c_str(), ios::binary);
@@ -121,8 +121,8 @@ void Reference::load_index64(const char *F) {
     cerr << "Unable to open key file" << endl;
     exit(0);
   }
-  fi.read((char *) &nkeyv, 8);
-  nkeyv *= 3;
+  fi.read((char *) &nkeyv_true, 8);
+  nkeyv = nkeyv_true * 3;
   fi.close();
 
   fi.open(pos_f.c_str(), ios::binary);
@@ -289,7 +289,7 @@ uint32_t Reference::index_lookup32(uint64_t key) {
       guess_key = keyv[guess_pos*2];
       // if it's the same, done
       if (guess_key == key32)
-        return guess_pos*2;
+        return guess_pos;
       // else, do binary search
       if (guess_key < key32) {
           l = guess_pos + 1;
@@ -328,7 +328,7 @@ uint32_t Reference::index_lookup64(uint64_t key) {
       guess_key = keyv[guess_pos*3];
       // if it's the same, done
       if (guess_key == key)
-        return guess_pos*3;
+        return guess_pos;
       // else, do binary search
       if (guess_key < key) {
           l = guess_pos + 1;
@@ -342,7 +342,14 @@ uint32_t Reference::index_lookup64(uint64_t key) {
   return -1;
 }
 
-Reference::Reference(const char *F, int bit_len, bool _enable_minimizer, char mode): enable_minimizer(_enable_minimizer), mode(_mode){
+uint32_t Reference::get_keyv_val32(uint32_t idx) {
+  return keyv[idx*2+1];
+}
+uint32_t Reference::get_keyv_val64(uint32_t idx) {
+  return keyv[idx*3+2];
+}
+
+Reference::Reference(const char *F, int bit_len, bool _enable_minimizer, char _mode): enable_minimizer(_enable_minimizer), mode(_mode){
   auto start = std::chrono::system_clock::now();
 
   if (enable_minimizer){
@@ -360,11 +367,13 @@ Reference::Reference(const char *F, int bit_len, bool _enable_minimizer, char mo
   } else{
     // initialize load_index and index_lookup TODO
     if (bit_len==32) {
-      load_index = load_index32;
-      index_lookup = index_lookup32;
+      load_index = Reference::load_index32;
+      index_lookup = Reference::index_lookup32;
+      get_keyv_val = Referece::get_keyv_val32;
     } else {
-      load_index = load_index64;
-      index_lookup = index_lookup64;
+      load_index = Reference::load_index64;
+      index_lookup = Reference::index_lookup64;
+      get_keyv_val = Referece::get_keyv_val64;
     }
     // F          ./data/hg37.fna
     // F_prefix   ./data/hg37

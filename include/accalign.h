@@ -87,8 +87,8 @@ class AccAlign {
       return refs[ref_id]->offset;
   };
 
-  uint32_t* get_keyv(int ref_id){
-    return refs[ref_id]->keyv;
+  uint32_t get_keyv_val(int ref_id, uint32_t pos_idx){
+    return refs[ref_id]->get_keyv_val(pos_idx);
   };
 
   uint32_t* get_posv(int ref_id){
@@ -104,7 +104,7 @@ class AccAlign {
     return refs[ref_id]->index_lookup(hash);
   }
   uint32_t get_nkeyv(int ref_id) {
-    return (uint32_t)refs[ref_id]->nkeyv;
+    return (uint32_t)refs[ref_id]->nkeyv_true;
   }
   uint32_t get_nposv(int ref_id) {
     return (uint32_t)refs[ref_id]->nposv;

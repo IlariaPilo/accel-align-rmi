@@ -62,13 +62,17 @@ class Reference {
   uint32_t index_lookup64(uint64_t key);
   uint32_t (*index_lookup)(uint64_t);
 
+  uint32_t get_keyv_val32(uint32_t idx);
+  uint32_t get_keyv_val64(uint32_t idx);
+  uint32_t (*get_keyv_val)(uint32_t);
+
   void load_reference(const char *F);  // this is fine
 
   std::string ref;
   std::vector<std::string> name;
   std::vector<uint32_t> offset;
   uint32_t *keyv, *posv;              
-  uint64_t nposv, nkeyv;
+  uint64_t nposv, nkeyv, nkeyv_true;
   mm_idx_t *mi;
   RMI rmi;  // this is fine
   bool enable_minimizer;

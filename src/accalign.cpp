@@ -420,12 +420,6 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
 
   uint32_t pos_idx;
 
-  // FIXME - remove
-  //char _kmer_[17];
-  //_kmer_[16] = 0;
-
-  //std::string _code_ = "ACGT";
-
   // Take non-overlapping seeds and find all hits
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
@@ -437,17 +431,15 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
     pos_idx = get_lookup(ref_id, k);
 
     if (pos_idx == (uint32_t)-1) {
-      //std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
-      //std::cerr << "           " << "read " << _kmer_ << std::endl;
       b[kmer_idx] = 0;     
       e[kmer_idx] = 0;
     } else {
-      b[kmer_idx] = get_keyv(ref_id)[pos_idx + 1];     // the first position of hash
-      // the first position of next hash
-      if (pos_idx == get_nkeyv(ref_id)-2) {
+      b[kmer_idx] = get_keyv_val(ref_id,pos_idx);     // the first position of hash
+      // the first position of next hash FIXME
+      if (pos_idx == get_nkeyv(ref_id)-1) {
         e[kmer_idx] = get_nposv(ref_id);
       } else {
-        e[kmer_idx] = get_keyv(ref_id)[pos_idx + 3]; 
+        e[kmer_idx] = get_keyv_val(ref_id,pos_idx+1); 
       }
     }
     
@@ -651,12 +643,12 @@ void AccAlign::pigeonhole_query_sort(char *Q,
       b[kmer_idx] = 0;     
       e[kmer_idx] = 0;
     } else {
-      b[kmer_idx] = get_keyv(ref_id)[pos_idx + 1];     // the first position of hash
+      b[kmer_idx] = get_keyv_val(ref_id,pos_idx);     // the first position of hash
       // the first position of next hash
-      if (pos_idx == get_nkeyv(ref_id)-2) {
+      if (pos_idx == get_nkeyv(ref_id)-1) {
         e[kmer_idx] = get_nposv(ref_id);
       } else {
-        e[kmer_idx] = get_keyv(ref_id)[pos_idx + 3]; 
+        e[kmer_idx] = get_keyv_val(ref_id,pos_idx+1); 
       }
     }
     
@@ -1217,12 +1209,12 @@ void AccAlign::pigeonhole_query(char *Q,
       b[kmer_idx] = 0;     
       e[kmer_idx] = 0;
     } else {
-      b[kmer_idx] = get_keyv(ref_id)[pos_idx + 1];     // the first position of hash
+      b[kmer_idx] = get_keyv_val(ref_id,pos_idx);     // the first position of hash
       // the first position of next hash
-      if (pos_idx == get_nkeyv(ref_id)-2) {
+      if (pos_idx == get_nkeyv(ref_id)-1) {
         e[kmer_idx] = get_nposv(ref_id);
       } else {
-        e[kmer_idx] = get_keyv(ref_id)[pos_idx + 3]; 
+        e[kmer_idx] = get_keyv_val(ref_id,pos_idx+1); 
       }
     }
     
