@@ -367,13 +367,13 @@ Reference::Reference(const char *F, int bit_len, bool _enable_minimizer, char _m
   } else{
     // initialize load_index and index_lookup TODO
     if (bit_len==32) {
-      load_index = Reference::load_index32;
-      index_lookup = Reference::index_lookup32;
-      get_keyv_val = Referece::get_keyv_val32;
+      Reference::load_index = Reference::load_index32;
+      Reference::index_lookup = Reference::index_lookup32;
+      Reference::get_keyv_val = Referece::get_keyv_val32;
     } else {
-      load_index = Reference::load_index64;
-      index_lookup = Reference::index_lookup64;
-      get_keyv_val = Referece::get_keyv_val64;
+      Reference::load_index = Reference::load_index64;
+      Reference::index_lookup = Reference::index_lookup64;
+      Reference::get_keyv_val = Referece::get_keyv_val64;
     }
     // F          ./data/hg37.fna
     // F_prefix   ./data/hg37
