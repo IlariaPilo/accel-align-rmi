@@ -419,6 +419,10 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
 
   uint32_t pos_idx;
 
+
+    // FIXME - remove
+    cout << "I'm in the pigeonhole!\n";
+
   // Take non-overlapping seeds and find all hits
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
@@ -620,7 +624,9 @@ void AccAlign::pigeonhole_query_sort(char *Q,
 
   uint32_t pos_idx;
 
+
     // FIXME - remove
+    cout << "I'm in the pigeonhole!\n";
   //char _kmer_[17];
   //_kmer_[16] = 0;
 
@@ -1187,6 +1193,7 @@ void AccAlign::pigeonhole_query(char *Q,
   uint32_t pos_idx;
 
     // FIXME - remove
+    cout << "I'm in the pigeonhole!\n";
   //char _kmer_[17];
   //_kmer_[16] = 0;
 
