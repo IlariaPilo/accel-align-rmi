@@ -78,7 +78,7 @@ class Reference {
   bool enable_minimizer;
   char mode; // 'c' c-> t; 'g' g->a; ' ' original
 
-  Reference(const char *F, int bit_len, bool _enable_minimizer, char mode);
+  Reference(const char *F, unsigned kmer_len, bool _enable_minimizer, char mode);
 
   ~Reference();
 };

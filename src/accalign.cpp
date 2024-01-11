@@ -7,7 +7,6 @@ using namespace std;
 
 // change default to 32
 unsigned kmer_len = 32;
-int bit_len = 64;
 int kmer_step = 1;
 uint64_t mask;
 unsigned pairdis = 1000;
@@ -3125,7 +3124,6 @@ int main(int ac, char **av) {
     kmer_len = kmer_temp;
 
   mask = kmer_len == 32 ? ~0 : (1ULL << (kmer_len * 2)) - 1;
-  bit_len = kmer_len > 16? 64 : 32;
 
   cerr << "Using " << g_ncpus << " cpus " << endl;
   cerr << "Using kmer length " << kmer_len << " and step size " << kmer_step << endl;
@@ -3136,10 +3134,10 @@ int main(int ac, char **av) {
   // load reference once
   Reference **r = new Reference*[2];
   if (enable_bs){
-    r[0] = new Reference(av[opn], bit_len, enable_minimizer, 'c');
-    r[1] = new Reference(av[opn++], bit_len, enable_minimizer, 'g');
+    r[0] = new Reference(av[opn], kmer_len, enable_minimizer, 'c');
+    r[1] = new Reference(av[opn++], kmer_len, enable_minimizer, 'g');
   } else {
-    r[0] = new Reference(av[opn++], bit_len, enable_minimizer, ' ');
+    r[0] = new Reference(av[opn++], kmer_len, enable_minimizer, ' ');
   }
 
   if (enable_extension && !enable_wfa_extension)

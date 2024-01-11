@@ -349,7 +349,7 @@ uint32_t Reference::get_keyv_val64(uint32_t idx) {
   return keyv[idx*3+2];
 }
 
-Reference::Reference(const char *F, int bit_len, bool _enable_minimizer, char _mode): enable_minimizer(_enable_minimizer), mode(_mode){
+Reference::Reference(const char *F, unsigned kmer_len, bool _enable_minimizer, char _mode): enable_minimizer(_enable_minimizer), mode(_mode){
   auto start = std::chrono::system_clock::now();
 
   if (enable_minimizer){
@@ -365,6 +365,7 @@ Reference::Reference(const char *F, int bit_len, bool _enable_minimizer, char _m
 
     load_reference(F);
   } else{
+    unsigned bit_len = kmer_len > 16? 64 : 32;
     // initialize load_index and index_lookup TODO
     if (bit_len==32) {
       load_index = std::bind(&Reference::load_index32, this, std::placeholders::_1);
@@ -380,7 +381,7 @@ Reference::Reference(const char *F, int bit_len, bool _enable_minimizer, char _m
     // F_index    ./data/hg37_index32
     // F_library  ./data/hg37_index32/hg37_index
     string F_prefix = string(F).substr(0, string(F).find_last_of("."));
-    string F_index = F_prefix  + "_index" + to_string(bit_len/2);
+    string F_index = F_prefix  + "_index" + to_string(kmer_len);
     string F_library = F_index + "/" + get_last_directory(F_index);
     rmi.init(F_library.c_str());
     thread t([this, F_index]() {load_index(F_index.c_str());});
