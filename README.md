@@ -13,6 +13,13 @@ git clone --recursive https://github.com/IlariaPilo/accel-align-rmi
 ## ⏬ Download a reference string【 optional 】
 The script [`/data/download.sh`](./data/download.sh) can be used to download and post-process a reference string. The downloaded string is called `hg37.fna`, and it is saved in the current working directory.
 
+## 🗺️ Configure the TBB path
+Accel-Align-RMI requires [TBB](https://github.com/01org/tbb/releases/tag/2019_U5). After installing the library, it is necessary to modify the value of the `TBB_LIB` variable in the Makefile, setting it to the path of the shared object. Fox example:
+```diff
+- TBB_LIB =	## your path here ##
++ TBB_LIB = /usr/lib/x86_64-linux-gnu/libtbb.so
+```
+
 ## 📚 Build the index
 The learned index must be built offline, before running the aligner. This can be done by using the [`index.sh`](./index.sh) script:
 ```sh
@@ -31,14 +38,22 @@ It generates an output directory `<reference_string>_index<LEN>`, containing all
 - `<reference_string>_index.so` and `<reference_string>_index.sym` - the generated shared object for the index and the list of symbol names for the main functions. Notice that the list is necessary to avoid issues with different C++ standards.
 
 ## 🔎 Call the aligner
-The aligner can be built with `make`, and then run normally.
-
-**_⚠️ Up to now, only -t (number of threads) and -o (output file) options are available!_**
+The aligner can be built with `make accalign`, and then run as:
+```sh
+./accalign [OPTIONS] <ref.fa> <read.fastq>
+```
+The following options are available:
+```
+  -t  INT   The number of threads to be used. Default = all
+  -l  INT   The length of the kmer. Default = 32
+  -o        Name of the output file
+```
+⚠️ The original Accel-Align allows more options, which are not yet supported in the RMI version.
 
 Example
 ```sh
 ./accalign -t 4 -o accalign.sam ./data/hg37.fna ./data/sv-10m-100-r.fastq
-```
+``` 
 
 ## 🛠️ Utility folder
 The `utility` folder contains some useful helper scripts.

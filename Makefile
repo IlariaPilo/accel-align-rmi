@@ -8,17 +8,17 @@ endif
 
 # TBB settings
 TBB_INCLUDE = /usr/include/tbb
-TBB_LIB = /usr/lib/x86_64-linux-gnu/libtbb.so
+TBB_LIB =	## your path here ##
 #TBB_LIB = /media/ssd/ngs-data-analysis/code/oneTBB-2019_U5/build/linux_intel64_gcc_cc11_libc2.35_kernel5.15.0_release
-TBBFLAGS = -L$(TBB_LIB) -ltbb
-ACCLDFLAGS=./WFA-paper/build/libwfa.a -lz #-ltbb
+TBBFLAGS = $(if $(TBB_LIB),-L$(TBB_LIB) -ltbb,-ltbb)
+ACCLDFLAGS=./WFA-paper/build/libwfa.a -lz
 
 OBJ_DIR=obj
 HEADERS=$(wildcard ./include/*.h)
 TARGETS=key_gen accalign stats
 STATSSRC=src/stats.cpp
 CPUSRC=src/rmi.cpp src/reference.cpp src/accalign.cpp src/embedding.cpp src/ksw2_extz2_sse.c src/bseq.c src/index.c src/kthread.c src/kalloc.c src/sketch.c src/misc.c src/options.c src/seed.c
-#IDXSRC=index.cpp embedding.cpp bseq.c index.c kthread.c kalloc.c sketch.c misc.c options.c 
+OLD_IDXSRC=index.cpp embedding.cpp bseq.c index.c kthread.c kalloc.c sketch.c misc.c options.c 
 IDXSRC=src/key_gen.cpp
 
 .PHONY: WFA-paper all
@@ -35,6 +35,9 @@ accalign: ${CPUSRC} ${HEADERS}
 
 stats: ${STATSSRC} ${HEADERS}
 	${CXX} -o $@ ${STATSSRC} ${ACCLDFLAGS} ${CXXFLAGS} -fopenmp
+
+accindex: WFA-paper ${OLD_IDXSRC} ${HEADERS}
+	${CXX} -o $@ ${OLD_IDXSRC} ${ACCLDFLAGS} ${TBBFLAGS} ${CXXFLAGS} -pthread
 
 clean:
 	$(MAKE) -C WFA-paper clean
