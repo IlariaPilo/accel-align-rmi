@@ -56,15 +56,15 @@ class Reference {
  public:
   void load_index32(const char *F);   
   void load_index64(const char *F);
-  void (*load_index)(const char *);
+  std::function<void(const char*)> load_index;
 
   uint32_t index_lookup32(uint64_t key);
   uint32_t index_lookup64(uint64_t key);
-  uint32_t (*index_lookup)(uint64_t);
+  std::function<uint32_t(uint64_t)> index_lookup;
 
   uint32_t get_keyv_val32(uint32_t idx);
   uint32_t get_keyv_val64(uint32_t idx);
-  uint32_t (*get_keyv_val)(uint32_t);
+  std::function<uint32_t(uint32_t)> get_keyv_val;
 
   void load_reference(const char *F);  // this is fine
 
