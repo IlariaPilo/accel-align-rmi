@@ -74,8 +74,6 @@ class AccAlign {
 
  public:
   Reference **refs;
-//  uint32_t *keyv, *posv;
-//  mm_idx_t *mi;
 
   std::string& get_ref(int ref_id){
     return refs[ref_id]->ref;
@@ -102,7 +100,7 @@ class AccAlign {
   };
 
   // NEW!
-  uint32_t get_lookup(int ref_id, uint32_t hash) {
+  uint32_t get_lookup(int ref_id, uint64_t hash) {
     return refs[ref_id]->index_lookup(hash);
   }
   uint32_t get_nkeyv(int ref_id) {

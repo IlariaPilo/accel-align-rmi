@@ -51,28 +51,36 @@ struct Read {
   }
 
 };
-
+///////////////// FIXME /////////////////
 class Reference {
+ private:
+  void (*load_index)(const char *);
+  uint32_t (*index_lookup)(uint64_t);
  public:
-  void load_index(const char *F);
-  void load_reference(const char *F);
-  // add lookup function
-  uint32_t index_lookup(uint32_t key);
+  void load_index32(const char *F);   
+  void load_index64(const char *F);
+
+  uint32_t index_lookup32(uint64_t key);
+  uint32_t index_lookup64(uint64_t key);
+
+  void load_reference(const char *F);  // this is fine
+  
 
   std::string ref;
   std::vector<std::string> name;
   std::vector<uint32_t> offset;
-  uint32_t *keyv, *posv;
+  uint32_t *keyv, *posv;              
   uint64_t nposv, nkeyv;
   mm_idx_t *mi;
-  RMI rmi;
+  RMI rmi;  // this is fine
   bool enable_minimizer;
   char mode; // 'c' c-> t; 'g' g->a; ' ' original
 
-  Reference(const char *F, bool _enable_minimizer, char mode);
+  Reference(const char *F, int bit_len, bool _enable_minimizer, char mode);
 
   ~Reference();
 };
+///////////////// END /////////////////
 
 typedef std::tuple<Read *, Read *, int> ReadCnt;
 

@@ -5,8 +5,9 @@
 using namespace tbb::flow;
 using namespace std;
 
-// change default to 16
-unsigned kmer_len = 16;
+// change default to 32
+unsigned kmer_len = 32;
+int bit_len = 64;
 int kmer_step = 1;
 uint64_t mask;
 unsigned pairdis = 1000;
@@ -87,19 +88,19 @@ gzFile &operator>>(gzFile &in, Read &r) {
 }
 
 void print_usage() {
-  cerr << "accalign [options] <ref.fa> [read1.fastq] [read2.fastq]\n";
+  //cerr << "accalign [options] <ref.fa> [read1.fastq] [read2.fastq]\n";
+  cerr << "accalign [options] <ref.fa> <read.fastq>\n";
   cerr << "\t Maximum read length supported is 512\n";
   cerr << "options:\n";
   cerr << "\t-t INT Number of cpu threads to use [all]\n";
   cerr << "\t-l INT Length of seed [32]\n";
   cerr << "\t-o Name of the output file \n";
-  cerr << "\t-x Alignment-free mode\n";
-  cerr << "\t-w Use WFA for extension. KSW used by default. \n";
-  cerr << "\t-p Maximum distance allowed between the paired-end reads [1000]\n";
-  cerr << "\t-d Disable embedding, extend all candidates from seeding (this mode is super slow, only for benchmark).\n";
-  cerr << "\t-m Seeding with minimizer.\n";
-  cerr << "\t-s bisulfite sequencing read alignment mode \n";
-
+  //cerr << "\t-x Alignment-free mode\n";
+  //cerr << "\t-w Use WFA for extension. KSW used by default. \n";
+  //cerr << "\t-p Maximum distance allowed between the paired-end reads [1000]\n";
+  //cerr << "\t-d Disable embedding, extend all candidates from seeding (this mode is super slow, only for benchmark).\n";
+  //cerr << "\t-m Seeding with minimizer.\n";
+  //cerr << "\t-s bisulfite sequencing read alignment mode \n";
 }
 
 void AccAlign::print_stats() {
@@ -429,21 +430,11 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
     uint64_t k = 0;
-    // ------------ FIXME ------------
     for (size_t j = i /*, _i_ = 0*/; j < i + kmer_len; j++ /*, _i_++*/) {
       k = (k << 2) + *(Q + j);
-      //_kmer_[_i_] = _code_[*(Q + j)];
     }
-
-    //size_t hash = (k & mask) % MOD;
-    size_t hash = (k & mask);
-
-    // ------------- END -------------
-    //b[kmer_idx] = get_keyv(ref_id)[hash];     // the first position of hash
-    //e[kmer_idx] = get_keyv(ref_id)[hash + 1]; // the first position of next hash
-
     // lookup to get the position of the hash
-    pos_idx = get_lookup(ref_id, hash);
+    pos_idx = get_lookup(ref_id, k);
 
     if (pos_idx == (uint32_t)-1) {
       //std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
@@ -648,22 +639,11 @@ void AccAlign::pigeonhole_query_sort(char *Q,
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
     uint64_t k = 0;
-    // ------------ FIXME ------------
     for (size_t j = i /*, _i_ = 0*/; j < i + kmer_len; j++ /*, _i_++*/) {
       k = (k << 2) + *(Q + j);
-      //_kmer_[_i_] = _code_[*(Q + j)];
     }
-      
-
-    //size_t hash = (k & mask) % MOD;
-    size_t hash = (k & mask);
-
-    // ------------- END -------------
-    //b[kmer_idx] = get_keyv(ref_id)[hash];     // the first position of hash
-    //e[kmer_idx] = get_keyv(ref_id)[hash + 1]; // the first position of next hash
-
     // lookup to get the position of the hash
-    pos_idx = get_lookup(ref_id, hash);
+    pos_idx = get_lookup(ref_id, k);
 
     if (pos_idx == (uint32_t)-1) {
       //std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
@@ -1225,21 +1205,11 @@ void AccAlign::pigeonhole_query(char *Q,
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
     uint64_t k = 0;
-    // ------------ FIXME ------------
     for (size_t j = i /*, _i_ = 0*/; j < i + kmer_len; j++ /*, _i_++*/) {
       k = (k << 2) + *(Q + j);
-      //_kmer_[_i_] = _code_[*(Q + j)];
     }
-      
-    //size_t hash = (k & mask) % MOD;
-    size_t hash = (k & mask);
-
-    // ------------- END -------------
-    //b[kmer_idx] = get_keyv(ref_id)[hash];     // the first position of hash
-    //e[kmer_idx] = get_keyv(ref_id)[hash + 1]; // the first position of next hash
-
     // lookup to get the position of the hash
-    pos_idx = get_lookup(ref_id, hash);
+    pos_idx = get_lookup(ref_id, k);
 
     if (pos_idx == (uint32_t)-1) {
       //std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
@@ -3120,7 +3090,7 @@ int main(int ac, char **av) {
         g_out = av[opn + 1];
         opn += 2;
         flag = true;
-      } else if (av[opn][1] == 'e') {
+      } /*else if (av[opn][1] == 'e') {
         g_embed_file = av[opn + 1];
         opn += 2;
         flag = true;
@@ -3152,7 +3122,7 @@ int main(int ac, char **av) {
         enable_bs = true;
         opn += 1;
         flag = true;
-      } else {
+      }*/ else {
         print_usage();
       }
     }
@@ -3161,8 +3131,9 @@ int main(int ac, char **av) {
   }
   if (kmer_temp != 0)
     kmer_len = kmer_temp;
-  // change default to 16
-  mask = kmer_len == 16 ? ~0 : (1ULL << (kmer_len * 2)) - 1;
+
+  mask = kmer_len == 32 ? ~0 : (1ULL << (kmer_len * 2)) - 1;
+  bit_len = kmer_len > 16? 64 : 32;
 
   cerr << "Using " << g_ncpus << " cpus " << endl;
   cerr << "Using kmer length " << kmer_len << " and step size " << kmer_step << endl;
@@ -3173,10 +3144,10 @@ int main(int ac, char **av) {
   // load reference once
   Reference **r = new Reference*[2];
   if (enable_bs){
-    r[0] = new Reference(av[opn], enable_minimizer, 'c');
-    r[1] = new Reference(av[opn++], enable_minimizer, 'g');
+    r[0] = new Reference(av[opn], bit_len, enable_minimizer, 'c');
+    r[1] = new Reference(av[opn++], bit_len, enable_minimizer, 'g');
   } else {
-    r[0] = new Reference(av[opn++], enable_minimizer, ' ');
+    r[0] = new Reference(av[opn++], bit_len, enable_minimizer, ' ');
   }
 
   if (enable_extension && !enable_wfa_extension)
