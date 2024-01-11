@@ -53,18 +53,16 @@ struct Read {
 };
 ///////////////// FIXME /////////////////
 class Reference {
- private:
-  void (*load_index)(const char *);
-  uint32_t (*index_lookup)(uint64_t);
  public:
   void load_index32(const char *F);   
   void load_index64(const char *F);
+  void (*load_index)(const char *);
 
   uint32_t index_lookup32(uint64_t key);
   uint32_t index_lookup64(uint64_t key);
+  uint32_t (*index_lookup)(uint64_t);
 
   void load_reference(const char *F);  // this is fine
-  
 
   std::string ref;
   std::vector<std::string> name;
