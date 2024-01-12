@@ -35,7 +35,7 @@ It generates an output directory `<reference_string>_index<LEN>`, containing all
 - `keys_uintXX` and `pos_uint32` - two binary files storing keys and positions in the index, respectively. The first value in both files is a uint64 counter of the number of entries. Then, `keys_uintXX` contains pairs (uintXX key, uint32 cumulative_pos), where cumulative_pos is the sum of positions associated to a key lower than the current one. XX is equal to 32 if LEN <= 16 (meaning the kmer fits in 32 bits), to 64 otherwise. `pos_uint32` contains simply a list of uint32 positions.
 - `optimizer.out` - the output of the RMI hyperparameter optimizer. It stores the 10 most promising architectures, as well as some statistics on their size and training time.
 - `rmi_type.txt` - the architecture of the chosen RMI index.
-- `<reference_string>_index.so` and `<reference_string>_index.sym` - the generated shared object for the index and the list of symbol names for the main functions. Notice that the list is necessary to avoid issues with different C++ standards.
+- `<reference_string>_indexXX.so` and `<reference_string>_indexXX.sym` - the generated shared object for the index and the list of symbol names for the main functions. Notice that the list is necessary to avoid issues with different C++ standards.
 
 ## 🔎 Call the aligner
 The aligner can be built with `make accalign`, and then run as:
@@ -50,10 +50,23 @@ The following options are available:
 ```
 ⚠️ The original Accel-Align allows more options, which are not yet supported in the RMI version.
 
-Example
+## 🎯 Compute the index precision
+An alignment run will possibly benefit of the RMI index if the classic index precision is low. This mean that the index is returning positions which are actually associated with wrong seeds. 
+
+To better analyze this behavior, the script [`stats.sh`](./stats.sh) can be used.
 ```sh
-./accalign -t 4 -o accalign.sam ./data/hg37.fna ./data/sv-10m-100-r.fastq
-``` 
+bash stats.sh [OPTIONS] <reference.fna> <read.fastq>
+```
+The following options are available:
+```
+  -l, --len   LEN   The length of the kmer. Default = 32
+  -h, --help        Display this help message
+```
+The script first generates the classic index `<reference.fna>.hash`, and then computes its precision (that is, the ratio between correct positions and returned positions) using as seeds kmers coming from the `<read.fastq>` file. Results are saved in a `<read.fastq>.stats<LEN>` csv file.
+
+It also processes the csv file, and it plots a histogram and a pie chart using the [`stats_analyzer.py`](./utilities/stats_analyzer.py) script.
+
+![Precision for the classical index on reference 'hg37.fna' and reads 'sv-10m-100-r.fastq' with size = 32](./data/sv-10m-100-r-pie-32.png)
 
 ## 🛠️ Utility folder
 The `utility` folder contains some useful helper scripts.
