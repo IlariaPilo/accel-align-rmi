@@ -16,6 +16,20 @@ usage() {
     exit 1
 }
 
+make_stats() {
+    # compile
+    echo -e "\n\033[1;96m [stats.sh] \033[0mCompiling the required programs"
+    make accindex stats
+
+    # create the index
+    echo -e "\n\033[1;96m [stats.sh] \033[0mGenerating the classic index"
+    ./accindex -l $len $ref
+
+    # run the stats
+    echo -e "\n\033[1;96m [stats.sh] \033[0mRunning the 'stats' program"
+    ./stats -l $len $ref $read
+}
+
 # read options from command line
 while getopts ":l:h" opt; do
     case $opt in
@@ -58,22 +72,24 @@ fi
 index_out="${ref}.hash" 
 stats_out="${read}.stats${len}"
 
-# compile
-echo -e "\n\033[1;96m [stats.sh] \033[0mCompiling the required programs"
-make accindex stats
-
-# create the index
-echo -e "\n\033[1;96m [stats.sh] \033[0mGenerating the classic index"
-./accindex -l $len $ref
-
-# run the stats
-echo -e "\n\033[1;96m [stats.sh] \033[0mRunning the 'stats' program"
-./stats -l $len $ref $read
+if [ ! -e $stats_out ]; then
+  # The file does not exist, so create it
+  make_stats
+else
+  # The file exists, so ask the user before executing
+  read -ep $'\033[1;33m [stats.sh] \033[0mstats output already exists. Do you want to regenerate it? [y/N] ' choice
+  case "$choice" in 
+    y|Y )
+      make_stats
+      ;;
+    * ) 
+      echo -e "\033[1;33m [stats.sh] \033[0mCommand not executed" ;;
+  esac
+fi
 
 # plot the charts
-
-
-
+echo -e "\n\033[1;96m [stats.sh] \033[0mGenerating plots..."
+python3 ./utilities/stats_analyzer.py $stats_out $len $(basename $ref) $(basename $read) --headless
 
 # delete tmp file
 read -ep $'\033[1;33m [stats.sh] \033[0mWould you like to remove the index file? [y/N] ' choice
@@ -83,7 +99,7 @@ y|Y )
     echo -e "\033[1;33m [stats.sh] \033[0mIndex removed"
     ;;
 * ) 
-    echo -e "\033[1;33m [stats.sh] \033[0mIndex NOT removed" ;;
+    echo -e "\033[1;33m [stats.sh] \033[0mIndex is still there!" ;;
 esac
 
 echo -e "\n\033[1;32m [stats.sh] \033[0mDone!\n"
