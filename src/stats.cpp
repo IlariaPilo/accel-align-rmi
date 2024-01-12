@@ -169,9 +169,9 @@ int main(int ac, char **av) {
     if (kmer_temp != 0)
         kmer_size = kmer_temp;
 
-    string ref_fn = av[1];            // reference file name
+    string ref_fn = av[ac-2];            // reference file name
     string idx_fn = ref_fn + ".hash"; // index file name
-    string read_fn = av[2];           // read file name
+    string read_fn = av[ac-1];           // read file name
     string stats_fn = read_fn + ".stats" + to_string(kmer_size);   // stats file name
 
     Reference ref;
