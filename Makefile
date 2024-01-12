@@ -18,7 +18,7 @@ HEADERS=$(wildcard ./include/*.h)
 TARGETS=key_gen accalign stats
 STATSSRC=src/stats.cpp
 CPUSRC=src/rmi.cpp src/reference.cpp src/accalign.cpp src/embedding.cpp src/ksw2_extz2_sse.c src/bseq.c src/index.c src/kthread.c src/kalloc.c src/sketch.c src/misc.c src/options.c src/seed.c
-OLD_IDXSRC=index.cpp embedding.cpp bseq.c index.c kthread.c kalloc.c sketch.c misc.c options.c 
+OLD_IDXSRC=src/index.cpp src/embedding.cpp src/bseq.c src/index.c src/kthread.c src/kalloc.c src/sketch.c src/misc.c src/options.c 
 IDXSRC=src/key_gen.cpp
 
 .PHONY: WFA-paper all
