@@ -156,13 +156,23 @@ class Reference {
 
 int main(int ac, char **av) {
     if (ac < 3) {
-        cerr << "./stats <ref.fa> <read.fastq>\n";
+        cerr << "./stats [-l LEN] <ref.fa> <read.fastq>\n";
         return 0;
     }
+
+    unsigned kmer_temp = 0;
+    for (int it = 1; it < ac; it++) {
+        if (strcmp(av[it], "-l") == 0)
+        kmer_temp = atoi(av[it + 1]);
+    }
+    // change default to 32
+    if (kmer_temp != 0)
+        kmer_size = kmer_temp;
+
     string ref_fn = av[1];            // reference file name
     string idx_fn = ref_fn + ".hash"; // index file name
     string read_fn = av[2];           // read file name
-    string stats_fn = read_fn + ".stats";   // stats file name
+    string stats_fn = read_fn + ".stats" + to_string(kmer_size);   // stats file name
 
     Reference ref;
     // Load the reference
