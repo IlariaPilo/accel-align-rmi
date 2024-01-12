@@ -165,7 +165,7 @@ int main(int ac, char **av) {
         if (strcmp(av[it], "-l") == 0)
         kmer_temp = atoi(av[it + 1]);
     }
-    // change default to 32
+
     if (kmer_temp != 0)
         kmer_size = kmer_temp;
 
@@ -206,7 +206,7 @@ int main(int ac, char **av) {
         size_t pred_pos=0, actual_pos=0;
 
         #pragma omp parallel for reduction(+:actual_pos, pred_pos)
-        for (size_t i=0; i<limit; i++) {
+        for (size_t i=0; i<limit; i+=kmer_size) {
             string kmer = read.substr(i,kmer_size);
             auto positions = ref.stats(kmer);
             pred_pos += positions.first;
