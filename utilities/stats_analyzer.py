@@ -1,10 +1,9 @@
-# 
-
 # Imports
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
+import os
 
 # Plot configuration
 plt.rcParams['figure.constrained_layout.use'] = True
@@ -22,7 +21,7 @@ FILE = sys.argv[1]
 LEN = sys.argv[2]
 REF_NAME = sys.argv[3]
 READ_NAME = sys.argv[4]
-PREFIX = FILE.rsplit('.')[0]
+PREFIX = os.path.abspath(FILE).rsplit('.')[0]
 headless = False
 if len(sys.argv) == 6:
     headless = True
