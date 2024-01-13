@@ -45,6 +45,7 @@ def make_hist(df):
     plt.text(1, 1.05, f'{REF_NAME} [{LEN}] {READ_NAME}', fontsize=6.5, horizontalalignment='right', transform=plt.gca().transAxes)
     plt.grid(True)
     plt.savefig(f'{PREFIX}-hist-{LEN}.png', bbox_inches='tight')
+    print(f'Histogram saved as {PREFIX}-hist-{LEN}.png')
 
 def make_pie(df):
     def get_label(ratio):
@@ -85,6 +86,7 @@ def make_pie(df):
             '\nreturned by the classic index.')
     plt.text(1.1, -0, f'{REF_NAME} [{LEN}] {READ_NAME}', fontsize=6.5, horizontalalignment='right', transform=plt.gca().transAxes)
     plt.savefig(f'{PREFIX}-pie-{LEN}.png', bbox_inches='tight')
+    print(f'Pie saved as {PREFIX}-pie-{LEN}.png')
 
 if __name__ == '__main__':
     df = load()
