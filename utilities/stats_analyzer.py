@@ -50,27 +50,36 @@ def make_pie(df):
     def get_label(ratio):
         if ratio == 0:
             return '$r = 0$'
-        if 0 < ratio <= 0.1:
-            return '$0 < r \leq 0.1$'
-        if 0.1 < ratio <= 0.2:
-            return '$0.1 < r \leq 0.2$'
-        if 0.2 < ratio <= 0.8:
-            return '$0.2 < r \leq 0.8$'
-        if 0.8 < ratio <= 1:
-            return '$0.8 < r \leq 1$'
+        if 0 < ratio <= 0.2:
+            return '$0 < r \leq 0.2$'
+        if 0.2 < ratio <= 0.4:
+            return '$0.2 < r \leq 0.4$'
+        if 0.4 < ratio <= 0.6:
+            return '$0.4 < r \leq 0.6$'
+        if 0.6 < ratio <= 0.8:
+            return '$0.6 < r \leq 0.8$'
+        if 0.8 < ratio < 1:
+            return '$0.8 < r < 1$'
+        if ratio == 1:
+            return '$r = 1$'
         assert(False)
 
     def get_order(label):
         if label=='$r = 0$':
             return 0
-        if label=='$0 < r \leq 0.1$':
+        if label=='$0 < r \leq 0.2$':
             return 1
-        if label=='$0.1 < r \leq 0.2$':
+        if label=='$0.2 < r \leq 0.4$':
             return 2 
-        if label=='$0.2 < r \leq 0.8$':
+        if label=='$0.4 < r \leq 0.6$':
             return 3
-        if label=='$0.8 < r \leq 1$':
+        if label=='$0.6 < r \leq 0.8$':
             return 4
+        if label=='$0.8 < r < 1$':
+            return 5
+        if label=='$r = 1$':
+            return 6
+        assert(False)
 
     df['label'] = df['ratio'].apply(lambda x : get_label(x))
     label_counts_df = df['label'].value_counts().reset_index()
