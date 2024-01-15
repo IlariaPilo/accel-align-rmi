@@ -48,8 +48,10 @@ def make_hist(df):
 
 def make_pie(df):
     def get_label(ratio):
-        if 0 <= ratio <= 0.2:
-            return '$0 \leq r \leq 0.2$'
+        if ratio == 0:
+            return '$r = 0$'
+        if 0 < ratio <= 0.2:
+            return '$0 < r \leq 0.2$'
         if 0.2 < ratio <= 0.4:
             return '$0.2 < r \leq 0.4$'
         if 0.4 < ratio <= 0.6:
@@ -61,7 +63,9 @@ def make_pie(df):
         assert(False)
 
     def get_order(label):
-        if label=='$0 \leq r \leq 0.2$':
+        if label=='$r = 0$':
+            return 0
+        if label=='$0 < r \leq 0.2$':
             return 1
         if label=='$0.2 < r \leq 0.4$':
             return 2 
