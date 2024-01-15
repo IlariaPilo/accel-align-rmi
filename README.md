@@ -66,7 +66,7 @@ The script first generates the classic index `<reference.fna>.hash`, and then co
 
 It also processes the csv file, and it plots a histogram and a pie chart using the [`stats_analyzer.py`](./utilities/stats_analyzer.py) script.
 
-![Precision for the classical index on reference 'hg37.fna' and reads 'sv-10m-100-r.fastq' with size = 32](./data/sv-10m-100-r-pie-32.png)
+![Precision for the classical index on reference 'hg37.fna' and reads 'sv-10m-100-r.fastq' with size = 32](./data/readme_pic.png)
 
 ## 🛠️ Utility folder
 The `utility` folder contains some useful helper scripts.

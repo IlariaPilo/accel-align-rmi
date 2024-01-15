@@ -44,3 +44,4 @@ data/benchmarking/*uint*
 # Indices
 */*_index/*
 data/*
+!data/*.png
