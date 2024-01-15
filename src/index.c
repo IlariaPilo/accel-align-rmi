@@ -479,7 +479,7 @@ void mm_idx_dump(FILE *fp, const mm_idx_t *mi)
 		fwrite(&mi->seq[i].len, 4, 1, fp);
 		sum_len += mi->seq[i].len;
 	}
-	for (i = 0; i < 1<<mi->b; ++i) {
+	for (i = 0; (int)i < 1<<mi->b; ++i) {
 		mm_idx_bucket_t *b = &mi->B[i];
 		khint_t k;
 		idxhash_t *h = (idxhash_t*)b->h;
@@ -516,33 +516,33 @@ mm_idx_t *mm_idx_load(FILE *fp)
 	for (i = 0; i < mi->n_seq; ++i) {
 		uint8_t l;
 		mm_idx_seq_t *s = &mi->seq[i];
-		fread(&l, 1, 1, fp);
+		(void)!fread(&l, 1, 1, fp);
 		if (l) {
 			s->name = (char*)kmalloc(mi->km, l + 1);
-			fread(s->name, 1, l, fp);
+			(void)!fread(s->name, 1, l, fp);
 			s->name[l] = 0;
 		}
-		fread(&s->len, 4, 1, fp);
+		(void)!fread(&s->len, 4, 1, fp);
 		s->offset = sum_len;
 		s->is_alt = 0;
 		sum_len += s->len;
 	}
-	for (i = 0; i < 1<<mi->b; ++i) {
+	for (i = 0; (int)i < 1<<mi->b; ++i) {
 		mm_idx_bucket_t *b = &mi->B[i];
 		uint32_t j, size;
 		khint_t k;
 		idxhash_t *h;
-		fread(&b->n, 4, 1, fp);
+		(void)!fread(&b->n, 4, 1, fp);
 		b->p = (uint64_t*)malloc(b->n * 8);
-		fread(b->p, 8, b->n, fp);
-		fread(&size, 4, 1, fp);
+		(void)!fread(b->p, 8, b->n, fp);
+		(void)!fread(&size, 4, 1, fp);
 		if (size == 0) continue;
 		b->h = h = kh_init(idx);
 		kh_resize(idx, h, size);
 		for (j = 0; j < size; ++j) {
 			uint64_t x[2];
 			int absent;
-			fread(x, 8, 2, fp);
+			(void)!fread(x, 8, 2, fp);
 			k = kh_put(idx, h, x[0], &absent);
 			assert(absent);
 			kh_val(h, k) = x[1];
@@ -550,7 +550,7 @@ mm_idx_t *mm_idx_load(FILE *fp)
 	}
 	if (!(mi->flag & MM_I_NO_SEQ)) {
 		mi->S = (uint32_t*)malloc((sum_len + 7) / 8 * 4);
-		fread(mi->S, 4, (sum_len + 7) / 8, fp);
+		(void)!fread(mi->S, 4, (sum_len + 7) / 8, fp);
 	}
 	return mi;
 }
@@ -740,11 +740,10 @@ mm_idx_intv_t *mm_idx_read_bed(const mm_idx_t *mi, const char *fn, int read_junc
 
 int mm_idx_bed_read(mm_idx_t *mi, const char *fn, int read_junc)
 {
-	int32_t i;
 	if (mi->h == 0) mm_idx_index_name(mi);
 	mi->I = mm_idx_read_bed(mi, fn, read_junc);
 	if (mi->I == 0) return -1;
-	for (i = 0; i < mi->n_seq; ++i) // TODO: eliminate redundant intervals
+	for (uint32_t i = 0; i < mi->n_seq; ++i) // TODO: eliminate redundant intervals
 		radix_sort_bed(mi->I[i].a, mi->I[i].a + mi->I[i].n);
 	return 0;
 }
@@ -754,7 +753,7 @@ int mm_idx_bed_junc(const mm_idx_t *mi, int32_t ctg, int32_t st, int32_t en, uin
 	int32_t i, left, right;
 	mm_idx_intv_t *r;
 	memset(s, 0, en - st);
-	if (mi->I == 0 || ctg < 0 || ctg >= mi->n_seq) return -1;
+	if (mi->I == 0 || ctg < 0 || ctg >= (int)mi->n_seq) return -1;
 	r = &mi->I[ctg];
 	left = 0, right = r->n;
 	while (right > left) {

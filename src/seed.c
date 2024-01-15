@@ -6,7 +6,7 @@ void mm_seed_mz_flt(void *km, mm128_v *mv, int32_t q_occ_max, float q_occ_frac)
 {
 	mm128_t *a;
 	size_t i, j, st;
-	if (mv->n <= q_occ_max || q_occ_frac <= 0.0f || q_occ_max <= 0) return;
+	if (mv->n <= (size_t)q_occ_max || q_occ_frac <= 0.0f || q_occ_max <= 0) return;
 	KMALLOC(km, a, mv->n);
 	for (i = 0; i < mv->n; ++i)
 		a[i].x = mv->a[i].x, a[i].y = i;
@@ -62,10 +62,10 @@ void mm_seed_select(int32_t n, mm_seed_t *a, int len, int max_occ, int max_max_o
 
 	if (n == 0 || n == 1) return;
 	for (i = m = 0; i < n; ++i)
-		if (a[i].n > max_occ) ++m;
+		if (a[i].n > (size_t)max_occ) ++m;
 	if (m == 0) return; // no high-frequency k-mers; do nothing
 	for (i = 0, last0 = -1; i <= n; ++i) {
-		if (i == n || a[i].n <= max_occ) {
+		if (i == n || a[i].n <= (size_t)max_occ) {
 			if (i - last0 > 1) {
 				int32_t ps = last0 < 0? 0 : (uint32_t)a[last0].q_pos>>1;
 				int32_t pe = i == n? len : (uint32_t)a[i].q_pos>>1;
@@ -78,7 +78,7 @@ void mm_seed_select(int32_t n, mm_seed_t *a, int len, int max_occ, int max_max_o
 						b[k] = (uint64_t)a[j].n<<32 | j;
 					ks_heapmake_uint64_t(k, b); // initialize the binomial heap
 					for (; j < en; ++j) { // if there are more, choose top max_high_occ
-						if (a[j].n < (int32_t)(b[0]>>32)) { // then update the heap
+						if ((int)a[j].n < (int32_t)(b[0]>>32)) { // then update the heap
 							b[0] = (uint64_t)a[j].n<<32 | j;
 							ks_heapdown_uint64_t(0, k, b);
 						}
@@ -87,7 +87,7 @@ void mm_seed_select(int32_t n, mm_seed_t *a, int len, int max_occ, int max_max_o
 				}
 				for (j = st; j < en; ++j) a[j].flt ^= 1;
 				for (j = st; j < en; ++j)
-					if (a[j].n > max_max_occ)
+					if (a[j].n > (size_t)max_max_occ)
 						a[j].flt = 1;
 			}
 			last0 = i;
@@ -106,11 +106,11 @@ mm_seed_t *mm_collect_matches(void *km, int *_n_m, int qlen, int max_occ, int ma
 	if (dist > 0 && max_max_occ > max_occ) {
 		mm_seed_select(n_m0, m, qlen, max_occ, max_max_occ, dist);
 	} else {
-		for (i = 0; i < n_m0; ++i)
-			if (m[i].n > max_occ)
+		for (i = 0; (int)i < n_m0; ++i)
+			if (m[i].n > (size_t)max_occ)
 				m[i].flt = 1;
 	}
-	for (i = 0, n_m = 0, *rep_len = 0, *n_a = 0; i < n_m0; ++i) {
+	for (i = 0, n_m = 0, *rep_len = 0, *n_a = 0; (int)i < n_m0; ++i) {
 		mm_seed_t *q = &m[i];
 		//fprintf(stderr, "X\t%d\t%d\t%d\n", q->q_pos>>1, q->n, q->flt);
 		if (q->flt) {
