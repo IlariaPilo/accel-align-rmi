@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -eq 0 ]; then
-  echo -e "\n\033[1;96m\tbash run.sh <input_dir> \033[0m"
+  echo -e "\n\033[1;96mbash run.sh <input_dir> \033[0m"
   echo -e "Runs the previously built container."
   echo -e "<input_dir> contains the <reference.fna> and <read.fastq> files."
   exit
