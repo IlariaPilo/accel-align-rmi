@@ -366,7 +366,7 @@ void AccAlign::cpu_root_fn(tbb::concurrent_bounded_queue<ReadCnt> *inputQ,
       break;
     }
 
-    tbb::task_scheduler_init init(g_ncpus);
+    //tbb::task_scheduler_init init(g_ncpus);
     tbb::parallel_for(tbb::blocked_range<size_t>(0, nreads),
                       Parallel_mapper(std::get<0>(cpu_readcnt), std::get<1>(cpu_readcnt), this)
     );
@@ -409,8 +409,8 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
                                        int ref_id) {
   int max_cov = 0;
   unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
-  //size_t ntotal_hits = 0;
-  int ntotal_hits = 0;
+  size_t ntotal_hits = 0;
+  //int ntotal_hits = 0;
   size_t b[nkmers], e[nkmers];
   unsigned kmer_idx = 0;
   unsigned ori_slide_bk = ori_slide;
@@ -418,10 +418,6 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   bool high_freq = false;
 
   uint32_t pos_idx;
-
-
-    // FIXME - remove
-    cout << "I'm in the pigeonhole!\n";
 
   // Take non-overlapping seeds and find all hits
   auto start = std::chrono::system_clock::now();
@@ -615,8 +611,8 @@ void AccAlign::pigeonhole_query_sort(char *Q,
                                      int ref_id) {
   unsigned max_cov = 0;
   unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
-  //size_t ntotal_hits = 0;
-  int ntotal_hits = 0;
+  size_t ntotal_hits = 0;
+  //int ntotal_hits = 0;
   size_t b[nkmers], e[nkmers];
   unsigned kmer_idx = 0;
   unsigned nseed_freq = 0;
@@ -624,13 +620,6 @@ void AccAlign::pigeonhole_query_sort(char *Q,
 
   uint32_t pos_idx;
 
-
-    // FIXME - remove
-    cout << "I'm in the pigeonhole!\n";
-  //char _kmer_[17];
-  //_kmer_[16] = 0;
-
-  //std::string _code_ = "ACGT";
 
   // Take non-overlapping seeds and find all hits
   auto start = std::chrono::system_clock::now();
@@ -643,8 +632,6 @@ void AccAlign::pigeonhole_query_sort(char *Q,
     pos_idx = get_lookup(ref_id, k);
 
     if (pos_idx == (uint32_t)-1) {
-      //std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
-      //std::cerr << "           " << "read " << _kmer_ << std::endl;
       b[kmer_idx] = 0;     
       e[kmer_idx] = 0;
     } else {
@@ -993,11 +980,11 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0,
 
   int32_t k = get_mi(ref_id)->k;
 
-  for (size_t i = 0; i < n_m0; ++i) {
+  for (int i = 0; i < n_m0; ++i) {
     ntotal_hits += m[i].n;
     top_pos[i] = normalize_pos(m[i].cr[0], m[i].q_pos, k, rlen);
   }
-  assert(ntotal_hits == n_a);
+  assert((long int)ntotal_hits == n_a);
 
   size_t nprocessed = 0;
   uint64_t last_pos = MAX_POS, last_q_pos = 0; //last query start pos
@@ -1097,7 +1084,7 @@ void AccAlign::fetch_candidates(mm128_v &mv, int32_t mid_occ, size_t rlen, int e
 
   // ignore the mm has more than mid_occ hits
   int32_t max_max_occ = 4095, occ_dist = 500;
-  float q_occ_frac = 0.02;
+  //float q_occ_frac = 0.02;
   int n_m0, rep_len, n_mini_pos;
   int64_t n_a;
   uint64_t *mini_pos;
@@ -1184,20 +1171,13 @@ void AccAlign::pigeonhole_query(char *Q,
                                 bool &high_freq, int ref_id) {
   int max_cov = 0;
   unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
-  // size_t ntotal_hits = 0;
-  int ntotal_hits = 0;
+  size_t ntotal_hits = 0;
+  //int ntotal_hits = 0;
   size_t b[nkmers], e[nkmers];
   unsigned kmer_idx = 0;
   unsigned nseed_freq = 0;
 
   uint32_t pos_idx;
-
-    // FIXME - remove
-    cout << "I'm in the pigeonhole!\n";
-  //char _kmer_[17];
-  //_kmer_[16] = 0;
-
-  //std::string _code_ = "ACGT";
 
   // Take non-overlapping seeds and find all hits
   auto start = std::chrono::system_clock::now();
@@ -1210,8 +1190,6 @@ void AccAlign::pigeonhole_query(char *Q,
     pos_idx = get_lookup(ref_id, k);
 
     if (pos_idx == (uint32_t)-1) {
-      //std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
-      //std::cerr << "           " << "read " << _kmer_ << std::endl;
       b[kmer_idx] = 0;     
       e[kmer_idx] = 0;
     } else {
@@ -2372,7 +2350,7 @@ void AccAlign::align_wrapper(int tid, int soff, int eoff, Read *ptlread, Read *p
   if (!ptlread2) {
     // single-end read alignment
     string sams[eoff];
-    tbb::task_scheduler_init init(g_ncpus);
+    //tbb::task_scheduler_init init(g_ncpus);
     tbb::parallel_for(tbb::blocked_range<size_t>(soff, eoff), Tbb_aligner(ptlread, sams, this));
 
     auto start = std::chrono::system_clock::now();
@@ -2975,73 +2953,40 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
 
   cerr << "Reading fastq file " << F1 << ", " << F2 << "\n";
 
-  // replace this broadcast node with source node
-//  if (!is_paired) {
-//    graph g;
-//
-//    source_node < Read * > input_node(g, [&](Read *&r) -> bool {
-//      auto start = std::chrono::system_clock::now();
-//
-//      if (gzeof(in1) || (gzgetc(in1) == EOF))
-//        return false;
-//
-//      r = new Read;
-//      in1 >> *r;
-//
-//      auto end = std::chrono::system_clock::now();
-//      auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-//      input_io_time += elapsed.count();
-//
-//      if (!strlen(r->seq))
-//        return false;
-//
-//      return true;
-//
-//    }, false);
-//
-//    int max_objects = 10000000;
-//    limiter_node < Read * > lnode(g, max_objects);
-//    function_node < Read * , Read * > map_node(g, unlimited, tbb_map(this));
-//    function_node < Read * , Read * > align_node(g, unlimited, tbb_align(this));
-//    function_node < Read * , continue_msg > score_node(g, 1, tbb_score(this));
-//
-//    make_edge(score_node, lnode.decrement);
-//    make_edge(align_node, score_node);
-//    make_edge(map_node, align_node);
-//    make_edge(lnode, map_node);
-//    make_edge(input_node, map_node);
-//    input_node.activate();
-//    g.wait_for_all();
-//  } else {
-
+  /* we don't need this yet
+  TODO -- fix in case we must use paired mode
   if (is_paired) {
     graph g;
-    source_node<ReadPair> input_node(g, [&](ReadPair &rp) -> bool {
-      auto start = std::chrono::system_clock::now();
+    // Define an input_node instead of source_node
+    // TODO --- check !!
+    input_node<ReadPair> i_node(g, [&](ReadPair &rp) -> continue_msg {
+        auto start = std::chrono::system_clock::now();
 
-      bool end1 = gzgetc(in1) == EOF;
-      bool end2 = gzgetc(in2) == EOF;
-      if (gzeof(in1) || end1 || end2)
-        return false;
+        bool end1 = gzgetc(in1) == EOF;
+        bool end2 = gzgetc(in2) == EOF;
+        if (gzeof(in1) || end1 || end2)
+            return continue_msg(); // Return continue_msg instead of bool.
 
-      Read *r = new Read;
-      in1 >> *r;
-      if (!strlen(r->seq))
-        return false;
-      get<0>(rp) = r;
+        Read *r = new Read;
+        in1 >> *r;
+        if (!strlen(r->seq))
+            return continue_msg(); // Return continue_msg.
 
-      Read *r2 = new Read;
-      in2 >> *r2;
-      if (!strlen(r2->seq))
-        return false;
-      get<1>(rp) = r2;
+        get<0>(rp) = r;
 
-      auto end = std::chrono::system_clock::now();
-      auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-      input_io_time += elapsed.count();
+        Read *r2 = new Read;
+        in2 >> *r2;
+        if (!strlen(r2->seq))
+            return continue_msg(); // Return continue_msg.
 
-      return true;
-    }, false);
+        get<1>(rp) = r2;
+
+        auto end = std::chrono::system_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+        input_io_time += elapsed.count();
+
+        return continue_msg(); // Return continue_msg.
+    });
 
     int max_objects = 1000000;
     limiter_node<ReadPair> lnode(g, max_objects);
@@ -3049,14 +2994,15 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
     function_node<ReadPair, ReadPair> align_node(g, unlimited, tbb_align(this));
     function_node<ReadPair, continue_msg> score_node(g, 1, tbb_score(this));
 
-    make_edge(score_node, lnode.decrement);
+    make_edge(score_node, lnode.decrementer()); // it returns decrement so it should be correct
     make_edge(align_node, score_node);
     make_edge(map_node, align_node);
     make_edge(lnode, map_node);
-    make_edge(input_node, map_node);
-    input_node.activate();
+    make_edge(i_node, map_node);
+    i_node.activate();
     g.wait_for_all();
   }
+  */
 
   gzclose(in1);
   gzclose(in2);
@@ -3135,7 +3081,7 @@ int main(int ac, char **av) {
   cerr << "Using " << g_ncpus << " cpus " << endl;
   cerr << "Using kmer length " << kmer_len << " and step size " << kmer_step << endl;
 
-  tbb::task_scheduler_init init(g_ncpus);
+  //tbb::task_scheduler_init init(g_ncpus);
   make_code();
 
   // load reference once

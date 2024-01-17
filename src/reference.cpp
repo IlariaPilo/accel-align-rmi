@@ -284,7 +284,7 @@ uint32_t Reference::index_lookup32(uint64_t key) {
   l = std::max(int32_t(0), static_cast<int32_t>(guess_pos-err));
   r = std::min(static_cast<int32_t>(guess_pos+err), static_cast<int32_t>(nkeyv/2-1));
 
-  // check in the keyv array - FIXME
+  // check in the keyv array
   while (l <= r) {
       guess_key = keyv[guess_pos*2];
       // if it's the same, done
@@ -366,7 +366,7 @@ Reference::Reference(const char *F, unsigned kmer_len, bool _enable_minimizer, c
     load_reference(F);
   } else{
     unsigned bit_len = kmer_len > 16? 64 : 32;
-    // initialize load_index and index_lookup TODO
+    // initialize load_index and index_lookup
     if (bit_len==32) {
       load_index = std::bind(&Reference::load_index32, this, std::placeholders::_1);
       index_lookup = std::bind(&Reference::index_lookup32, this, std::placeholders::_1);

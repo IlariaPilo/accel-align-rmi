@@ -51,7 +51,7 @@ struct Read {
   }
 
 };
-///////////////// FIXME /////////////////
+
 class Reference {
  public:
   void load_index32(const char *F);   
@@ -82,7 +82,6 @@ class Reference {
 
   ~Reference();
 };
-///////////////// END /////////////////
 
 typedef std::tuple<Read *, Read *, int> ReadCnt;
 

@@ -73,7 +73,7 @@ RMI::~RMI() {
     }
 }
 
-// lookup -> TODO, up to now it's a wrapper
+// lookup
 uint64_t RMI::lookup(uint64_t key, size_t* err) {
     assert(is_init);
     return rmi_lookup(key, err);
