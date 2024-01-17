@@ -13,8 +13,26 @@ git clone --recursive https://github.com/IlariaPilo/accel-align-rmi
 ## ⏬ Download a reference string【 optional 】
 The script [`/data/download.sh`](./data/download.sh) can be used to download and post-process a reference string. The downloaded string is called `hg37.fna`, and it is saved in the current working directory.
 
+## 🐋 Run in Docker
+To run the program inside a container, run the following commands:
+```sh
+cd docker
+bash build.sh
+bash run.sh <data_directory>
+```
+where `<data_directory>` is the directory storing the reference genome and the reads.
+
+Inside the container, the content of `<data_directory>` can be found in the `accel-align-rmi/genome/` folder.
+
+<!--
+The generated credentials are (with `sudo` permissions):
+```
+USER: aligner
+PASSWORD: password
+``` -->
+
 ## 🗺️ Configure the TBB path
-Accel-Align-RMI requires [TBB](https://github.com/01org/tbb/releases/tag/2019_U5). After installing the library, it is necessary to modify the value of the `TBB_LIB` variable in the Makefile, setting it to the path of the shared object. Fox example:
+Accel-Align-RMI requires [TBB](https://github.com/01org/tbb). If you want to run the aligner outside the container, it is necessary to install the library and modify the value of the `TBB_LIB` variable in the Makefile, setting it to the path of the shared object. Fox example:
 ```diff
 - TBB_LIB =	## your path here ##
 + TBB_LIB = /usr/lib/x86_64-linux-gnu/libtbb.so
@@ -118,19 +136,3 @@ Search the key in <filename> file.
 Passing 'min' as key returns the minimum, passing 'max' the maximum.
 ```
 
-## 🐋 Docker folder
-**_⚠️ The Docker folder functionality is currently broken, as the newest version of tbb is not compatible with accel-align :(_** 
-
-To run the program inside a container, run the following commands:
-```
-cd docker
-bash build.sh
-bash run.sh <data_directory>
-```
-where _data_directory_ is the directory storing the reference string (and the results).
-
-The generated credentials are (with `sudo` permissions):
-```
-USER: aligner
-PASSWORD: password
-```
