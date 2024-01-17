@@ -313,7 +313,7 @@ uint32_t Reference::index_lookup32(uint64_t key) {
  */
 uint32_t Reference::index_lookup64(uint64_t key) {
   size_t err;
-  uint64_t guess_key;
+  uint64_t* guess_key;
   uint32_t guess_pos;
   uint32_t l, r;
   // call the lookup function of the index
@@ -323,14 +323,14 @@ uint32_t Reference::index_lookup64(uint64_t key) {
   l = std::max(int32_t(0), static_cast<int32_t>(guess_pos-err));
   r = std::min(static_cast<int32_t>(guess_pos+err), static_cast<int32_t>(nkeyv/2-1));
 
-  // check in the keyv array - FIXME
+  // check in the keyv array
   while (l <= r) {
-      guess_key = keyv[guess_pos*3];
+      guess_key = reinterpret_cast<uint64_t*>(keyv+(guess_pos*3));
       // if it's the same, done
-      if (guess_key == key)
+      if (*guess_key == key)
         return guess_pos;
       // else, do binary search
-      if (guess_key < key) {
+      if (*guess_key < key) {
           l = guess_pos + 1;
       } else {
           r = guess_pos - 1;
