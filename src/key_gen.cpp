@@ -271,11 +271,13 @@ bool Index::key_gen64() {
     // the previous value
     prec = uint64_t(-1);
     size_t i_buf;
+    uint64_t *point;
 
     for (i = 0, i_buf = 0; i < valid && i_buf < elements; i++) {
       if (data[i].key != prec) {
         //this is what we have to change
-        buf[i_buf] = data[i].key;
+        point = reinterpret_cast<uint64_t*>(buf+i_buf);
+        *point = data[i].key;
         i_buf += 2;
         buf[i_buf++] = i;
         prec = data[i].key;
@@ -289,10 +291,11 @@ bool Index::key_gen64() {
     // the previous value
     prec = uint64_t(-1);
     uint32_t buf[3];
+    uint64_t *point = reinterpret_cast<uint64_t*>(buf);
 
     for (size_t i = 0; i < valid; i++) {
       if (data[i].key != prec) {
-        buf[0] = data[i].key;
+        *point = data[i].key;
         buf[2] = i;
         fo_key.write((char *) buf, 12);
         prec = data[i].key;
