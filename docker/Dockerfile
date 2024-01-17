@@ -1,4 +1,4 @@
-FROM rust:1.68.2
+FROM rust
 
 # Some arguments
 ARG USER_ID
