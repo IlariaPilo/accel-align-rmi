@@ -21,24 +21,28 @@ CPUSRC=src/rmi.cpp src/reference.cpp src/accalign.cpp src/embedding.cpp src/ksw2
 OLD_IDXSRC=src/index.cpp src/embedding.cpp src/bseq.c src/index.c src/kthread.c src/kalloc.c src/sketch.c src/misc.c src/options.c 
 IDXSRC=src/key_gen.cpp
 
-.PHONY: WFA-paper all
-all: WFA-paper ${TARGETS}
+.PHONY: all
+all: ${TARGETS}
 
-WFA-paper:
+WFA-paper: .wfa
 	$(MAKE) -C WFA-paper clean all
 
-key_gen: ${IDXSRC} ${HEADERS}
+.wfa:
+	touch .wfa
+
+key_gen: WFA-paper ${IDXSRC} ${HEADERS}
 	${CXX} -o $@ ${IDXSRC} ${ACCLDFLAGS} ${TBBFLAGS} ${CXXFLAGS} -pthread
 
-accalign: ${CPUSRC} ${HEADERS}
+accalign: WFA-paper ${CPUSRC} ${HEADERS}
 	${CXX} -o $@ ${CPUSRC} ${ACCLDFLAGS} ${TBBFLAGS} ${CXXFLAGS} -ldl -pthread
 
-stats: ${STATSSRC} ${HEADERS}
+stats: WFA-paper ${STATSSRC} ${HEADERS}
 	${CXX} -o $@ ${STATSSRC} ${ACCLDFLAGS} ${CXXFLAGS} -fopenmp
 
 accindex: WFA-paper ${OLD_IDXSRC} ${HEADERS}
 	${CXX} -o $@ ${OLD_IDXSRC} ${ACCLDFLAGS} ${TBBFLAGS} ${CXXFLAGS} -pthread
 
 clean:
+	rm .wfa 
 	$(MAKE) -C WFA-paper clean
 	rm ${TARGETS}

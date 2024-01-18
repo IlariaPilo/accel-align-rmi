@@ -45,3 +45,11 @@ data/benchmarking/*uint*
 */*_index/*
 data/*
 !data/*.png
+
+# Build
+.wfa
+key_gen
+accalign
+stats
+accindex
+WFA-paper/*

@@ -1,6 +1,7 @@
 [submodule "WFA-paper"]
 	path = WFA-paper
 	url = https://github.com/smarco/WFA-paper
+	ignore = dirty
 [submodule "rmi"]
 	path = rmi
 	url = https://github.com/IlariaPilo/RMI
