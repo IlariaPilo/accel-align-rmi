@@ -22,7 +22,7 @@ bash run.sh <data_directory>
 ```
 where `<data_directory>` is the directory storing the reference genome and the reads.
 
-Inside the container, the content of `<data_directory>` can be found in the `accel-align-rmi/genome/` folder.
+Inside the container, the content of `<data_directory>` can be found in the `/home/accaaccel-align-rmi/genome/` folder.
 
 <!--
 The generated credentials are (with `sudo` permissions):

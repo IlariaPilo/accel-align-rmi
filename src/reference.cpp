@@ -226,7 +226,7 @@ void Reference::load_reference(const char *F){
       cerr << "fail to open " << F << '\n';
       return;
     }
-    cerr << "loading references\n";
+    cerr << "Loading reference " << F << "\n";
     string buf = "";
     while (!fi.eof()) {
       getline(fi, buf);
