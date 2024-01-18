@@ -1,9 +1,5 @@
 FROM rust
 
-# Some arguments
-ARG USER_ID
-ARG GROUP_ID
-
 # Install some stuff
 RUN apt-get update && \
     # apt-get install -y vim libtbb-dev git python python3-pip sudo zstd
@@ -17,7 +13,7 @@ RUN echo 'echo "\
 > /root/.bashrc
 
 
-WORKDIR /home/aligner/accel-align-rmi
+WORKDIR /home/accel-align-rmi
 
 # Run a shell as first operation
 CMD ["/bin/bash"]

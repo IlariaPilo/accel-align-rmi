@@ -45,8 +45,8 @@ bash index.sh [OPTIONS] <reference.fna>
 ```
 The script supports the following options:
 ```
-  -t, --threads  THREADS  The number of threads to be used. Default = all
-  -l, --len      LEN      The length of the kmer. Default = 32
+  -t, --threads  THREADS  The number of threads to be used [all]
+  -l, --len      LEN      The length of the kmer [32]
   -h, --help              Display this help message
 ```
 It generates an output directory `<reference_string>_index<LEN>`, containing all index-related files, including:
@@ -62,8 +62,8 @@ The aligner can be built with `make accalign`, and then run as:
 ```
 The following options are available:
 ```
-  -t  INT   The number of threads to be used. Default = all
-  -l  INT   The length of the kmer. Default = 32
+  -t  INT   The number of threads to be used [all]
+  -l  INT   The length of the kmer [32]
   -o        Name of the output file
 ```
 ⚠️ The original Accel-Align allows more options, which are not yet supported in the RMI version.
@@ -77,7 +77,7 @@ bash stats.sh [OPTIONS] <reference.fna> <read.fastq>
 ```
 The following options are available:
 ```
-  -l, --len   LEN   The length of the kmer. Default = 32
+  -l, --len   LEN   The length of the kmer [32]
   -h, --help        Display this help message
 ```
 The script first generates the classic index `<reference.fna>.hash`, and then computes its precision (that is, the ratio between correct positions and returned positions) using as seeds kmers coming from the `<read.fastq>` file. Results are saved in a `<read.fastq>.stats<LEN>` csv file.

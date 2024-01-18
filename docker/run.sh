@@ -13,8 +13,8 @@ BASE_DIR=$(readlink -f "${_source_dir_}/..")
 
 input_dir=$(realpath $input_dir)
 
-echo "Using input directory $input_dir"
+echo "Mounting directory $input_dir in `/home/accel-align-rmi/genomes`."
 
-docker run --rm -v $BASE_DIR:/home/aligner/accel-align-rmi \
-    -v $input_dir:/home/aligner/accel-align-rmi/genomes \
+docker run --rm -v $BASE_DIR:/home/accel-align-rmi \
+    -v $input_dir:/home/accel-align-rmi/genomes \
     -it docker-align
