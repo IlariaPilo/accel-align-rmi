@@ -1294,6 +1294,7 @@ void AccAlign::pigeonhole_query(char *Q,
 
     // add next element
     b[min_kmer]++;
+    // FIXME broken line
     uint32_t next_pos = b[min_kmer] < e[min_kmer] ? get_posv(ref_id)[b[min_kmer]] : MAX_POS;
     if (next_pos != MAX_POS) {
       uint32_t shift_pos = rel_off[min_kmer] + ori_slide;

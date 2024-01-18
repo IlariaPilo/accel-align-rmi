@@ -51,7 +51,7 @@ void Reference::load_index32(const char *F) {
     exit(0);
   }
   fi.read((char *) &nkeyv_true, 8);
-  nkeyv = nkeyv_true*2;
+  nkeyv = (nkeyv_true+1)*2;
   fi.close();
 
   fi.open(pos_f.c_str(), ios::binary);
@@ -122,7 +122,7 @@ void Reference::load_index64(const char *F) {
     exit(0);
   }
   fi.read((char *) &nkeyv_true, 8);
-  nkeyv = nkeyv_true * 3;
+  nkeyv = (nkeyv_true+1) * 3;
   fi.close();
 
   fi.open(pos_f.c_str(), ios::binary);
@@ -158,10 +158,10 @@ void Reference::load_index64(const char *F) {
 
   cerr << "Printing first 4 entries" << endl;
   cerr << "------ keyv ------" << endl;
-  cerr << (uint64_t)keyv[0] << " [" << keyv[2] << " pos]" << endl;      
-  cerr << (uint64_t)keyv[3] << " [" << keyv[5] << " pos]" << endl;  
-  cerr << (uint64_t)keyv[6] << " [" << keyv[8] << " pos]" << endl;  
-  cerr << (uint64_t)keyv[9] << " [" << keyv[11] << " pos]" << endl;
+  cerr << *((uint64_t*)(keyv+0)) << " [" << keyv[2] << " pos]" << endl;      
+  cerr << *((uint64_t*)(keyv+3)) << " [" << keyv[5] << " pos]" << endl;  
+  cerr << *((uint64_t*)(keyv+6)) << " [" << keyv[8] << " pos]" << endl;  
+  cerr << *((uint64_t*)(keyv+9)) << " [" << keyv[11] << " pos]" << endl;
 
   fd = open(pos_f.c_str(), O_RDONLY);
   base = reinterpret_cast<char *>(mmap(NULL, 8 + posv_sz, PROT_READ, MMAP_FLAGS, fd, 0));

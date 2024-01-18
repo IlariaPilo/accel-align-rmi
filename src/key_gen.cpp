@@ -136,7 +136,7 @@ bool Index::key_gen32() {
 
   size_t i;
 
-  for (i = 0; i < data.size() && data[i].key != uint32_t(-1); i++) {
+  for (i = 0; i < data.size() && data[i].pos != uint32_t(-1); i++) {
     if (data[i].key != prec) {
         prec = data[i].key;
         eof ++;
@@ -151,20 +151,23 @@ bool Index::key_gen32() {
   // write out keys
   try {
     cerr << "Fast writing uint32 keys (" << eof << ")\n";
-    size_t elements = eof*2;
+    size_t elements = eof*2+2;
     uint32_t *buf = new uint32_t[elements];
     // the previous value
     prec = uint32_t(-1); 
     size_t i_buf;
 
-    for (i = 0, i_buf = 0; i < valid && i_buf < elements; i++) {
+    for (i = 0, i_buf = 0; i < valid && i_buf < (elements-2); i++) {
       if (data[i].key != prec) {
-        //this is what we have to change
         buf[i_buf++] = data[i].key;
         buf[i_buf++] = i;
         prec = data[i].key;
       }
     }
+    ////////// add fake last element //////////
+    buf[elements-2] = 0;
+    buf[elements-1] = valid;
+    ///////////////////////////////////////////
     fo_key.write((char *) buf, elements*sizeof(uint32_t));
     delete[] buf;
 
@@ -182,6 +185,11 @@ bool Index::key_gen32() {
         prec = data[i].key;
       }
     }
+    ////////// add fake last element //////////
+    buf[0] = 0;
+    buf[1] = valid;
+    fo_key.write((char *) buf, 8);
+    ///////////////////////////////////////////
   }
   cerr << "Key generation complete!\n\n";
   fo_key.close();
@@ -251,7 +259,7 @@ bool Index::key_gen64() {
 
   size_t i;
 
-  for (i = 0; i < data.size() && data[i].key != uint64_t(-1); i++) {
+  for (i = 0; i < data.size() && data[i].pos != uint64_t(-1); i++) {
     if (data[i].key != prec) {
         prec = data[i].key;
         eof ++;
@@ -266,14 +274,14 @@ bool Index::key_gen64() {
   // write out keys
   try {
     cerr << "Fast writing uint64 keys (" << eof << ")\n";
-    size_t elements = eof*3;
+    size_t elements = eof*3+3;
     uint32_t *buf = new uint32_t[elements];
     // the previous value
     prec = uint64_t(-1);
     size_t i_buf;
     uint64_t *point;
 
-    for (i = 0, i_buf = 0; i < valid && i_buf < elements; i++) {
+    for (i = 0, i_buf = 0; i < valid && i_buf < (elements-3); i++) {
       if (data[i].key != prec) {
         //this is what we have to change
         point = reinterpret_cast<uint64_t*>(buf+i_buf);
@@ -283,6 +291,11 @@ bool Index::key_gen64() {
         prec = data[i].key;
       }
     }
+    ////////// add fake last element //////////
+    buf[elements-3] = 0;
+    buf[elements-2] = 0;
+    buf[elements-1] = valid;
+    ///////////////////////////////////////////
     fo_key.write((char *) buf, elements*sizeof(uint32_t));
     delete[] buf;
 
@@ -301,6 +314,11 @@ bool Index::key_gen64() {
         prec = data[i].key;
       }
     }
+    ////////// add fake last element //////////
+    *point = 0;
+    buf[2] = valid;
+    fo_key.write((char *) buf, 12);
+    ///////////////////////////////////////////
   }
   cerr << "Key generation complete!\n\n";
   fo_key.close();
