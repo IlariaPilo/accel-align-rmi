@@ -58,9 +58,9 @@ class Reference {
   void load_index64(const char *F);
   std::function<void(const char*)> load_index;
 
-  uint32_t index_lookup32(uint64_t key);
-  uint32_t index_lookup64(uint64_t key);
-  std::function<uint32_t(uint64_t)> index_lookup;
+  void index_lookup32(uint64_t key, size_t* b, size_t* e);
+  void index_lookup64(uint64_t key, size_t* b, size_t* e);
+  std::function<void(uint64_t,size_t*,size_t*)> index_lookup;
 
   uint32_t get_keyv_val32(uint32_t idx);
   uint32_t get_keyv_val64(uint32_t idx);

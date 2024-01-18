@@ -417,8 +417,6 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   unsigned nseed_freq = 0;
   bool high_freq = false;
 
-  uint32_t pos_idx;
-
   // Take non-overlapping seeds and find all hits
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
@@ -427,20 +425,7 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
       k = (k << 2) + *(Q + j);
     }
     // lookup to get the position of the hash
-    pos_idx = get_lookup(ref_id, k);
-
-    if (pos_idx == (uint32_t)-1) {
-      b[kmer_idx] = 0;     
-      e[kmer_idx] = 0;
-    } else {
-      b[kmer_idx] = get_keyv_val(ref_id,pos_idx);     // the first position of hash
-      // the first position of next hash FIXME
-      if (pos_idx == get_nkeyv(ref_id)-1) {
-        e[kmer_idx] = get_nposv(ref_id);
-      } else {
-        e[kmer_idx] = get_keyv_val(ref_id,pos_idx+1); 
-      }
-    }
+    get_lookup(ref_id, k, b+kmer_idx, e+kmer_idx);
     
     if (e[kmer_idx] - b[kmer_idx] >= max_occ)
       nseed_freq++;
@@ -618,9 +603,6 @@ void AccAlign::pigeonhole_query_sort(char *Q,
   unsigned nseed_freq = 0;
   bool high_freq = false;
 
-  uint32_t pos_idx;
-
-
   // Take non-overlapping seeds and find all hits
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
@@ -629,20 +611,7 @@ void AccAlign::pigeonhole_query_sort(char *Q,
       k = (k << 2) + *(Q + j);
     }
     // lookup to get the position of the hash
-    pos_idx = get_lookup(ref_id, k);
-
-    if (pos_idx == (uint32_t)-1) {
-      b[kmer_idx] = 0;     
-      e[kmer_idx] = 0;
-    } else {
-      b[kmer_idx] = get_keyv_val(ref_id,pos_idx);     // the first position of hash
-      // the first position of next hash
-      if (pos_idx == get_nkeyv(ref_id)-1) {
-        e[kmer_idx] = get_nposv(ref_id);
-      } else {
-        e[kmer_idx] = get_keyv_val(ref_id,pos_idx+1); 
-      }
-    }
+    get_lookup(ref_id, k, b+kmer_idx, e+kmer_idx);
     
     if (e[kmer_idx] - b[kmer_idx] >= max_occ)
       nseed_freq++;
@@ -1177,8 +1146,6 @@ void AccAlign::pigeonhole_query(char *Q,
   unsigned kmer_idx = 0;
   unsigned nseed_freq = 0;
 
-  uint32_t pos_idx;
-
   // Take non-overlapping seeds and find all hits
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
@@ -1187,20 +1154,7 @@ void AccAlign::pigeonhole_query(char *Q,
       k = (k << 2) + *(Q + j);
     }
     // lookup to get the position of the hash
-    pos_idx = get_lookup(ref_id, k);
-
-    if (pos_idx == (uint32_t)-1) {
-      b[kmer_idx] = 0;     
-      e[kmer_idx] = 0;
-    } else {
-      b[kmer_idx] = get_keyv_val(ref_id,pos_idx);     // the first position of hash
-      // the first position of next hash
-      if (pos_idx == get_nkeyv(ref_id)-1) {
-        e[kmer_idx] = get_nposv(ref_id);
-      } else {
-        e[kmer_idx] = get_keyv_val(ref_id,pos_idx+1); 
-      }
-    }
+    get_lookup(ref_id, k, b+kmer_idx, e+kmer_idx);
     
     if (e[kmer_idx] - b[kmer_idx] >= max_occ)
       nseed_freq++;

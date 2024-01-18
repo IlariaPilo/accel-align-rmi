@@ -272,7 +272,7 @@ void Reference::load_reference(const char *F){
  * @param key The value we want to search in the index.
  * @return The position of key in the index container, UINT32_T(-1) if the key was not found.
  */
-uint32_t Reference::index_lookup32(uint64_t key) {
+void Reference::index_lookup32(uint64_t key, size_t* b, size_t* e) {
   size_t err;
   uint32_t guess_key, guess_pos;
   uint32_t l, r;
@@ -288,8 +288,11 @@ uint32_t Reference::index_lookup32(uint64_t key) {
   while (l <= r) {
       guess_key = keyv[guess_pos*2];
       // if it's the same, done
-      if (guess_key == key32)
-        return guess_pos;
+      if (guess_key == key32) {
+        *b = get_keyv_val(guess_pos);
+        *e = get_keyv_val(guess_pos+1);
+        return;
+      }
       // else, do binary search
       if (guess_key < key32) {
           l = guess_pos + 1;
@@ -300,7 +303,8 @@ uint32_t Reference::index_lookup32(uint64_t key) {
       guess_pos = l + (r-l)/2;
   }
   // not found :(
-  return -1;
+  *b = 0;
+  *e = 0;
 }
 
 /**
@@ -311,7 +315,7 @@ uint32_t Reference::index_lookup32(uint64_t key) {
  * @param key The value we want to search in the index.
  * @return The position of key in the index container, UINT32_T(-1) if the key was not found.
  */
-uint32_t Reference::index_lookup64(uint64_t key) {
+void Reference::index_lookup64(uint64_t key, size_t* b, size_t* e) {
   size_t err;
   uint64_t* guess_key;
   uint32_t guess_pos;
@@ -327,8 +331,11 @@ uint32_t Reference::index_lookup64(uint64_t key) {
   while (l <= r) {
       guess_key = reinterpret_cast<uint64_t*>(keyv+(guess_pos*3));
       // if it's the same, done
-      if (*guess_key == key)
-        return guess_pos;
+      if (*guess_key == key) {
+        *b = get_keyv_val(guess_pos);
+        *e = get_keyv_val(guess_pos+1);
+        return;
+      }
       // else, do binary search
       if (*guess_key < key) {
           l = guess_pos + 1;
@@ -339,7 +346,8 @@ uint32_t Reference::index_lookup64(uint64_t key) {
       guess_pos = l + (r-l)/2;
   }
   // not found :(
-  return -1;
+  *b = 0;
+  *e = 0;
 }
 
 uint32_t Reference::get_keyv_val32(uint32_t idx) {
@@ -369,11 +377,11 @@ Reference::Reference(const char *F, unsigned kmer_len, bool _enable_minimizer, c
     // initialize load_index and index_lookup
     if (bit_len==32) {
       load_index = std::bind(&Reference::load_index32, this, std::placeholders::_1);
-      index_lookup = std::bind(&Reference::index_lookup32, this, std::placeholders::_1);
+      index_lookup = std::bind(&Reference::index_lookup32, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
       get_keyv_val = std::bind(&Reference::get_keyv_val32, this, std::placeholders::_1);
     } else {
       load_index = std::bind(&Reference::load_index64, this, std::placeholders::_1);
-      index_lookup = std::bind(&Reference::index_lookup64, this, std::placeholders::_1);
+      index_lookup = std::bind(&Reference::index_lookup64, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
       get_keyv_val = std::bind(&Reference::get_keyv_val32, this, std::placeholders::_1);
     }
     // F          ./data/hg37.fna

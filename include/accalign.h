@@ -99,8 +99,8 @@ class AccAlign {
     return refs[ref_id]->mi;
   };
 
-  uint32_t get_lookup(int ref_id, uint64_t hash) {
-    return refs[ref_id]->index_lookup(hash);
+  void get_lookup(int ref_id, uint64_t hash, size_t* b, size_t* e) {
+    refs[ref_id]->index_lookup(hash,b,e);
   }
   uint32_t get_nkeyv(int ref_id) {
     return (uint32_t)refs[ref_id]->nkeyv_true;
