@@ -282,7 +282,7 @@ uint32_t Reference::index_lookup32(uint64_t key) {
 
   // set up l and r for the bounded binary search
   l = std::max(int32_t(0), static_cast<int32_t>(guess_pos-err));
-  r = std::min(static_cast<int32_t>(guess_pos+err), static_cast<int32_t>(nkeyv/2-1));
+  r = std::min(static_cast<int32_t>(guess_pos+err), static_cast<int32_t>(nkeyv_true-1));
 
   // check in the keyv array
   while (l <= r) {
@@ -321,7 +321,7 @@ uint32_t Reference::index_lookup64(uint64_t key) {
 
   // set up l and r for the bounded binary search
   l = std::max(int32_t(0), static_cast<int32_t>(guess_pos-err));
-  r = std::min(static_cast<int32_t>(guess_pos+err), static_cast<int32_t>(nkeyv/2-1));
+  r = std::min(static_cast<int32_t>(guess_pos+err), static_cast<int32_t>(nkeyv_true-1));
 
   // check in the keyv array
   while (l <= r) {
