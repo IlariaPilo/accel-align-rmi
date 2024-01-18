@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 if [ $# -eq 0 ]; then
   echo -e "\n\033[1;96mbash run.sh <input_dir> \033[0m"
