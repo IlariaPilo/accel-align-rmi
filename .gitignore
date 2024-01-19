@@ -1,0 +1,9 @@
+.wfa
+.vscode/*
+accalign
+accindex
+key_gen
+stats
+local_*
+data/*
+TODO
