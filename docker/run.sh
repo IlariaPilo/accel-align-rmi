@@ -17,5 +17,6 @@ input_dir=$(realpath $input_dir)
 echo "Mounting directory $input_dir in \`/home/accel-align-rmi/genomes\`."
 
 docker run --rm -v $BASE_DIR:/home/accel-align-rmi \
+    -v ./.bash_history:/root/.bash_history \
     -v $input_dir:/home/accel-align-rmi/genomes \
     -it docker-align
