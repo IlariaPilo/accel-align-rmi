@@ -2908,39 +2908,43 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
 
   cerr << "Reading fastq file " << F1 << ", " << F2 << "\n";
 
-  /* we don't need this yet
-  TODO -- fix in case we must use paired mode
   if (is_paired) {
     graph g;
     // Define an input_node instead of source_node
     // TODO --- check !!
-    input_node<ReadPair> i_node(g, [&](ReadPair &rp) -> continue_msg {
-        auto start = std::chrono::system_clock::now();
+    input_node<ReadPair> i_node(g, [&](tbb::flow_control &fc) -> ReadPair {
+      auto start = std::chrono::system_clock::now();
 
-        bool end1 = gzgetc(in1) == EOF;
-        bool end2 = gzgetc(in2) == EOF;
-        if (gzeof(in1) || end1 || end2)
-            return continue_msg(); // Return continue_msg instead of bool.
+      bool end1 = gzgetc(in1) == EOF;
+      bool end2 = gzgetc(in2) == EOF;
+      if (gzeof(in1) || end1 || end2) {
+        fc.stop();
+        return {};
+      }
 
-        Read *r = new Read;
-        in1 >> *r;
-        if (!strlen(r->seq))
-            return continue_msg(); // Return continue_msg.
+      ReadPair rp;
 
-        get<0>(rp) = r;
+      Read *r = new Read;
+      in1 >> *r;
+      if (!strlen(r->seq)){
+        fc.stop();
+        return {};
+      }
+      get<0>(rp) = r;
 
-        Read *r2 = new Read;
-        in2 >> *r2;
-        if (!strlen(r2->seq))
-            return continue_msg(); // Return continue_msg.
+      Read *r2 = new Read;
+      in2 >> *r2;
+      if (!strlen(r2->seq)){
+        fc.stop();
+        return {};
+      }
+      get<1>(rp) = r2;
 
-        get<1>(rp) = r2;
+      auto end = std::chrono::system_clock::now();
+      auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+      input_io_time += elapsed.count();
 
-        auto end = std::chrono::system_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-        input_io_time += elapsed.count();
-
-        return continue_msg(); // Return continue_msg.
+      return rp;
     });
 
     int max_objects = 1000000;
@@ -2957,7 +2961,6 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
     i_node.activate();
     g.wait_for_all();
   }
-  */
 
   gzclose(in1);
   gzclose(in2);
