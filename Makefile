@@ -12,18 +12,22 @@ CPUSRC=reference.cpp accalign.cpp embedding.cpp ksw2_extz2_sse.c
 IDXSRC=index.cpp embedding.cpp
 HEADERS=$(wildcard *.h) 
 
-.PHONY: WFA-paper all
-all: WFA-paper ${TARGETS}
+.PHONY: all
+all: ${TARGETS}
 
-WFA-paper:
+.wfa:
+	touch .wfa
+
+WFA-paper: .wfa
 	$(MAKE) -C WFA-paper clean all
 
-accindex: ${IDXSRC} ${HEADERS}
+accindex: WFA-paper ${IDXSRC} ${HEADERS}
 	${CC} -o $@ ${IDXSRC} ${ACCLDFLAGS} ${CFLAGS} 
 
-accalign: ${CPUSRC} ${HEADERS}
+accalign: WFA-paper ${CPUSRC} ${HEADERS}
 	${CC} -o $@ ${CPUSRC} ${ACCLDFLAGS} ${CFLAGS}
 
 clean:
+	rm .wfa
 	$(MAKE) -C WFA-paper clean
 	rm ${TARGETS}

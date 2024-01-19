@@ -1,3 +1,5 @@
 [submodule "WFA-paper"]
 	path = WFA-paper
 	url = https://github.com/smarco/WFA-paper
+	ignore = dirty
+

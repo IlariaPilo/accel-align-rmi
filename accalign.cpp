@@ -2352,32 +2352,40 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
 //  } else {
   if (is_paired) {
     graph g;
-    source_node<ReadPair> i_node(g, [&](ReadPair &rp) -> bool {
+    input_node<ReadPair> i_node(g, [&](tbb::flow_control &fc) -> ReadPair {
       auto start = std::chrono::system_clock::now();
 
       bool end1 = gzgetc(in1) == EOF;
       bool end2 = gzgetc(in2) == EOF;
-      if (gzeof(in1) || end1 || end2)
-        return false;
+      if (gzeof(in1) || end1 || end2) {
+        fc.stop();
+        return {};
+      }
+
+      ReadPair rp;
 
       Read *r = new Read;
       in1 >> *r;
-      if (!strlen(r->seq))
-        return false;
+      if (!strlen(r->seq)){
+        fc.stop();
+        return {};
+      }
       get<0>(rp) = r;
 
       Read *r2 = new Read;
       in2 >> *r2;
-      if (!strlen(r2->seq))
-        return false;
+      if (!strlen(r2->seq)){
+        fc.stop();
+        return {};
+      }
       get<1>(rp) = r2;
 
       auto end = std::chrono::system_clock::now();
       auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
       input_io_time += elapsed.count();
 
-      return true;
-    }, false);
+      return rp;
+    });
 
     int max_objects = 1000000;
     limiter_node<ReadPair> lnode(g, max_objects);
