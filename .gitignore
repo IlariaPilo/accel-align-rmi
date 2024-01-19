@@ -53,3 +53,6 @@ accalign
 stats
 accindex
 WFA-paper/*
+
+# Container history
+docker/.bash_history
