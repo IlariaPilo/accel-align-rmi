@@ -103,9 +103,9 @@ bool Index::make_index(const char *F) {
   //use 8 bytes per item. Its a waste.
   try {
     cerr << "Attempting parallel sorting\n";
-    tbb::task_scheduler_init init(tbb::task_scheduler_init::automatic);
+    //tbb::task_scheduler_init init(tbb::task_scheduler_init::automatic);
     tbb::parallel_sort(data.begin(), data.end(), Data());
-  } catch (std::bad_alloc e) {
+  } catch (std::bad_alloc &e) {
     cerr << "Fall back to serial sorting (low mem)\n";
     sort(data.begin(), data.end(), Data());
   }
@@ -133,7 +133,7 @@ bool Index::make_index(const char *F) {
     }
     fo.write((char *) buf, eof * sizeof(uint32_t));
     delete[] buf;
-  } catch (std::bad_alloc e) {
+  } catch (std::bad_alloc &e) {
     cerr << "Fall back to slow writing posv due to low mem.\n";
     for (size_t i = 0; i < eof; i++) {
       fo.write((char *) &data[i].pos, 4);
@@ -165,7 +165,7 @@ bool Index::make_index(const char *F) {
     assert(buf_idx == (mod + 1));
     fo.write((char *) buf, buf_idx * sizeof(uint32_t));
     delete[] buf;
-  } catch (std::bad_alloc e) {
+  } catch (std::bad_alloc &e) {
     cerr << "Fall back to slow writing keyv (low mem)\n";
     for (size_t i = 0; i < eof;) {
       assert (data[i].key != (uint32_t) -1);
