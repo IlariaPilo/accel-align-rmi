@@ -6,8 +6,8 @@ import csv
 
 base_skip = 26
 
-if len(sys.argv) < 4:
-    print("get_accuracy.py <real-results.sam> <aligned-results.sam> <output.csv> [<aligner-name>]")
+if len(sys.argv) < 3:
+    print("get_accuracy.py <real-results.sam> <aligned-results.sam> [<aligner-name>]")
     exit(1)
 
 # ref_path = '/media/ssd/ngs-data-analysis/yan/input/10m-pe-1/sv-10m-100-pe-align.sam'
@@ -18,9 +18,11 @@ if len(sys.argv) < 4:
 
 ref_path = str(sys.argv[1])
 align_path = str(sys.argv[2])
-output_path = str(sys.argv[3])
-aligner = 'accalign' if len(sys.argv)==4 else str(sys.argv[4])
+output_path = align_path.replace(".sam", ".csv")
+aligner = 'accalign' if len(sys.argv)==3 else str(sys.argv[3])
 match = 10
+
+print(f'Generating output file at `{output_path}`')
 
 colName = ["QNAME", "FLAG", "RNAME", "POS"]
 colIndex = [0, 1, 2, 3]
