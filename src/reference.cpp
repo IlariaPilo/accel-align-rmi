@@ -382,7 +382,7 @@ Reference::Reference(const char *F, unsigned kmer_len, bool _enable_minimizer, c
     } else {
       load_index = std::bind(&Reference::load_index64, this, std::placeholders::_1);
       index_lookup = std::bind(&Reference::index_lookup64, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-      get_keyv_val = std::bind(&Reference::get_keyv_val32, this, std::placeholders::_1);
+      get_keyv_val = std::bind(&Reference::get_keyv_val64, this, std::placeholders::_1);
     }
     // F          ./data/hg37.fna
     // F_prefix   ./data/hg37
