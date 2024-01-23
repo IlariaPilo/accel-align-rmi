@@ -24,21 +24,15 @@ usage() {
 
 # progress bar function taken from 
 # https://stackoverflow.com/questions/238073/how-to-add-a-progress-bar-to-a-shell-script
-#
-# 1. Create ProgressBar function
-# 1.1 Input is currentState($1) and totalState($2)
 function ProgressBar {
-# Process data
+
     let _progress=(${1}*100/${2}*100)/100
     let _done=(${_progress}*4)/10
     let _left=40-$_done
-# Build progressbar string lengths
+
     _fill=$(printf "%${_done}s")
     _empty=$(printf "%${_left}s")
 
-# 1.2 Build progressbar strings and print the ProgressBar line
-# 1.2.1 Output example:                           
-# 1.2.1.1 Progress : [########################################] 100%
 printf "\r${_fill// /▇}${_empty// / } ${_progress}%%"
 [[ $_progress -eq 100 ]] && printf "\n"
 }
@@ -76,7 +70,7 @@ if [ -z "$ref_name" ] || [ ! -e "$ref_name" ]; then
 fi
 ref_name=$(realpath $ref_name)              
 # check read name
-read_name="$1"
+read_name="$2"
 if [ -z "$read_name" ] || [ ! -e "$read_name" ]; then
     echo -e "\033[1;31m [error!]\033[0m Please provide a valid read file."
     usage
@@ -111,6 +105,11 @@ done
 ProgressBar $n $n
 echo -e "\n\033[1;32m [benchmarks.sh]\033[0m accel-align-rmi execution completed.\n"
 echo "----------------- END -----------------" >> accel_align_rmi.out
+
+# prepare the softlink for the index (if it exists)
+if [ -e "$read_name.hash$kmer_len" ]; then
+    ln -s "$read_name.hash$kmer_len" "$read_name.hash" 
+fi
 
 echo "---------------- BEGIN ----------------" >> accel_align_release.out
 echo "Running $n times, using $thread_number threads." >> accel_align_release.out
