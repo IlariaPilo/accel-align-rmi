@@ -102,12 +102,13 @@ echo "Running $n times, using $thread_number threads." >> accel_align_rmi.out
 
 echo
 echo "=========== accel-align-rmi ==========="
-for ((i=1; i<=n; i++))
+for ((i=0; i<n; i++))
 do
     ProgressBar $i $n
     echo ">> $i <<" >> accel_align_rmi.out
     "$RMI_DIR/accalign" -t $thread_number -l $kmer_len -o "rmi$kmer_len.sam" $ref_name $read_name 2>> accel_align_rmi.out
 done
+ProgressBar $n $n
 echo -e "\n\033[1;32m [benchmarks.sh]\033[0m accel-align-rmi execution completed.\n"
 echo "----------------- END -----------------" >> accel_align_rmi.out
 
@@ -116,12 +117,13 @@ echo "Running $n times, using $thread_number threads." >> accel_align_release.ou
 
 echo
 echo "========= accel-align-release ========="
-for ((i=1; i<=n; i++))
+for ((i=0; i<n; i++))
 do
     ProgressBar $i $n
     echo ">> $i <<" >> accel_align_release.out
     "$RELEASE_DIR/accalign" -t $thread_number -l $kmer_len -o "release$kmer_len.sam" $ref_name $read_name 2>> accel_align_release.out
 done
+ProgressBar $n $n
 echo -e "\n\033[1;32m [benchmarks.sh]\033[0m accel-align-release execution completed.\n"
 echo "----------------- END -----------------" >> accel_align_release.out
 
