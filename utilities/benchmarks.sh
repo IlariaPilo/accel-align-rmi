@@ -107,8 +107,8 @@ echo -e "\n\033[1;32m [benchmarks.sh]\033[0m accel-align-rmi execution completed
 echo "----------------- END -----------------" >> accel_align_rmi${kmer_len}.out
 
 # prepare the softlink for the index (if it exists)
-if [ -e "$read_name.hash$kmer_len" ]; then
-    ln -s "$read_name.hash$kmer_len" "$read_name.hash" 
+if [ -e "$ref_name.hash$kmer_len" ]; then
+    ln -s "$ref_name.hash$kmer_len" "$ref_name.hash" 
 fi
 
 echo "---------------- BEGIN ----------------" > accel_align_release${kmer_len}.out
@@ -142,7 +142,7 @@ cat accel_align_release${kmer_len}.out | grep "lookup posv" | awk '{ sum += $4 }
 cat accel_align_rmi${kmer_len}.out | grep "Hit count" | awk '{ sum += $4 } END { avg = sum / NR; printf("  Hit count time: %.2f s\t\t", avg) }'
 cat accel_align_release${kmer_len}.out | grep "Hit count" | awk '{ sum += $4 } END { avg = sum / NR; printf("  Hit count time: %.2f s\n", avg) }'
 # embedding
-cat accel_align_rmi${kmer_len}.out | grep "Embedding" | awk '{ sum += $3 } END { avg = sum / NR; printf("Embedding time: %.2f s\t\t\t", avg) }'
+cat accel_align_rmi${kmer_len}.out | grep "Embedding" | awk '{ sum += $3 } END { avg = sum / NR; printf("Embedding time: %.2f s\t\t", avg) }'
 cat accel_align_release${kmer_len}.out | grep "Embedding" | awk '{ sum += $3 } END { avg = sum / NR; printf("Embedding time: %.2f s\n", avg) }'
 # extending
 cat accel_align_rmi${kmer_len}.out | grep "Extending" | awk '{ sum += $9 } END { avg = sum / NR; printf("Extending time: %.2f s\t\t\t", avg) }'
