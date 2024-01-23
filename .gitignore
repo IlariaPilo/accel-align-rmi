@@ -52,6 +52,7 @@ key_gen
 accalign
 stats
 accindex
+lookup
 WFA-paper/*
 
 # Container history

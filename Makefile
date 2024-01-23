@@ -17,7 +17,7 @@ OBJ_DIR=obj
 HEADERS=$(wildcard ./include/*.h)
 TARGETS=key_gen accalign stats
 STATSSRC=src/stats.cpp
-LOOKUPSRC=src/rmi.cpp src/reference.cpp src/try_lookup.cpp src/embedding.cpp src/ksw2_extz2_sse.c src/bseq.c src/index.c src/kthread.c src/kalloc.c src/sketch.c src/misc.c src/options.c src/seed.c
+#LOOKUPSRC=src/rmi.cpp src/reference.cpp src/try_lookup.cpp src/embedding.cpp src/ksw2_extz2_sse.c src/bseq.c src/index.c src/kthread.c src/kalloc.c src/sketch.c src/misc.c src/options.c src/seed.c
 CPUSRC=src/rmi.cpp src/reference.cpp src/accalign.cpp src/embedding.cpp src/ksw2_extz2_sse.c src/bseq.c src/index.c src/kthread.c src/kalloc.c src/sketch.c src/misc.c src/options.c src/seed.c
 OLD_IDXSRC=src/index.cpp src/embedding.cpp src/bseq.c src/index.c src/kthread.c src/kalloc.c src/sketch.c src/misc.c src/options.c 
 IDXSRC=src/key_gen.cpp
@@ -43,8 +43,8 @@ stats: WFA-paper ${STATSSRC} ${HEADERS}
 accindex: WFA-paper ${OLD_IDXSRC} ${HEADERS}
 	${CXX} -o $@ ${OLD_IDXSRC} ${ACCLDFLAGS} ${TBBFLAGS} ${CXXFLAGS} -pthread
 
-lookup: WFA-paper ${LOOKUPSRC} ${HEADERS}
-	${CXX} -o $@ ${LOOKUPSRC} ${ACCLDFLAGS} ${TBBFLAGS} ${CXXFLAGS} -pthread
+#lookup: WFA-paper ${LOOKUPSRC} ${HEADERS}
+#	${CXX} -o $@ ${LOOKUPSRC} ${ACCLDFLAGS} ${TBBFLAGS} ${CXXFLAGS} -pthread
 
 clean:
 	rm .wfa 
