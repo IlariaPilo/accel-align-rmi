@@ -11,7 +11,7 @@ usage() {
     echo -e "\n\033[1;96mbash stats.sh [OPTIONS] <reference.fna> <read.fastq>\033[0m"
     echo -e "Generates the precision stats for the default accel-align index."
     echo "Options:"
-    echo "  -l, --len      LEN     The length of the kmer. Default = 32"
+    echo "  -l, --len      LEN     The length of the kmer [32]"
     echo -e "  -h, --help             Display this help message\n"
     exit 1
 }

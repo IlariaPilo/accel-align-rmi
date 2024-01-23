@@ -13,8 +13,8 @@ usage() {
     echo -e "\n\033[1;96mbash index.sh [OPTIONS] <reference.fna>\033[0m"
     echo -e "Builds a learned index for the <reference.fna> reference string."
     echo "Options:"
-    echo "  -t, --threads  THREADS  The number of threads to be used. Default = all"
-    echo "  -l, --len      LEN      The length of the kmer. Default = 32"
+    echo "  -t, --threads  THREADS  The number of threads to be used [all]"
+    echo "  -l, --len      LEN      The length of the kmer [32]"
     #echo "      --clean             Delete the index related to <reference.fna>"
     echo -e "  -h, --help              Display this help message\n"
     exit 1

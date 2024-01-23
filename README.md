@@ -58,7 +58,7 @@ It generates an output directory `<reference_string>_index<LEN>`, containing all
 ## 🔎 Call the aligner
 The aligner can be built with `make accalign`, and then run as:
 ```sh
-./accalign [OPTIONS] <ref.fa> <read.fastq>
+./accalign [OPTIONS] <reference.fa> <read.fastq>
 ```
 The following options are available:
 ```
@@ -89,18 +89,18 @@ It also processes the csv file, and it plots a histogram and a pie chart using t
 ## 🛠️ Utility folder
 The `utility` folder contains some useful helper scripts.
 
-### benchmark_local.sh
-This [script](./utilities/benchmark_local.sh) can be used to run automatic benchmarks comparing accel-align with/without learned index.
-It should be moved from the `utility` directory into a parent directory containing both `accel-align-rmi` and `accel-align-release`. Programs should be already compiled.
-
-Usage
+### 📊 benchmarks.sh
+This [script](./utilities/benchmarks.sh) can be used to run automatic benchmarks comparing accel-align with/without learned index and averaging the results.
+Programs should be already compiled, and indices should be built in advance, using the proper -l option.
+```sh
+bash benchmarks.sh [OPTIONS] <reference.fa> <read.fastq>
 ```
-    bash benchmark_local.sh <thread_number> [<number_of_executions>]
-Runs some benchmarks for accel-align (with/without rmi index).
-Executables should be already present (just run make).
-Indices should be built in advance (with -l 16 option).
-<thread_number> specifies the number of threads to be used.
-<number_of_executions> is the number of times every program is called [default is 10]
+It supports the following options:
+```
+  -t, --threads  THREADS  The number of threads to be used [all]
+  -e, --exec     EXEC     The number of times every program is called [10]
+  -l, --len      LEN      The length of the kmer [32]
+  -h, --help              Display this help message
 ```
 
 ### 🔬 binary_visualizer.py
@@ -111,9 +111,9 @@ python3 binary_visualizer.py [OPTIONS] <filename>
 ```
 It supports the following options:
 ```
-  -n, --num_entries N   Number of entries to be displayed. Default = 10
-  -b, --backward        Read backward. Default = off
-  -f, --forward         Read forward. Default = on
+  -n, --num_entries N   Number of entries to be displayed [10]
+  -b, --backward        Read backward [off]
+  -f, --forward         Read forward [on]
   -h, --help            Show this help message and exit
 ```
 

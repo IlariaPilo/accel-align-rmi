@@ -57,3 +57,6 @@ WFA-paper/*
 
 # Container history
 docker/.bash_history
+
+# Others
+*.out
