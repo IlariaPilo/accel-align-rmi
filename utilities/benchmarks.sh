@@ -125,9 +125,28 @@ done
 echo -e "\n\033[1;32m [benchmarks.sh]\033[0m accel-align-release execution completed.\n"
 echo "----------------- END -----------------" >> accel_align_release.out
 
-# print some final considerations FIXME TODO
-echo -e "  ========= accel-align-rmi =========\t\t  ======= accel-align-release ======="
-cat accel_align_rmi.out | grep "Total time" | awk '{ sum += $3 } END { avg = sum / NR; printf("Total time (avg): %d secs [%02d:%02d min]\t\t", avg, avg/60, avg%60) }'
-cat accel_align_release.out | grep "Total time" | awk '{ sum += $3 } END { avg = sum / NR; printf("Total time (avg): %d secs [%02d:%02d min]\n", avg, avg/60, avg%60) }'
-cat accel_align_rmi.out | grep "keyv time" | awk '{ sum += $4 } END { avg = sum / NR; printf("Lookup keyv time (avg): %.3f secs\t\t", avg) }'
-cat accel_align_release.out | grep "keyv time" | awk '{ sum += $4 } END { avg = sum / NR; printf("Lookup keyv time (avg): %.3f secs\n\n", avg) }'
+echo
+# print some final considerations
+echo -e "========= accel-align-rmi =========\t======= accel-align-release ======="
+# time to align
+cat accel_align_rmi.out | grep "Time to align:" | awk '{ sum += $4 } END { avg = sum / NR; printf("Time to align: %d s\t\t\t", avg) }'
+cat accel_align_release.out | grep "Time to align:" | awk '{ sum += $4 } END { avg = sum / NR; printf("Time to align: %d s\n", avg) }'
+# lookup keyv time
+cat accel_align_rmi.out | grep "lookup keyv" | awk '{ sum += $4 } END { avg = sum / NR; printf("  Lookup keyv time: %d s\t\t", avg) }'
+cat accel_align_release.out | grep "lookup keyv" | awk '{ sum += $4 } END { avg = sum / NR; printf("  Lookup keyv time: %d s\n", avg) }'
+# lookup posv time
+cat accel_align_rmi.out | grep "lookup posv" | awk '{ sum += $4 } END { avg = sum / NR; printf("  Lookup posv time: %d s\t\t", avg) }'
+cat accel_align_release.out | grep "lookup posv" | awk '{ sum += $4 } END { avg = sum / NR; printf("  Lookup posvv time: %d s\n", avg) }'
+# hit count time
+cat accel_align_rmi.out | grep "Hit count" | awk '{ sum += $4 } END { avg = sum / NR; printf("  Hit count time: %d s\t\t", avg) }'
+cat accel_align_release.out | grep "Hit count" | awk '{ sum += $4 } END { avg = sum / NR; printf("  Hit count time: %d s\n", avg) }'
+# embedding
+cat accel_align_rmi.out | grep "Embedding" | awk '{ sum += $3 } END { avg = sum / NR; printf("Embedding time: %d s\t\t\t", avg) }'
+cat accel_align_release.out | grep "Embedding" | awk '{ sum += $3 } END { avg = sum / NR; printf("Embedding time: %d s\n", avg) }'
+# extending
+cat accel_align_rmi.out | grep "Extending" | awk '{ sum += $9 } END { avg = sum / NR; printf("Extending time: %d s\t\t\t", avg) }'
+cat accel_align_release.out | grep "Extending" | awk '{ sum += $9 } END { avg = sum / NR; printf("Extending time: %d s\n", avg) }'
+# mark best region
+cat accel_align_rmi.out | grep "Mark best region" | awk '{ sum += $5 } END { avg = sum / NR; printf("Mark best region time: %d s\t\t", avg) }'
+cat accel_align_release.out | grep "Mark best region" | awk '{ sum += $5 } END { avg = sum / NR; printf("Mark best region time: %d s\n", avg) }'
+echo
