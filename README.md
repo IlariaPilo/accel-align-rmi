@@ -116,3 +116,11 @@ It supports the following options:
   -f, --forward         Read forward. Default = on
   -h, --help            Show this help message and exit
 ```
+
+### 📜 evaluate_sam.py
+This [script](./utilities/evaluate_sam.py) can be used to evaluate the results returned by the aligner.
+```sh
+python3 evaluate_sam.py <real-results.sam> <aligner-results.sam> [<aligner-name>]
+```
+It prints on the terminal a short report of the aligner performance. 
+A more detailed, read-by-read analysis can be found in the `<aligner-results.csv>` file.

@@ -7,7 +7,7 @@ import csv
 base_skip = 26
 
 if len(sys.argv) < 3:
-    print("get_accuracy.py <real-results.sam> <aligned-results.sam> [<aligner-name>]")
+    print("evaluate_sam.py <real-results.sam> <aligner-results.sam> [<aligner-name>]")
     exit(1)
 
 # ref_path = '/media/ssd/ngs-data-analysis/yan/input/10m-pe-1/sv-10m-100-pe-align.sam'
