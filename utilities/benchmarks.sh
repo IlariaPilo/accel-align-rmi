@@ -17,7 +17,7 @@ usage() {
     echo "Options:"
     echo "  -t, --threads  THREADS  The number of threads to be used [all]"
     echo "  -e, --exec     EXEC     The number of times every program is called [10]"
-    echo "  -l, --len      LEN      The length of the kmer. [32]"
+    echo "  -l, --len      LEN      The length of the kmer [32]"
     echo -e "  -h, --help              Display this help message\n"
     exit 1
 }
@@ -91,63 +91,63 @@ echo -e "       --- Found accel-align-release in \`$RELEASE_DIR\`."
 echo -e "       --- kmer length is $kmer_len."
 echo -e "       --- Running $n times, using $thread_number threads."
 
-echo "---------------- BEGIN ----------------" >> accel_align_rmi.out
-echo "Running $n times, using $thread_number threads." >> accel_align_rmi.out
+echo "---------------- BEGIN ----------------" > accel_align_rmi${kmer_len}.out
+echo "Running $n times, using $thread_number threads." >> accel_align_rmi${kmer_len}.out
 
 echo
 echo "=========== accel-align-rmi ==========="
 for ((i=0; i<n; i++))
 do
     ProgressBar $i $n
-    echo ">> $i <<" >> accel_align_rmi.out
-    "$RMI_DIR/accalign" -t $thread_number -l $kmer_len -o "rmi$kmer_len.sam" $ref_name $read_name 2>> accel_align_rmi.out
+    echo ">> $i <<" >> accel_align_rmi${kmer_len}.out
+    "$RMI_DIR/accalign" -t $thread_number -l $kmer_len -o "rmi$kmer_len.sam" $ref_name $read_name 2>> accel_align_rmi${kmer_len}.out
 done
 ProgressBar $n $n
 echo -e "\n\033[1;32m [benchmarks.sh]\033[0m accel-align-rmi execution completed.\n"
-echo "----------------- END -----------------" >> accel_align_rmi.out
+echo "----------------- END -----------------" >> accel_align_rmi${kmer_len}.out
 
 # prepare the softlink for the index (if it exists)
 if [ -e "$read_name.hash$kmer_len" ]; then
     ln -s "$read_name.hash$kmer_len" "$read_name.hash" 
 fi
 
-echo "---------------- BEGIN ----------------" >> accel_align_release.out
-echo "Running $n times, using $thread_number threads." >> accel_align_release.out
+echo "---------------- BEGIN ----------------" > accel_align_release${kmer_len}.out
+echo "Running $n times, using $thread_number threads." >> accel_align_release${kmer_len}.out
 
 echo
 echo "========= accel-align-release ========="
 for ((i=0; i<n; i++))
 do
     ProgressBar $i $n
-    echo ">> $i <<" >> accel_align_release.out
-    "$RELEASE_DIR/accalign" -t $thread_number -l $kmer_len -o "release$kmer_len.sam" $ref_name $read_name 2>> accel_align_release.out
+    echo ">> $i <<" >> accel_align_release${kmer_len}.out
+    "$RELEASE_DIR/accalign" -t $thread_number -l $kmer_len -o "release$kmer_len.sam" $ref_name $read_name 2>> accel_align_release${kmer_len}.out
 done
 ProgressBar $n $n
 echo -e "\n\033[1;32m [benchmarks.sh]\033[0m accel-align-release execution completed.\n"
-echo "----------------- END -----------------" >> accel_align_release.out
+echo "----------------- END -----------------" >> accel_align_release${kmer_len}.out
 
 echo
 # print some final considerations
 echo -e "========= accel-align-rmi =========\t======= accel-align-release ======="
 # time to align
-cat accel_align_rmi.out | grep "Time to align:" | awk '{ sum += $4 } END { avg = sum / NR; printf("Time to align: %d s\t\t\t", avg) }'
-cat accel_align_release.out | grep "Time to align:" | awk '{ sum += $4 } END { avg = sum / NR; printf("Time to align: %d s\n", avg) }'
+cat accel_align_rmi${kmer_len}.out | grep "Time to align:" | awk '{ sum += $4 } END { avg = sum / NR; printf("Time to align: %.2f s\t\t\t", avg) }'
+cat accel_align_release${kmer_len}.out | grep "Time to align:" | awk '{ sum += $4 } END { avg = sum / NR; printf("Time to align: %.2f s\n", avg) }'
 # lookup keyv time
-cat accel_align_rmi.out | grep "lookup keyv" | awk '{ sum += $4 } END { avg = sum / NR; printf("  Lookup keyv time: %d s\t\t", avg) }'
-cat accel_align_release.out | grep "lookup keyv" | awk '{ sum += $4 } END { avg = sum / NR; printf("  Lookup keyv time: %d s\n", avg) }'
+cat accel_align_rmi${kmer_len}.out | grep "lookup keyv" | awk '{ sum += $4 } END { avg = sum / NR; printf("  Lookup keyv time: %.2f s\t\t", avg) }'
+cat accel_align_release${kmer_len}.out | grep "lookup keyv" | awk '{ sum += $4 } END { avg = sum / NR; printf("  Lookup keyv time: %.2f s\n", avg) }'
 # lookup posv time
-cat accel_align_rmi.out | grep "lookup posv" | awk '{ sum += $4 } END { avg = sum / NR; printf("  Lookup posv time: %d s\t\t", avg) }'
-cat accel_align_release.out | grep "lookup posv" | awk '{ sum += $4 } END { avg = sum / NR; printf("  Lookup posvv time: %d s\n", avg) }'
+cat accel_align_rmi${kmer_len}.out | grep "lookup posv" | awk '{ sum += $4 } END { avg = sum / NR; printf("  Lookup posv time: %.2f s\t\t", avg) }'
+cat accel_align_release${kmer_len}.out | grep "lookup posv" | awk '{ sum += $4 } END { avg = sum / NR; printf("  Lookup posvv time: %.2f s\n", avg) }'
 # hit count time
-cat accel_align_rmi.out | grep "Hit count" | awk '{ sum += $4 } END { avg = sum / NR; printf("  Hit count time: %d s\t\t", avg) }'
-cat accel_align_release.out | grep "Hit count" | awk '{ sum += $4 } END { avg = sum / NR; printf("  Hit count time: %d s\n", avg) }'
+cat accel_align_rmi${kmer_len}.out | grep "Hit count" | awk '{ sum += $4 } END { avg = sum / NR; printf("  Hit count time: %.2f s\t\t", avg) }'
+cat accel_align_release${kmer_len}.out | grep "Hit count" | awk '{ sum += $4 } END { avg = sum / NR; printf("  Hit count time: %.2f s\n", avg) }'
 # embedding
-cat accel_align_rmi.out | grep "Embedding" | awk '{ sum += $3 } END { avg = sum / NR; printf("Embedding time: %d s\t\t\t", avg) }'
-cat accel_align_release.out | grep "Embedding" | awk '{ sum += $3 } END { avg = sum / NR; printf("Embedding time: %d s\n", avg) }'
+cat accel_align_rmi${kmer_len}.out | grep "Embedding" | awk '{ sum += $3 } END { avg = sum / NR; printf("Embedding time: %.2f s\t\t\t", avg) }'
+cat accel_align_release${kmer_len}.out | grep "Embedding" | awk '{ sum += $3 } END { avg = sum / NR; printf("Embedding time: %.2f s\n", avg) }'
 # extending
-cat accel_align_rmi.out | grep "Extending" | awk '{ sum += $9 } END { avg = sum / NR; printf("Extending time: %d s\t\t\t", avg) }'
-cat accel_align_release.out | grep "Extending" | awk '{ sum += $9 } END { avg = sum / NR; printf("Extending time: %d s\n", avg) }'
+cat accel_align_rmi${kmer_len}.out | grep "Extending" | awk '{ sum += $9 } END { avg = sum / NR; printf("Extending time: %.2f s\t\t\t", avg) }'
+cat accel_align_release${kmer_len}.out | grep "Extending" | awk '{ sum += $9 } END { avg = sum / NR; printf("Extending time: %.2f s\n", avg) }'
 # mark best region
-cat accel_align_rmi.out | grep "Mark best region" | awk '{ sum += $5 } END { avg = sum / NR; printf("Mark best region time: %d s\t\t", avg) }'
-cat accel_align_release.out | grep "Mark best region" | awk '{ sum += $5 } END { avg = sum / NR; printf("Mark best region time: %d s\n", avg) }'
+cat accel_align_rmi${kmer_len}.out | grep "Mark best region" | awk '{ sum += $5 } END { avg = sum / NR; printf("Mark best region time: %.2f s\t\t", avg) }'
+cat accel_align_release${kmer_len}.out | grep "Mark best region" | awk '{ sum += $5 } END { avg = sum / NR; printf("Mark best region time: %.2f s\n", avg) }'
 echo
