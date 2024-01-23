@@ -108,7 +108,7 @@ echo "----------------- END -----------------" >> accel_align_rmi${kmer_len}.out
 
 # prepare the softlink for the index (if it exists)
 if [ -e "$ref_name.hash$kmer_len" ]; then
-    ln -s "$ref_name.hash$kmer_len" "$ref_name.hash" 
+    ln -nsf "$ref_name.hash$kmer_len" "$ref_name.hash" 
 fi
 
 echo "---------------- BEGIN ----------------" > accel_align_release${kmer_len}.out
