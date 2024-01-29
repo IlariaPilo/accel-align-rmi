@@ -74,8 +74,6 @@ class AccAlign {
 
  public:
   Reference **refs;
-//  uint32_t *keyv, *posv;
-//  mm_idx_t *mi;
 
   std::string& get_ref(int ref_id){
     return refs[ref_id]->ref;
@@ -89,8 +87,8 @@ class AccAlign {
       return refs[ref_id]->offset;
   };
 
-  uint32_t* get_keyv(int ref_id){
-    return refs[ref_id]->keyv;
+  uint32_t get_keyv_val(int ref_id, uint32_t pos_idx){
+    return refs[ref_id]->get_keyv_val(pos_idx);
   };
 
   uint32_t* get_posv(int ref_id){
@@ -101,12 +99,11 @@ class AccAlign {
     return refs[ref_id]->mi;
   };
 
-  // NEW!
-  uint32_t get_lookup(int ref_id, uint32_t hash) {
-    return refs[ref_id]->index_lookup(hash);
+  void get_lookup(int ref_id, uint64_t hash, size_t* b, size_t* e) {
+    refs[ref_id]->index_lookup(hash,b,e);
   }
   uint32_t get_nkeyv(int ref_id) {
-    return (uint32_t)refs[ref_id]->nkeyv;
+    return (uint32_t)refs[ref_id]->nkeyv_true;
   }
   uint32_t get_nposv(int ref_id) {
     return (uint32_t)refs[ref_id]->nposv;

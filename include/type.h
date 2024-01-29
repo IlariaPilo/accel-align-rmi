@@ -54,22 +54,31 @@ struct Read {
 
 class Reference {
  public:
-  void load_index(const char *F);
-  void load_reference(const char *F);
-  // add lookup function
-  uint32_t index_lookup(uint32_t key);
+  void load_index32(const char *F);   
+  void load_index64(const char *F);
+  std::function<void(const char*)> load_index;
+
+  void index_lookup32(uint64_t key, size_t* b, size_t* e);
+  void index_lookup64(uint64_t key, size_t* b, size_t* e);
+  std::function<void(uint64_t,size_t*,size_t*)> index_lookup;
+
+  uint32_t get_keyv_val32(uint32_t idx);
+  uint32_t get_keyv_val64(uint32_t idx);
+  std::function<uint32_t(uint32_t)> get_keyv_val;
+
+  void load_reference(const char *F);  // this is fine
 
   std::string ref;
   std::vector<std::string> name;
   std::vector<uint32_t> offset;
-  uint32_t *keyv, *posv;
-  uint64_t nposv, nkeyv;
+  uint32_t *keyv, *posv;              
+  uint64_t nposv, nkeyv, nkeyv_true;
   mm_idx_t *mi;
-  RMI rmi;
+  RMI rmi;  // this is fine
   bool enable_minimizer;
   char mode; // 'c' c-> t; 'g' g->a; ' ' original
 
-  Reference(const char *F, bool _enable_minimizer, char mode);
+  Reference(const char *F, unsigned kmer_len, bool _enable_minimizer, char mode);
 
   ~Reference();
 };

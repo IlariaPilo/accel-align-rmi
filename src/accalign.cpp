@@ -5,8 +5,8 @@
 using namespace tbb::flow;
 using namespace std;
 
-// change default to 16
-unsigned kmer_len = 16;
+// change default to 32
+unsigned kmer_len = 32;
 int kmer_step = 1;
 uint64_t mask;
 unsigned pairdis = 1000;
@@ -87,19 +87,19 @@ gzFile &operator>>(gzFile &in, Read &r) {
 }
 
 void print_usage() {
-  cerr << "accalign [options] <ref.fa> [read1.fastq] [read2.fastq]\n";
+  //cerr << "accalign [options] <ref.fa> [read1.fastq] [read2.fastq]\n";
+  cerr << "accalign [options] <ref.fa> <read.fastq>\n";
   cerr << "\t Maximum read length supported is 512\n";
   cerr << "options:\n";
   cerr << "\t-t INT Number of cpu threads to use [all]\n";
   cerr << "\t-l INT Length of seed [32]\n";
   cerr << "\t-o Name of the output file \n";
-  cerr << "\t-x Alignment-free mode\n";
-  cerr << "\t-w Use WFA for extension. KSW used by default. \n";
-  cerr << "\t-p Maximum distance allowed between the paired-end reads [1000]\n";
-  cerr << "\t-d Disable embedding, extend all candidates from seeding (this mode is super slow, only for benchmark).\n";
-  cerr << "\t-m Seeding with minimizer.\n";
-  cerr << "\t-s bisulfite sequencing read alignment mode \n";
-
+  //cerr << "\t-x Alignment-free mode\n";
+  //cerr << "\t-w Use WFA for extension. KSW used by default. \n";
+  //cerr << "\t-p Maximum distance allowed between the paired-end reads [1000]\n";
+  //cerr << "\t-d Disable embedding, extend all candidates from seeding (this mode is super slow, only for benchmark).\n";
+  //cerr << "\t-m Seeding with minimizer.\n";
+  //cerr << "\t-s bisulfite sequencing read alignment mode \n";
 }
 
 void AccAlign::print_stats() {
@@ -366,7 +366,7 @@ void AccAlign::cpu_root_fn(tbb::concurrent_bounded_queue<ReadCnt> *inputQ,
       break;
     }
 
-    tbb::task_scheduler_init init(g_ncpus);
+    //tbb::task_scheduler_init init(g_ncpus);
     tbb::parallel_for(tbb::blocked_range<size_t>(0, nreads),
                       Parallel_mapper(std::get<0>(cpu_readcnt), std::get<1>(cpu_readcnt), this)
     );
@@ -409,56 +409,23 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
                                        int ref_id) {
   int max_cov = 0;
   unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
-  //size_t ntotal_hits = 0;
-  int ntotal_hits = 0;
+  size_t ntotal_hits = 0;
+  //int ntotal_hits = 0;
   size_t b[nkmers], e[nkmers];
   unsigned kmer_idx = 0;
   unsigned ori_slide_bk = ori_slide;
   unsigned nseed_freq = 0;
   bool high_freq = false;
 
-  uint32_t pos_idx;
-
-  // FIXME - remove
-  //char _kmer_[17];
-  //_kmer_[16] = 0;
-
-  //std::string _code_ = "ACGT";
-
   // Take non-overlapping seeds and find all hits
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
     uint64_t k = 0;
-    // ------------ FIXME ------------
     for (size_t j = i /*, _i_ = 0*/; j < i + kmer_len; j++ /*, _i_++*/) {
       k = (k << 2) + *(Q + j);
-      //_kmer_[_i_] = _code_[*(Q + j)];
     }
-
-    //size_t hash = (k & mask) % MOD;
-    size_t hash = (k & mask);
-
-    // ------------- END -------------
-    //b[kmer_idx] = get_keyv(ref_id)[hash];     // the first position of hash
-    //e[kmer_idx] = get_keyv(ref_id)[hash + 1]; // the first position of next hash
-
     // lookup to get the position of the hash
-    pos_idx = get_lookup(ref_id, hash);
-
-    if (pos_idx == (uint32_t)-1) {
-      //std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
-      //std::cerr << "           " << "read " << _kmer_ << std::endl;
-      b[kmer_idx] = 0;     
-      e[kmer_idx] = 0;
-    } else {
-      b[kmer_idx] = get_keyv(ref_id)[pos_idx + 1];     // the first position of hash
-      // the first position of next hash
-      if (pos_idx == get_nkeyv(ref_id)-2) {
-        e[kmer_idx] = get_nposv(ref_id);
-      } else {
-        e[kmer_idx] = get_keyv(ref_id)[pos_idx + 3]; 
-      }
-    }
+    get_lookup(ref_id, k, b+kmer_idx, e+kmer_idx);
     
     if (e[kmer_idx] - b[kmer_idx] >= max_occ)
       nseed_freq++;
@@ -629,56 +596,22 @@ void AccAlign::pigeonhole_query_sort(char *Q,
                                      int ref_id) {
   unsigned max_cov = 0;
   unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
-  //size_t ntotal_hits = 0;
-  int ntotal_hits = 0;
+  size_t ntotal_hits = 0;
+  //int ntotal_hits = 0;
   size_t b[nkmers], e[nkmers];
   unsigned kmer_idx = 0;
   unsigned nseed_freq = 0;
   bool high_freq = false;
 
-  uint32_t pos_idx;
-
-    // FIXME - remove
-  //char _kmer_[17];
-  //_kmer_[16] = 0;
-
-  //std::string _code_ = "ACGT";
-
   // Take non-overlapping seeds and find all hits
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
     uint64_t k = 0;
-    // ------------ FIXME ------------
     for (size_t j = i /*, _i_ = 0*/; j < i + kmer_len; j++ /*, _i_++*/) {
       k = (k << 2) + *(Q + j);
-      //_kmer_[_i_] = _code_[*(Q + j)];
     }
-      
-
-    //size_t hash = (k & mask) % MOD;
-    size_t hash = (k & mask);
-
-    // ------------- END -------------
-    //b[kmer_idx] = get_keyv(ref_id)[hash];     // the first position of hash
-    //e[kmer_idx] = get_keyv(ref_id)[hash + 1]; // the first position of next hash
-
     // lookup to get the position of the hash
-    pos_idx = get_lookup(ref_id, hash);
-
-    if (pos_idx == (uint32_t)-1) {
-      //std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
-      //std::cerr << "           " << "read " << _kmer_ << std::endl;
-      b[kmer_idx] = 0;     
-      e[kmer_idx] = 0;
-    } else {
-      b[kmer_idx] = get_keyv(ref_id)[pos_idx + 1];     // the first position of hash
-      // the first position of next hash
-      if (pos_idx == get_nkeyv(ref_id)-2) {
-        e[kmer_idx] = get_nposv(ref_id);
-      } else {
-        e[kmer_idx] = get_keyv(ref_id)[pos_idx + 3]; 
-      }
-    }
+    get_lookup(ref_id, k, b+kmer_idx, e+kmer_idx);
     
     if (e[kmer_idx] - b[kmer_idx] >= max_occ)
       nseed_freq++;
@@ -1016,11 +949,11 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0,
 
   int32_t k = get_mi(ref_id)->k;
 
-  for (size_t i = 0; i < n_m0; ++i) {
+  for (int i = 0; i < n_m0; ++i) {
     ntotal_hits += m[i].n;
     top_pos[i] = normalize_pos(m[i].cr[0], m[i].q_pos, k, rlen);
   }
-  assert(ntotal_hits == n_a);
+  assert((long int)ntotal_hits == n_a);
 
   size_t nprocessed = 0;
   uint64_t last_pos = MAX_POS, last_q_pos = 0; //last query start pos
@@ -1120,7 +1053,7 @@ void AccAlign::fetch_candidates(mm128_v &mv, int32_t mid_occ, size_t rlen, int e
 
   // ignore the mm has more than mid_occ hits
   int32_t max_max_occ = 4095, occ_dist = 500;
-  float q_occ_frac = 0.02;
+  //float q_occ_frac = 0.02;
   int n_m0, rep_len, n_mini_pos;
   int64_t n_a;
   uint64_t *mini_pos;
@@ -1207,54 +1140,21 @@ void AccAlign::pigeonhole_query(char *Q,
                                 bool &high_freq, int ref_id) {
   int max_cov = 0;
   unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
-  // size_t ntotal_hits = 0;
-  int ntotal_hits = 0;
+  size_t ntotal_hits = 0;
+  //int ntotal_hits = 0;
   size_t b[nkmers], e[nkmers];
   unsigned kmer_idx = 0;
   unsigned nseed_freq = 0;
-
-  uint32_t pos_idx;
-
-    // FIXME - remove
-  //char _kmer_[17];
-  //_kmer_[16] = 0;
-
-  //std::string _code_ = "ACGT";
 
   // Take non-overlapping seeds and find all hits
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
     uint64_t k = 0;
-    // ------------ FIXME ------------
     for (size_t j = i /*, _i_ = 0*/; j < i + kmer_len; j++ /*, _i_++*/) {
       k = (k << 2) + *(Q + j);
-      //_kmer_[_i_] = _code_[*(Q + j)];
     }
-      
-    //size_t hash = (k & mask) % MOD;
-    size_t hash = (k & mask);
-
-    // ------------- END -------------
-    //b[kmer_idx] = get_keyv(ref_id)[hash];     // the first position of hash
-    //e[kmer_idx] = get_keyv(ref_id)[hash + 1]; // the first position of next hash
-
     // lookup to get the position of the hash
-    pos_idx = get_lookup(ref_id, hash);
-
-    if (pos_idx == (uint32_t)-1) {
-      //std::cerr << "\033[1;33m" << " [warning] " << "\033[0m" << "hash " << hash << " not found." << std::endl;
-      //std::cerr << "           " << "read " << _kmer_ << std::endl;
-      b[kmer_idx] = 0;     
-      e[kmer_idx] = 0;
-    } else {
-      b[kmer_idx] = get_keyv(ref_id)[pos_idx + 1];     // the first position of hash
-      // the first position of next hash
-      if (pos_idx == get_nkeyv(ref_id)-2) {
-        e[kmer_idx] = get_nposv(ref_id);
-      } else {
-        e[kmer_idx] = get_keyv(ref_id)[pos_idx + 3]; 
-      }
-    }
+    get_lookup(ref_id, k, b+kmer_idx, e+kmer_idx);
     
     if (e[kmer_idx] - b[kmer_idx] >= max_occ)
       nseed_freq++;
@@ -1348,6 +1248,7 @@ void AccAlign::pigeonhole_query(char *Q,
 
     // add next element
     b[min_kmer]++;
+    // FIXME broken line
     uint32_t next_pos = b[min_kmer] < e[min_kmer] ? get_posv(ref_id)[b[min_kmer]] : MAX_POS;
     if (next_pos != MAX_POS) {
       uint32_t shift_pos = rel_off[min_kmer] + ori_slide;
@@ -2404,7 +2305,7 @@ void AccAlign::align_wrapper(int tid, int soff, int eoff, Read *ptlread, Read *p
   if (!ptlread2) {
     // single-end read alignment
     string sams[eoff];
-    tbb::task_scheduler_init init(g_ncpus);
+    //tbb::task_scheduler_init init(g_ncpus);
     tbb::parallel_for(tbb::blocked_range<size_t>(soff, eoff), Tbb_aligner(ptlread, sams, this));
 
     auto start = std::chrono::system_clock::now();
@@ -3007,73 +2908,44 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
 
   cerr << "Reading fastq file " << F1 << ", " << F2 << "\n";
 
-  // replace this broadcast node with source node
-//  if (!is_paired) {
-//    graph g;
-//
-//    source_node < Read * > input_node(g, [&](Read *&r) -> bool {
-//      auto start = std::chrono::system_clock::now();
-//
-//      if (gzeof(in1) || (gzgetc(in1) == EOF))
-//        return false;
-//
-//      r = new Read;
-//      in1 >> *r;
-//
-//      auto end = std::chrono::system_clock::now();
-//      auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-//      input_io_time += elapsed.count();
-//
-//      if (!strlen(r->seq))
-//        return false;
-//
-//      return true;
-//
-//    }, false);
-//
-//    int max_objects = 10000000;
-//    limiter_node < Read * > lnode(g, max_objects);
-//    function_node < Read * , Read * > map_node(g, unlimited, tbb_map(this));
-//    function_node < Read * , Read * > align_node(g, unlimited, tbb_align(this));
-//    function_node < Read * , continue_msg > score_node(g, 1, tbb_score(this));
-//
-//    make_edge(score_node, lnode.decrement);
-//    make_edge(align_node, score_node);
-//    make_edge(map_node, align_node);
-//    make_edge(lnode, map_node);
-//    make_edge(input_node, map_node);
-//    input_node.activate();
-//    g.wait_for_all();
-//  } else {
-
   if (is_paired) {
     graph g;
-    source_node<ReadPair> input_node(g, [&](ReadPair &rp) -> bool {
+    // Define an input_node instead of source_node
+    // TODO --- check !!
+    input_node<ReadPair> i_node(g, [&](tbb::flow_control &fc) -> ReadPair {
       auto start = std::chrono::system_clock::now();
 
       bool end1 = gzgetc(in1) == EOF;
       bool end2 = gzgetc(in2) == EOF;
-      if (gzeof(in1) || end1 || end2)
-        return false;
+      if (gzeof(in1) || end1 || end2) {
+        fc.stop();
+        return {};
+      }
+
+      ReadPair rp;
 
       Read *r = new Read;
       in1 >> *r;
-      if (!strlen(r->seq))
-        return false;
+      if (!strlen(r->seq)){
+        fc.stop();
+        return {};
+      }
       get<0>(rp) = r;
 
       Read *r2 = new Read;
       in2 >> *r2;
-      if (!strlen(r2->seq))
-        return false;
+      if (!strlen(r2->seq)){
+        fc.stop();
+        return {};
+      }
       get<1>(rp) = r2;
 
       auto end = std::chrono::system_clock::now();
       auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
       input_io_time += elapsed.count();
 
-      return true;
-    }, false);
+      return rp;
+    });
 
     int max_objects = 1000000;
     limiter_node<ReadPair> lnode(g, max_objects);
@@ -3081,12 +2953,12 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
     function_node<ReadPair, ReadPair> align_node(g, unlimited, tbb_align(this));
     function_node<ReadPair, continue_msg> score_node(g, 1, tbb_score(this));
 
-    make_edge(score_node, lnode.decrement);
+    make_edge(score_node, lnode.decrementer()); // it returns decrement so it should be correct
     make_edge(align_node, score_node);
     make_edge(map_node, align_node);
     make_edge(lnode, map_node);
-    make_edge(input_node, map_node);
-    input_node.activate();
+    make_edge(i_node, map_node);
+    i_node.activate();
     g.wait_for_all();
   }
 
@@ -3120,7 +2992,7 @@ int main(int ac, char **av) {
         g_out = av[opn + 1];
         opn += 2;
         flag = true;
-      } else if (av[opn][1] == 'e') {
+      } /*else if (av[opn][1] == 'e') {
         g_embed_file = av[opn + 1];
         opn += 2;
         flag = true;
@@ -3152,7 +3024,7 @@ int main(int ac, char **av) {
         enable_bs = true;
         opn += 1;
         flag = true;
-      } else {
+      }*/ else {
         print_usage();
       }
     }
@@ -3161,22 +3033,22 @@ int main(int ac, char **av) {
   }
   if (kmer_temp != 0)
     kmer_len = kmer_temp;
-  // change default to 16
-  mask = kmer_len == 16 ? ~0 : (1ULL << (kmer_len * 2)) - 1;
+
+  mask = kmer_len == 32 ? ~0 : (1ULL << (kmer_len * 2)) - 1;
 
   cerr << "Using " << g_ncpus << " cpus " << endl;
   cerr << "Using kmer length " << kmer_len << " and step size " << kmer_step << endl;
 
-  tbb::task_scheduler_init init(g_ncpus);
+  //tbb::task_scheduler_init init(g_ncpus);
   make_code();
 
   // load reference once
   Reference **r = new Reference*[2];
   if (enable_bs){
-    r[0] = new Reference(av[opn], enable_minimizer, 'c');
-    r[1] = new Reference(av[opn++], enable_minimizer, 'g');
+    r[0] = new Reference(av[opn], kmer_len, enable_minimizer, 'c');
+    r[1] = new Reference(av[opn++], kmer_len, enable_minimizer, 'g');
   } else {
-    r[0] = new Reference(av[opn++], enable_minimizer, ' ');
+    r[0] = new Reference(av[opn++], kmer_len, enable_minimizer, ' ');
   }
 
   if (enable_extension && !enable_wfa_extension)

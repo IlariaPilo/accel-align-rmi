@@ -43,3 +43,20 @@ data/benchmarking/*uint*
 
 # Indices
 */*_index/*
+data/*
+!data/*.png
+
+# Build
+.wfa
+key_gen
+accalign
+stats
+accindex
+lookup
+WFA-paper/*
+
+# Container history
+docker/.bash_history
+
+# Others
+*.out
