@@ -31,6 +31,7 @@ using namespace std;
 
 const unsigned step = 1;
 unsigned kmer_size = 32;
+bool rev_comp = false;
 
 // Reference string + some methods
 class Reference {
@@ -41,13 +42,30 @@ class Reference {
     char code[256];
 
     static bool ichar_equals(char a, char b) {
-        return std::tolower(static_cast<unsigned char>(a)) ==
-            std::tolower(static_cast<unsigned char>(b));
+        return tolower(static_cast<unsigned char>(a)) ==
+            tolower(static_cast<unsigned char>(b));
     }
 
     static bool iequals(const std::string& a, const std::string& b) {
         return a.size() == b.size() &&
-            std::equal(a.begin(), a.end(), b.begin(), ichar_equals);
+            equal(a.begin(), a.end(), b.begin(), ichar_equals);
+    }
+
+    static char get_complement(char base) {
+        char ubase = toupper(static_cast<unsigned char>(base));
+        switch(ubase) {
+            case 'A':
+                return 'T';
+            case 'T':
+                return 'A';
+            case 'C':
+                return 'G';
+            case 'G':
+                return 'C';
+            default:
+                // this should never happen in practice
+                return ubase;
+        }
     }
 
  public:
@@ -156,6 +174,16 @@ class Reference {
         return output;
     }
 
+    static string reverse_complement(const string& dna) {
+        string reversed = dna;
+        string complemented;
+        // Reverse
+        reverse(reversed.begin(), reversed.end());
+        // Complement
+        transform(reversed.begin(), reversed.end(), back_inserter(complemented), get_complement);
+        return complemented;
+    }
+
     ~Reference() {
         size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
         size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
@@ -167,14 +195,18 @@ class Reference {
 
 int main(int ac, char **av) {
     if (ac < 3) {
-        cerr << "./stats [-l LEN] <ref.fa> <read.fastq>\n";
+        cerr << "./stats [-l LEN] [-rc] <ref.fa> <read.fastq>\n";
         return 0;
     }
 
     unsigned kmer_temp = 0;
-    for (int it = 1; it < ac; it++) {
-        if (strcmp(av[it], "-l") == 0)
-        kmer_temp = atoi(av[it + 1]);
+    for (int it = 1; it < (ac-2); it++) {
+        if (strcmp(av[it], "-l") == 0) {
+            kmer_temp = atoi(av[it + 1]);
+            it++;
+        }
+        if (strcmp(av[it], "-rc") == 0)
+            rev_comp = true;
     }
 
     if (kmer_temp != 0)
@@ -220,6 +252,13 @@ int main(int ac, char **av) {
         for (size_t i=0; i<limit; i+=kmer_size) {
             string kmer = read.substr(i,kmer_size);
             auto positions = ref.stats(kmer);
+            pred_pos += positions.first;
+            actual_pos += positions.second;
+            if (!rev_comp)
+                continue;
+            /////////////// if reverse complement ///////////////
+            kmer = Reference::reverse_complement(kmer);
+            positions = ref.stats(kmer);
             pred_pos += positions.first;
             actual_pos += positions.second;
         }

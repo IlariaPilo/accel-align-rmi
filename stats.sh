@@ -5,14 +5,16 @@ set -e
 len=32
 ref=''
 read=''
+reverse_complement=''
 
 # Function to display usage instructions
 usage() {
     echo -e "\n\033[1;96mbash stats.sh [OPTIONS] <reference.fna> <read.fastq>\033[0m"
     echo -e "Generates the precision stats for the default accel-align index."
     echo "Options:"
-    echo "  -l, --len      LEN     The length of the kmer [32]"
-    echo -e "  -h, --help             Display this help message\n"
+    echo "  -l, --len    LEN   The length of the kmer [32]"
+    echo "  -r                 Enable precision for reverse complement [off]"
+    echo -e "  -h, --help         Display this help message\n"
     exit 1
 }
 
@@ -29,7 +31,7 @@ make_stats() {
 
     # run the stats
     echo -e "\n\033[1;96m [stats.sh] \033[0mRunning the 'stats' program"
-    ./stats -l $len $ref $read
+    ./stats -l $len $reverse_complement $ref $read
 }
 
 # read options from command line
@@ -37,6 +39,9 @@ while getopts ":l:h" opt; do
     case $opt in
         l)
             len="$OPTARG"
+            ;;
+        r)
+            reverse_complement='-rc'
             ;;
         h)
             usage

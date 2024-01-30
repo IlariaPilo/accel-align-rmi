@@ -78,6 +78,7 @@ bash stats.sh [OPTIONS] <reference.fna> <read.fastq>
 The following options are available:
 ```
   -l, --len   LEN   The length of the kmer [32]
+  -r                Enable precision for reverse complement [off]
   -h, --help        Display this help message
 ```
 The script first generates the classic index `<reference.fna>.hash`, and then computes its precision (that is, the ratio between correct positions and returned positions) using as seeds kmers coming from the `<read.fastq>` file. Results are saved in a `<read.fastq>.stats<LEN>` csv file.
