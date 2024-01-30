@@ -35,7 +35,7 @@ make_stats() {
 }
 
 # read options from command line
-while getopts ":l:h" opt; do
+while getopts ":l:hr" opt; do
     case $opt in
         l)
             len="$OPTARG"
