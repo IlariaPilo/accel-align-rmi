@@ -5,7 +5,7 @@ set -e
 len=32
 ref=''
 read=''
-reverse_complement=''
+reverse_complement='-rc'
 
 # Function to display usage instructions
 usage() {
@@ -13,7 +13,7 @@ usage() {
     echo -e "Generates the precision stats for the default accel-align index."
     echo "Options:"
     echo "  -l, --len    LEN   The length of the kmer [32]"
-    echo "  -r                 Enable precision for reverse complement [off]"
+    #echo "  -r                 Enable precision for reverse complement [off]"
     echo -e "  -h, --help         Display this help message\n"
     exit 1
 }
@@ -40,9 +40,9 @@ while getopts ":l:hr" opt; do
         l)
             len="$OPTARG"
             ;;
-        r)
-            reverse_complement='-rc'
-            ;;
+        # r)
+        #     reverse_complement='-rc'
+        #     ;;
         h)
             usage
             ;;
