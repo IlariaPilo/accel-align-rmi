@@ -22,8 +22,10 @@ make_stats() {
     make accindex stats
 
     # create the index
-    echo -e "\n\033[1;96m [stats.sh] \033[0mGenerating the classic index"
-    ./accindex -l $len $ref
+    if [ ! -e $index_out ]; then
+        echo -e "\n\033[1;96m [stats.sh] \033[0mGenerating the classic index"
+        ./accindex -l $len $ref
+    fi
 
     # run the stats
     echo -e "\n\033[1;96m [stats.sh] \033[0mRunning the 'stats' program"
@@ -69,7 +71,7 @@ if [ ! -e "$read" ]; then
     usage
 fi
 
-index_out="${ref}.hash" 
+index_out="${ref}.hash${len}" 
 stats_out="${read}.stats${len}"
 
 if [ ! -e $stats_out ]; then

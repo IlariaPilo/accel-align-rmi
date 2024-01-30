@@ -181,7 +181,7 @@ int main(int ac, char **av) {
         kmer_size = kmer_temp;
 
     string ref_fn = av[ac-2];            // reference file name
-    string idx_fn = ref_fn + ".hash"; // index file name
+    string idx_fn = ref_fn + ".hash" + to_string(kmer_size); // index file name
     string read_fn = av[ac-1];           // read file name
     string stats_fn = read_fn + ".stats" + to_string(kmer_size);   // stats file name
 

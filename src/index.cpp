@@ -236,7 +236,7 @@ int main(int ac, char **av) {
     if (mm_w_tmp)
       ipt.w = mm_w_tmp;
 
-    fn += ".hash"; // output hash: xxx.hash
+    fn += ".hash" + to_string(kmer); // output hash: xxx.hash
 
     mm_idx_reader_t *idx_rdr = mm_idx_reader_open(av[ac - 1], &ipt, fn.c_str());
     mm_idx_reader_read(idx_rdr, n_threads);
