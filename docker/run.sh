@@ -14,6 +14,12 @@ BASE_DIR=$(readlink -f "${_source_dir_}/..")
 
 input_dir=$(realpath $input_dir)
 
+if [ ! -d $input_dir ]; then
+    echo "It looks like \`$input_dir\` does not exists..."
+    echo "Aborting!"
+    exit 1
+fi
+
 echo "Mounting directory $input_dir in \`/home/accel-align-rmi/genomes\`."
 
 docker run --rm -v $BASE_DIR:/home/accel-align-rmi \
