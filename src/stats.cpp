@@ -226,7 +226,11 @@ int main(int ac, char **av) {
 
     // Prepare the stats file
     ofstream stats_f(stats_fn.c_str());
-    stats_f << "read_name,indexed_pos,actual_pos\n";
+    // Print header
+    if (rev_comp)
+        stats_f << "read_name,indexed_pos_fwd,actual_pos_fwd,indexed_pos_rev,actual_pos_rev\n";
+    else
+        stats_f << "read_name,indexed_pos_fwd,actual_pos_fwd\n";
 
     // Consume the reads
     ifstream read_f(read_fn.c_str());
@@ -246,24 +250,27 @@ int main(int ac, char **av) {
         read_len = read.size();
         // get the number of kmers
         limit = read_len - kmer_size + 1;
-        size_t pred_pos=0, actual_pos=0;
+        size_t pred_pos_fwd=0, actual_pos_fwd=0, pred_pos_rev=0, actual_pos_rev=0;
 
-        #pragma omp parallel for reduction(+:actual_pos, pred_pos)
+        #pragma omp parallel for reduction(+:actual_pos_fwd, pred_pos_fwd, actual_pos_rev, pred_pos_rev)
         for (size_t i=0; i<limit; i+=kmer_size) {
             string kmer = read.substr(i,kmer_size);
             auto positions = ref.stats(kmer);
-            pred_pos += positions.first;
-            actual_pos += positions.second;
+            pred_pos_fwd += positions.first;
+            actual_pos_fwd += positions.second;
             if (!rev_comp)
                 continue;
             /////////////// if reverse complement ///////////////
             kmer = Reference::reverse_complement(kmer);
             positions = ref.stats(kmer);
-            pred_pos += positions.first;
-            actual_pos += positions.second;
+            pred_pos_rev += positions.first;
+            actual_pos_rev += positions.second;
         }
 
-        stats_f << name + "," << pred_pos << "," << actual_pos << "\n";
+        if (rev_comp)
+            stats_f << name + "," << pred_pos_fwd << "," << actual_pos_fwd << "," << pred_pos_rev << "," << actual_pos_rev << "\n";
+        else
+            stats_f << name + "," << pred_pos_fwd << "," << actual_pos_fwd << "\n";
         cout << name + "\n";
     }
     return 0;
