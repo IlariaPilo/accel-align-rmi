@@ -112,7 +112,7 @@ bool Index::make_index(const char *F, int id) {
     cerr << "Attempting parallel sorting\n";
     //tbb::task_scheduler_init init(tbb::task_scheduler_init::automatic);
     tbb::parallel_sort(data.begin(), data.end(), Data());
-  } catch (std::bad_alloc e) {
+  } catch (std::bad_alloc &e) {
     cerr << "Fall back to serial sorting (low mem)\n";
     sort(data.begin(), data.end(), Data());
   }
@@ -122,7 +122,7 @@ bool Index::make_index(const char *F, int id) {
   if (id)
     fn += ".hash.part" + to_string(id);
   else
-    fn += ".hash";
+    fn += ".hash" + to_string(kmer);
   ofstream fo(fn.c_str(), ios::binary);
 
   // determine the number of valid entries based on first junk entry
@@ -143,7 +143,7 @@ bool Index::make_index(const char *F, int id) {
     }
     fo.write((char *) buf, eof * sizeof(uint32_t));
     delete[] buf;
-  } catch (std::bad_alloc e) {
+  } catch (std::bad_alloc &e) {
     cerr << "Fall back to slow writing posv due to low mem.\n";
     for (size_t i = 0; i < eof; i++) {
       fo.write((char *) &data[i].pos, 4);
@@ -175,7 +175,7 @@ bool Index::make_index(const char *F, int id) {
     assert(buf_idx == (mod + 1));
     fo.write((char *) buf, buf_idx * sizeof(uint32_t));
     delete[] buf;
-  } catch (std::bad_alloc e) {
+  } catch (std::bad_alloc &e) {
     cerr << "Fall back to slow writing keyv (low mem)\n";
     for (size_t i = 0; i < eof;) {
       assert (data[i].key != (uint32_t) -1);
@@ -236,7 +236,7 @@ int main(int ac, char **av) {
     if (mm_w_tmp)
       ipt.w = mm_w_tmp;
 
-    fn += ".hash" + to_string(kmer); // output hash: xxx.hash
+    fn += ".hash"; // output hash: xxx.hash
 
     mm_idx_reader_t *idx_rdr = mm_idx_reader_open(av[ac - 1], &ipt, fn.c_str());
     mm_idx_reader_read(idx_rdr, n_threads);
