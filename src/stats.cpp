@@ -35,10 +35,21 @@ unsigned kmer_size = 32;
 // Reference string + some methods
 class Reference {
  private:
-  string ref;
-  uint32_t *keyv, *posv;
-  uint32_t nposv, nkeyv;
-  char code[256];
+    string ref;
+    uint32_t *keyv, *posv;
+    uint32_t nposv, nkeyv;
+    char code[256];
+
+    static bool ichar_equals(char a, char b) {
+        return std::tolower(static_cast<unsigned char>(a)) ==
+            std::tolower(static_cast<unsigned char>(b));
+    }
+
+    static bool iequals(const std::string& a, const std::string& b) {
+        return a.size() == b.size() &&
+            std::equal(a.begin(), a.end(), b.begin(), ichar_equals);
+    }
+
  public:
     // Load the reference string
     // code --> just a dictionary matching A-0, C-1, G-2, T-3, everything else-4
@@ -138,7 +149,7 @@ class Reference {
         for (auto i=first_pos_idx; i<last_pos_idx; i++) {
             // get position
             uint32_t pos = posv[i];
-            if (kmer.compare(ref.substr(pos, kmer_size)) == 0)
+            if (iequals(kmer, ref.substr(pos, kmer_size)))
                 actual_pos++;
         }
         output.second = actual_pos;
