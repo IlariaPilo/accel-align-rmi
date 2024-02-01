@@ -21,10 +21,10 @@ RUN echo 'echo "\
 
 # modify the Makefile
 RUN echo \
-"sed -i 's|TBB_INCLUDE = ## your path here ##|TBB_INCLUDE = /oneTBB-2019_U5/include|' /home/accel-align-rmi/Makefile"\
+"sed -i 's|TBB_INCLUDE = |TBB_INCLUDE = /oneTBB-2019_U5/include|' /home/accel-align-rmi/Makefile"\
 >> /root/.bashrc
 RUN echo \
-"sed -i 's|TBB_LIB = ## your path here ##|TBB_LIB = /oneTBB-2019_U5/build/linux_intel64_gcc_cc11_libc2.35_kernel5.15.0_release|' /home/accel-align-rmi/Makefile"\
+"sed -i 's|TBB_LIB = |TBB_LIB = /oneTBB-2019_U5/build/linux_intel64_gcc_cc11_libc2.35_kernel5.15.0_release|' /home/accel-align-rmi/Makefile"\
 >> /root/.bashrc
 
 WORKDIR /home/accel-align-rmi
