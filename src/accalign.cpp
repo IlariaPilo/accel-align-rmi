@@ -366,7 +366,7 @@ void AccAlign::cpu_root_fn(tbb::concurrent_bounded_queue<ReadCnt> *inputQ,
       break;
     }
 
-    //tbb::task_scheduler_init init(g_ncpus);
+    tbb::task_scheduler_init init(g_ncpus);
     tbb::parallel_for(tbb::blocked_range<size_t>(0, nreads),
                       Parallel_mapper(std::get<0>(cpu_readcnt), std::get<1>(cpu_readcnt), this)
     );
@@ -2305,7 +2305,7 @@ void AccAlign::align_wrapper(int tid, int soff, int eoff, Read *ptlread, Read *p
   if (!ptlread2) {
     // single-end read alignment
     string sams[eoff];
-    //tbb::task_scheduler_init init(g_ncpus);
+    tbb::task_scheduler_init init(g_ncpus);
     tbb::parallel_for(tbb::blocked_range<size_t>(soff, eoff), Tbb_aligner(ptlread, sams, this));
 
     auto start = std::chrono::system_clock::now();
@@ -2910,42 +2910,32 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
 
   if (is_paired) {
     graph g;
-    // Define an input_node instead of source_node
-    // TODO --- check !!
-    input_node<ReadPair> i_node(g, [&](tbb::flow_control &fc) -> ReadPair {
+    source_node<ReadPair> input_node(g, [&](ReadPair &rp) -> bool {
       auto start = std::chrono::system_clock::now();
 
       bool end1 = gzgetc(in1) == EOF;
       bool end2 = gzgetc(in2) == EOF;
-      if (gzeof(in1) || end1 || end2) {
-        fc.stop();
-        return {};
-      }
-
-      ReadPair rp;
+      if (gzeof(in1) || end1 || end2)
+        return false;
 
       Read *r = new Read;
       in1 >> *r;
-      if (!strlen(r->seq)){
-        fc.stop();
-        return {};
-      }
+      if (!strlen(r->seq))
+        return false;
       get<0>(rp) = r;
 
       Read *r2 = new Read;
       in2 >> *r2;
-      if (!strlen(r2->seq)){
-        fc.stop();
-        return {};
-      }
+      if (!strlen(r2->seq))
+        return false;
       get<1>(rp) = r2;
 
       auto end = std::chrono::system_clock::now();
       auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
       input_io_time += elapsed.count();
 
-      return rp;
-    });
+      return true;
+    }, false);
 
     int max_objects = 1000000;
     limiter_node<ReadPair> lnode(g, max_objects);
@@ -2953,12 +2943,12 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
     function_node<ReadPair, ReadPair> align_node(g, unlimited, tbb_align(this));
     function_node<ReadPair, continue_msg> score_node(g, 1, tbb_score(this));
 
-    make_edge(score_node, lnode.decrementer()); // it returns decrement so it should be correct
+    make_edge(score_node, lnode.decrement);
     make_edge(align_node, score_node);
     make_edge(map_node, align_node);
     make_edge(lnode, map_node);
-    make_edge(i_node, map_node);
-    i_node.activate();
+    make_edge(input_node, map_node);
+    input_node.activate();
     g.wait_for_all();
   }
 
@@ -2967,7 +2957,6 @@ bool AccAlign::tbb_fastq(const char *F1, const char *F2) {
 
   return true;
 }
-
 
 int main(int ac, char **av) {
   if (ac < 3) {
@@ -3039,7 +3028,7 @@ int main(int ac, char **av) {
   cerr << "Using " << g_ncpus << " cpus " << endl;
   cerr << "Using kmer length " << kmer_len << " and step size " << kmer_step << endl;
 
-  //tbb::task_scheduler_init init(g_ncpus);
+  tbb::task_scheduler_init init(g_ncpus);
   make_code();
 
   // load reference once

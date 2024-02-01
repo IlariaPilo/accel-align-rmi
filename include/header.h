@@ -29,6 +29,7 @@
 
 #include "tbb/tbb.h"
 #include "tbb/flow_graph.h"
+#include "tbb/task_scheduler_init.h"
 #include "tbb/concurrent_queue.h"
 #include "tbb/parallel_sort.h"
 
