@@ -477,17 +477,19 @@ Reference::~Reference() {
   } else {
     size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
     size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
+    int r;
     if (enable_rmi) {
       char *base = (char *) keyv - 8;
-      int r = munmap(base, keyv_sz + 8);
+      r = munmap(base, keyv_sz + 8);
       assert(r == 0);
       base = (char *) posv - 8;
       r = munmap(base, posv_sz + 8);
+      assert(r == 0);
     } else {
       char *base = (char *) posv - 4;
-      int r = munmap(base, posv_sz + keyv_sz + 4);
+      r = munmap(base, posv_sz + keyv_sz + 4);
+      assert(r == 0);
     }
-    assert(r == 0);
   }
 }
 
