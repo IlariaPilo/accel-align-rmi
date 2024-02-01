@@ -5,7 +5,6 @@
 using namespace tbb::flow;
 using namespace std;
 
-// change default to 32
 unsigned kmer_len = 32;
 int kmer_step = 1;
 uint64_t mask;
@@ -14,7 +13,7 @@ string g_out, g_batch_file, g_embed_file;
 char rcsymbol[6] = "TGCAN";
 uint8_t code[256];
 bool enable_extension = true, enable_wfa_extension = false, extend_all = false,
-enable_minimizer = false, enable_bs = false;
+enable_minimizer = false, enable_bs = false, enable_rmi = false;
 
 
 int g_ncpus = 1;
@@ -87,19 +86,19 @@ gzFile &operator>>(gzFile &in, Read &r) {
 }
 
 void print_usage() {
-  //cerr << "accalign [options] <ref.fa> [read1.fastq] [read2.fastq]\n";
-  cerr << "accalign [options] <ref.fa> <read.fastq>\n";
+  cerr << "accalign [options] <ref.fa> [read1.fastq] [read2.fastq]\n";
   cerr << "\t Maximum read length supported is 512\n";
   cerr << "options:\n";
   cerr << "\t-t INT Number of cpu threads to use [all]\n";
   cerr << "\t-l INT Length of seed [32]\n";
   cerr << "\t-o Name of the output file \n";
-  //cerr << "\t-x Alignment-free mode\n";
-  //cerr << "\t-w Use WFA for extension. KSW used by default. \n";
-  //cerr << "\t-p Maximum distance allowed between the paired-end reads [1000]\n";
-  //cerr << "\t-d Disable embedding, extend all candidates from seeding (this mode is super slow, only for benchmark).\n";
-  //cerr << "\t-m Seeding with minimizer.\n";
-  //cerr << "\t-s bisulfite sequencing read alignment mode \n";
+  cerr << "\t-r Use RMI index \n";
+  cerr << "\t-x Alignment-free mode\n";
+  cerr << "\t-w Use WFA for extension. KSW used by default. \n";
+  cerr << "\t-p Maximum distance allowed between the paired-end reads [1000]\n";
+  cerr << "\t-d Disable embedding, extend all candidates from seeding (this mode is super slow, only for benchmark).\n";
+  cerr << "\t-m Seeding with minimizer.\n";
+  cerr << "\t-s bisulfite sequencing read alignment mode \n";
 }
 
 void AccAlign::print_stats() {
@@ -410,7 +409,6 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   int max_cov = 0;
   unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
   size_t ntotal_hits = 0;
-  //int ntotal_hits = 0;
   size_t b[nkmers], e[nkmers];
   unsigned kmer_idx = 0;
   unsigned ori_slide_bk = ori_slide;
@@ -421,7 +419,7 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
     uint64_t k = 0;
-    for (size_t j = i /*, _i_ = 0*/; j < i + kmer_len; j++ /*, _i_++*/) {
+    for (size_t j = i; j < i + kmer_len; j++) {
       k = (k << 2) + *(Q + j);
     }
     // lookup to get the position of the hash
@@ -484,12 +482,9 @@ void AccAlign::pigeonhole_query_topcov(char *Q,
   start = std::chrono::system_clock::now();
 
   vector<Region> unique_regions;
-
-  assert(ntotal_hits > 0);
   unique_regions.reserve(ntotal_hits);
   size_t idx = 0;
   Region r;
-
   r.matched_intervals.reserve(nkmers);
 //  Region unique_regions[ntotal_hits];
 //  size_t idx = 0;
@@ -597,7 +592,6 @@ void AccAlign::pigeonhole_query_sort(char *Q,
   unsigned max_cov = 0;
   unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
   size_t ntotal_hits = 0;
-  //int ntotal_hits = 0;
   size_t b[nkmers], e[nkmers];
   unsigned kmer_idx = 0;
   unsigned nseed_freq = 0;
@@ -607,7 +601,7 @@ void AccAlign::pigeonhole_query_sort(char *Q,
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
     uint64_t k = 0;
-    for (size_t j = i /*, _i_ = 0*/; j < i + kmer_len; j++ /*, _i_++*/) {
+    for (size_t j = i; j < i + kmer_len; j++) {
       k = (k << 2) + *(Q + j);
     }
     // lookup to get the position of the hash
@@ -641,8 +635,6 @@ void AccAlign::pigeonhole_query_sort(char *Q,
   // initialize top values with first values for each kmer.
   uint32_t MAX_POS = numeric_limits<uint32_t>::max();
   vector<Region> regions;
-
-  assert(ntotal_hits > 0);
   regions.reserve(ntotal_hits);
   for (unsigned i = 0; i < nkmers; i++) {
     if (b[i] < e[i] && ((!high_freq && e[i] - b[i] < max_occ) || high_freq)) {
@@ -960,7 +952,6 @@ void AccAlign::collect_seed_hits_priorityqueue(int n_m0,
 
   Region r;
   int max_interval = rlen / k;
-
   r.matched_intervals.reserve(max_interval);
 
   while (nprocessed < ntotal_hits) {
@@ -1141,7 +1132,6 @@ void AccAlign::pigeonhole_query(char *Q,
   int max_cov = 0;
   unsigned nkmers = (rlen - ori_slide - kmer_len) / kmer_step + 1;
   size_t ntotal_hits = 0;
-  //int ntotal_hits = 0;
   size_t b[nkmers], e[nkmers];
   unsigned kmer_idx = 0;
   unsigned nseed_freq = 0;
@@ -1150,7 +1140,7 @@ void AccAlign::pigeonhole_query(char *Q,
   auto start = std::chrono::system_clock::now();
   for (size_t i = ori_slide; i + kmer_len <= rlen; i += kmer_step) {
     uint64_t k = 0;
-    for (size_t j = i /*, _i_ = 0*/; j < i + kmer_len; j++ /*, _i_++*/) {
+    for (size_t j = i; j < i + kmer_len; j++) {
       k = (k << 2) + *(Q + j);
     }
     // lookup to get the position of the hash
@@ -1158,9 +1148,6 @@ void AccAlign::pigeonhole_query(char *Q,
     
     if (e[kmer_idx] - b[kmer_idx] >= max_occ)
       nseed_freq++;
-//    if (e[kmer_idx] - b[kmer_idx] < max_occ) {
-//      ntotal_hits += (e[kmer_idx] - b[kmer_idx]);
-//    }
     kmer_idx++;
   }
   assert(kmer_idx == nkmers);
@@ -1206,7 +1193,6 @@ void AccAlign::pigeonhole_query(char *Q,
   start = std::chrono::system_clock::now();
 
   Region r;
-
   r.matched_intervals.reserve(nkmers);
   while (nprocessed < ntotal_hits) {
     //find min
@@ -1248,7 +1234,6 @@ void AccAlign::pigeonhole_query(char *Q,
 
     // add next element
     b[min_kmer]++;
-    // FIXME broken line
     uint32_t next_pos = b[min_kmer] < e[min_kmer] ? get_posv(ref_id)[b[min_kmer]] : MAX_POS;
     if (next_pos != MAX_POS) {
       uint32_t shift_pos = rel_off[min_kmer] + ori_slide;
@@ -1543,7 +1528,6 @@ int AccAlign::get_mapq(int best, int secBest) {
 
 void AccAlign::map_read(Read &R, int ref_id) {
 
-  //std::cerr << R.name << std::endl;
   auto start = std::chrono::system_clock::now();
   vector<Region> fcandidate_regions, rcandidate_regions;
 
@@ -2437,7 +2421,9 @@ void AccAlign::score_region(Read &r, char *qseq, Region &region,
     l = qs;
     l += l * SC_MCH + END_BONUS > GAPO ? (l * SC_MCH + END_BONUS - GAPO) / GAPE : 0;
     qs0 = 0, qe0 = qlen;
-    rs0 = rs > l ? rs - l : 0;
+    r.pos = rs;
+    uint32_t chromo_s = get_offset(r.ref_id)[get_tid(r)];
+    rs0 = rs > (l + chromo_s) ? rs - l : chromo_s; // start from the beginning of this chromo
 
     l = qlen - qe;
     l += l * SC_MCH + END_BONUS > GAPO ? (l * SC_MCH + END_BONUS - GAPO) / GAPE : 0;
@@ -2981,7 +2967,7 @@ int main(int ac, char **av) {
         g_out = av[opn + 1];
         opn += 2;
         flag = true;
-      } /*else if (av[opn][1] == 'e') {
+      } else if (av[opn][1] == 'e') {
         g_embed_file = av[opn + 1];
         opn += 2;
         flag = true;
@@ -2995,6 +2981,10 @@ int main(int ac, char **av) {
         flag = true;
       } else if (av[opn][1] == 'x') {
         enable_extension = false;
+        opn += 1;
+        flag = true;
+      } else if (av[opn][1] == 'r') {
+        enable_rmi = false;
         opn += 1;
         flag = true;
       } else if (av[opn][1] == 'w') {
@@ -3013,7 +3003,7 @@ int main(int ac, char **av) {
         enable_bs = true;
         opn += 1;
         flag = true;
-      }*/ else {
+      } else {
         print_usage();
       }
     }
@@ -3022,7 +3012,6 @@ int main(int ac, char **av) {
   }
   if (kmer_temp != 0)
     kmer_len = kmer_temp;
-
   mask = kmer_len == 32 ? ~0 : (1ULL << (kmer_len * 2)) - 1;
 
   cerr << "Using " << g_ncpus << " cpus " << endl;
@@ -3034,10 +3023,10 @@ int main(int ac, char **av) {
   // load reference once
   Reference **r = new Reference*[2];
   if (enable_bs){
-    r[0] = new Reference(av[opn], kmer_len, enable_minimizer, 'c');
-    r[1] = new Reference(av[opn++], kmer_len, enable_minimizer, 'g');
+    r[0] = new Reference(av[opn], kmer_len, enable_minimizer, enable_rmi, 'c');
+    r[1] = new Reference(av[opn++], kmer_len, enable_minimizer, enable_rmi, 'g');
   } else {
-    r[0] = new Reference(av[opn++], kmer_len, enable_minimizer, ' ');
+    r[0] = new Reference(av[opn++], kmer_len, enable_minimizer, enable_rmi, ' ');
   }
 
   if (enable_extension && !enable_wfa_extension)
