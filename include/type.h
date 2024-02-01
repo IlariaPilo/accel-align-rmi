@@ -77,9 +77,9 @@ class Reference {
   uint64_t nposv, nkeyv, nkeyv_true;
   mm_idx_t *mi;
   RMI rmi;  // this is fine
+  unsigned kmer_len;
   bool enable_minimizer, enable_rmi;
   char mode; // 'c' c-> t; 'g' g->a; ' ' original
-  unsigned kmer_len;
 
   Reference(const char *F, unsigned _kmer_len, bool _enable_minimizer, bool _enable_rmi, char mode);
 
