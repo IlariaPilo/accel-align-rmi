@@ -414,8 +414,8 @@ uint32_t Reference::get_keyv_val64(uint32_t idx) {
 }
 
 Reference::Reference(const char *F, unsigned _kmer_len, bool _enable_minimizer, bool _enable_rmi, char _mode): 
-      enable_minimizer(_enable_minimizer), 
       kmer_len(_kmer_len),
+      enable_minimizer(_enable_minimizer), 
       enable_rmi(_enable_rmi), 
       mode(_mode) {
   auto start = std::chrono::system_clock::now();
