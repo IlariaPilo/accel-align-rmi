@@ -7,10 +7,11 @@ else
 endif
 
 # TBB settings
-TBB_INCLUDE = /usr/include/tbb
+TBB_INCLUDE = ## your path here ##
 TBB_LIB =	## your path here ##
-#TBB_LIB = /media/ssd/ngs-data-analysis/code/oneTBB-2019_U5/build/linux_intel64_gcc_cc11_libc2.35_kernel5.15.0_release
-TBBFLAGS = $(if $(TBB_LIB),-L$(TBB_LIB) -ltbb,-ltbb)
+#TBB_INCLUDE = /home/ilaria/oneTBB-2019_U5/include/tbb
+#TBB_LIB = /home/ilaria/oneTBB-2019_U5/build/linux_intel64_gcc_cc11_libc2.35_kernel5.15.0_release
+TBBFLAGS = $(if $(TBB_INCLUDE),-I$(TBB_INCLUDE) ,) $(if $(TBB_LIB),-L$(TBB_LIB) -ltbb,-ltbb)
 ACCLDFLAGS=./WFA-paper/build/libwfa.a -lz
 
 OBJ_DIR=obj
