@@ -385,6 +385,11 @@ void Reference::index_lookup64(uint64_t key, size_t* b, size_t* e) {
 
   // check in the keyv array
   while (l <= r) {
+      // TODO REMOVE
+      cerr << "l " << l << "\n";
+      cerr << "r " << r << "\n";
+      cerr << "------------------------\n";
+      // END REMOVE
       guess_key = reinterpret_cast<uint64_t*>(keyv+(guess_pos*3));
       // if it's the same, done
       if (*guess_key == key) {
