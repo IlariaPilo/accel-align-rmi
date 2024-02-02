@@ -406,10 +406,10 @@ void Reference::index_lookup_classic(uint64_t key, size_t* b, size_t* e) {
   *e = keyv[hash+1];
 }
 
-uint32_t Reference::get_keyv_val32(uint32_t idx) {
+uint32_t Reference::get_keyv_val32(uint64_t idx) {
   return keyv[idx*2+1];
 }
-uint32_t Reference::get_keyv_val64(uint32_t idx) {
+uint32_t Reference::get_keyv_val64(uint64_t idx) {
   return keyv[idx*3+2];
 }
 
