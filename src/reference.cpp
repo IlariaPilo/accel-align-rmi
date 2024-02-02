@@ -331,7 +331,7 @@ void Reference::index_lookup32(uint64_t key, size_t* b, size_t* e) {
 
   // set up l and r for the bounded binary search
   l = guess_pos < err? 0 : (guess_pos-err);
-  r = (guess_pos+err) < (nkeyv_true-1)? (guess_pos-err) : (nkeyv_true-1);
+  r = (guess_pos+err) < (nkeyv_true-1)? (guess_pos+err) : (nkeyv_true-1);
 
   // check in the keyv array
   while (l <= r) {
@@ -381,7 +381,7 @@ void Reference::index_lookup64(uint64_t key, size_t* b, size_t* e) {
 
   // set up l and r for the bounded binary search
   l = guess_pos < err? 0 : (guess_pos-err);
-  r = (guess_pos+err) < (nkeyv_true-1)? (guess_pos-err) : (nkeyv_true-1);
+  r = (guess_pos+err) < (nkeyv_true-1)? (guess_pos+err) : (nkeyv_true-1);
 
   // check in the keyv array
   while (l <= r) {
