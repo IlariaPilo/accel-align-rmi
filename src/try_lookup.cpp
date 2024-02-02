@@ -11,7 +11,7 @@ int main(int argc, char *argv[]) {
         }
 
         // make reference
-        Reference ref(argv[1], 32, false, ' ');
+        Reference ref(argv[1], 32, false, true, ' ');
 
         size_t b, e;
 
