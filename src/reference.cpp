@@ -367,10 +367,10 @@ void Reference::index_lookup32(uint64_t key, size_t* b, size_t* e) {
 void Reference::index_lookup64(uint64_t key, size_t* b, size_t* e) {
   size_t err;
   uint64_t* guess_key;
-  uint32_t guess_pos;
+  uint64_t guess_pos;
   uint32_t l, r;
   // call the lookup function of the index
-  guess_pos = (uint32_t) rmi.lookup(key, &err);
+  guess_pos = rmi.lookup(key, &err);
   // TODO REMOVE
   cerr << "------------------------\n";
   cerr << "looking 4 key " << key << "\n";
