@@ -259,7 +259,7 @@ bool Index::key_gen64() {
 
   size_t i;
 
-  for (i = 0; i < data.size() && data[i].pos != uint64_t(-1); i++) {
+  for (i = 0; i < data.size() && data[i].pos != uint32_t(-1); i++) {
     if (data[i].key != prec) {
         prec = data[i].key;
         eof ++;
