@@ -323,11 +323,12 @@ void Reference::load_reference(const char *F){
  */
 void Reference::index_lookup32(uint64_t key, size_t* b, size_t* e) {
   size_t err;
-  uint32_t guess_key, guess_pos;
-  uint32_t l, r;
+  uint32_t guess_key;
+  uint64_t guess_pos;
+  uint64_t l, r;
   uint32_t key32 = (uint32_t) key;
   // call the lookup function of the index
-  guess_pos = (uint32_t) rmi.lookup(key, &err);
+  guess_pos = rmi.lookup(key, &err);
 
   // set up l and r for the bounded binary search
   l = guess_pos < err? 0 : (guess_pos-err);
@@ -367,17 +368,9 @@ void Reference::index_lookup32(uint64_t key, size_t* b, size_t* e) {
 void Reference::index_lookup64(uint64_t key, size_t* b, size_t* e) {
   size_t err;
   uint64_t* guess_key;
-  uint64_t guess_pos;
-  uint32_t l, r;
+  uint64_t guess_pos, l, r;
   // call the lookup function of the index
   guess_pos = rmi.lookup(key, &err);
-  // TODO REMOVE
-  cerr << "------------------------\n";
-  cerr << "looking 4 key " << key << "\n";
-  cerr << "predicted position is " << guess_pos << ", error is " << err << "\n";
-  cerr << "key should be in [" << guess_pos-err << ", " << guess_pos+err << "]\n";
-  cerr << "------------------------\n";
-  // END REMOVE
 
   // set up l and r for the bounded binary search
   l = guess_pos < err? 0 : (guess_pos-err);
@@ -386,12 +379,6 @@ void Reference::index_lookup64(uint64_t key, size_t* b, size_t* e) {
   // check in the keyv array
   while (l <= r) {
       guess_key = reinterpret_cast<uint64_t*>(keyv+(guess_pos*3));
-      // TODO REMOVE
-      cerr << "l " << l << "\n";
-      cerr << "r " << r << "\n";
-      cerr << "key = " << *guess_key << "\n";
-      cerr << "------------------------\n";
-      // END REMOVE
       // if it's the same, done
       if (*guess_key == key) {
         *b = get_keyv_val(guess_pos);
