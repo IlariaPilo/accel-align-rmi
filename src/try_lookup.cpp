@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
                 guess_key = reinterpret_cast<uint64_t*>(ref.keyv+(i*3));
                 if (*guess_key == userInput) {
                     cout << "###### Real results ######\n";
-                    cout << "Key found at i = " << i << "\n";
+                    cout << "Key " << *guess_key << " found at i = " << i << "\n";
                     b = ref.get_keyv_val(i);
                     e = ref.get_keyv_val(i+1);
                     cout << "position interval = [" << b << ", " << e << ")\n";
