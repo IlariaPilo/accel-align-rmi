@@ -330,8 +330,8 @@ void Reference::index_lookup32(uint64_t key, size_t* b, size_t* e) {
   guess_pos = (uint32_t) rmi.lookup(key, &err);
 
   // set up l and r for the bounded binary search
-  l = std::max(int32_t(0), static_cast<int32_t>(guess_pos-err));
-  r = std::min(static_cast<int32_t>(guess_pos+err), static_cast<int32_t>(nkeyv_true-1));
+  l = guess_pos < err? 0 : (guess_pos-err);
+  r = (guess_pos+err) < (nkeyv_true-1)? (guess_pos-err) : (nkeyv_true-1);
 
   // check in the keyv array
   while (l <= r) {
@@ -380,8 +380,8 @@ void Reference::index_lookup64(uint64_t key, size_t* b, size_t* e) {
   // END REMOVE
 
   // set up l and r for the bounded binary search
-  l = std::max(int32_t(0), static_cast<int32_t>(guess_pos-err));
-  r = std::min(static_cast<int32_t>(guess_pos+err), static_cast<int32_t>(nkeyv_true-1));
+  l = guess_pos < err? 0 : (guess_pos-err);
+  r = (guess_pos+err) < (nkeyv_true-1)? (guess_pos-err) : (nkeyv_true-1);
 
   // check in the keyv array
   while (l <= r) {
