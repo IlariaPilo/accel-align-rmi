@@ -180,6 +180,56 @@ void Reference::load_index64(const char *F) {
   cerr << "done loading hashtable\n";
 }
 
+void Reference::load_index_classic(const char *F) {
+  string fn;
+  if (mode == ' ')
+    fn = string(F) + ".hash" + to_string(kmer_len);
+  else if (mode == 'c')
+    fn = string(F) + ".hash" + to_string(kmer_len) + ".part1";
+  else if (mode == 'g')
+    fn = string(F) + ".hash" + to_string(kmer_len) + ".part2";
+
+  cerr << "loading hashtable from " << fn << endl;
+  ifstream fi;
+  fi.open(fn.c_str(), ios::binary);
+  if (!fi) {
+    cerr << "Unable to open index file " << fn << endl;
+    exit(0);
+  }
+  fi.read((char *) &nposv, 4);
+  fi.close();
+  nkeyv_true = MOD + 1;
+  nkeyv = nkeyv_true;
+
+  cerr << "Mapping keyv of size: " << nkeyv * 4 <<
+       " and posv of size " << (size_t) nposv * 4 <<
+       " from index file " << fn << endl;
+  size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
+  size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
+  int fd = open(fn.c_str(), O_RDONLY);
+
+#if __linux__
+#include <linux/version.h>
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,22)
+#define _MAP_POPULATE_AVAILABLE
+#endif
+#endif
+
+#ifdef _MAP_POPULATE_AVAILABLE
+#define MMAP_FLAGS (MAP_PRIVATE | MAP_POPULATE)
+#else
+#define MMAP_FLAGS MAP_PRIVATE
+#endif
+
+  char *base = reinterpret_cast<char *>(mmap(NULL, 4 + posv_sz + keyv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
+  assert(base != MAP_FAILED);
+  posv = (uint32_t * )(base + 4);
+  keyv = posv + nposv;
+  cerr << "Mapping done" << endl;
+  cerr << "done loading hashtable\n";
+
+}
+
 void Reference::load_reference(const char *F){
   size_t ref_size = 0;
   string bref(F);
@@ -350,6 +400,13 @@ void Reference::index_lookup64(uint64_t key, size_t* b, size_t* e) {
   *e = 0;
 }
 
+void Reference::index_lookup_classic(uint64_t key, size_t* b, size_t* e) {
+  // FIXME -- do we need the mask?
+  size_t hash = key % MOD;
+  *b = keyv[hash];
+  *e = keyv[hash+1];
+}
+
 uint32_t Reference::get_keyv_val32(uint32_t idx) {
   return keyv[idx*2+1];
 }
@@ -357,7 +414,12 @@ uint32_t Reference::get_keyv_val64(uint32_t idx) {
   return keyv[idx*3+2];
 }
 
-Reference::Reference(const char *F, unsigned kmer_len, bool _enable_minimizer, char _mode): enable_minimizer(_enable_minimizer), mode(_mode){
+Reference::Reference(const char *F, unsigned _kmer_len, bool _enable_minimizer, bool _enable_rmi, char _mode): 
+      kmer_len(_kmer_len),
+      enable_minimizer(_enable_minimizer), 
+      enable_rmi(_enable_rmi), 
+      mode(_mode) {
+        
   auto start = std::chrono::system_clock::now();
 
   if (enable_minimizer){
@@ -373,28 +435,35 @@ Reference::Reference(const char *F, unsigned kmer_len, bool _enable_minimizer, c
 
     load_reference(F);
   } else{
-    unsigned bit_len = kmer_len > 16? 64 : 32;
-    // initialize load_index and index_lookup
-    if (bit_len==32) {
-      load_index = std::bind(&Reference::load_index32, this, std::placeholders::_1);
-      index_lookup = std::bind(&Reference::index_lookup32, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-      get_keyv_val = std::bind(&Reference::get_keyv_val32, this, std::placeholders::_1);
+    string F_index;
+    if (enable_rmi) {
+      unsigned bit_len = kmer_len > 16? 64 : 32;
+      // initialize load_index and index_lookup
+      if (bit_len==32) {
+        load_index = std::bind(&Reference::load_index32, this, std::placeholders::_1);
+        index_lookup = std::bind(&Reference::index_lookup32, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+        get_keyv_val = std::bind(&Reference::get_keyv_val32, this, std::placeholders::_1);
+      } else {
+        load_index = std::bind(&Reference::load_index64, this, std::placeholders::_1);
+        index_lookup = std::bind(&Reference::index_lookup64, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+        get_keyv_val = std::bind(&Reference::get_keyv_val64, this, std::placeholders::_1);
+      }
+      // F          ./data/hg37.fna
+      // F_prefix   ./data/hg37
+      // F_index    ./data/hg37_index32
+      // F_library  ./data/hg37_index32/hg37_index
+      string F_prefix = string(F).substr(0, string(F).find_last_of("."));
+      F_index = F_prefix  + "_index" + to_string(kmer_len);
+      string F_library = F_index + "/" + get_last_directory(F_index);
+      rmi.init(F_library.c_str());
     } else {
-      load_index = std::bind(&Reference::load_index64, this, std::placeholders::_1);
-      index_lookup = std::bind(&Reference::index_lookup64, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-      get_keyv_val = std::bind(&Reference::get_keyv_val64, this, std::placeholders::_1);
+      // classic
+      load_index = std::bind(&Reference::load_index_classic, this, std::placeholders::_1);
+      index_lookup = std::bind(&Reference::index_lookup_classic, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+      F_index = F;
     }
-    // F          ./data/hg37.fna
-    // F_prefix   ./data/hg37
-    // F_index    ./data/hg37_index32
-    // F_library  ./data/hg37_index32/hg37_index
-    string F_prefix = string(F).substr(0, string(F).find_last_of("."));
-    string F_index = F_prefix  + "_index" + to_string(kmer_len);
-    string F_library = F_index + "/" + get_last_directory(F_index);
-    rmi.init(F_library.c_str());
     thread t([this, F_index]() {load_index(F_index.c_str());});
-    //thread t(&Reference::load_index, this, F_index.c_str()); // load index in parallel
-
+    
     load_reference(F);
 
     t.join(); // wait for index load to finish
@@ -411,13 +480,18 @@ Reference::~Reference() {
   } else {
     size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
     size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
-    char *base = (char *) keyv - 8;
-    int r = munmap(base, keyv_sz + 8);
-    assert(r == 0);
-
-    base = (char *) posv - 8;
-    r = munmap(base, posv_sz + 8); 
-    assert(r == 0);
+    if (enable_rmi) {
+      char *base = (char *) keyv - 8;
+      int r = munmap(base, keyv_sz + 8);
+      assert(r == 0);
+      base = (char *) posv - 8;
+      r = munmap(base, posv_sz + 8);
+      assert(r == 0);
+    } else {
+      char *base = (char *) posv - 4;
+      int r = munmap(base, posv_sz + keyv_sz + 4);
+      assert(r == 0);
+    }
   }
 }
 

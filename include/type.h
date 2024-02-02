@@ -56,10 +56,12 @@ class Reference {
  public:
   void load_index32(const char *F);   
   void load_index64(const char *F);
+  void load_index_classic(const char *F);
   std::function<void(const char*)> load_index;
 
   void index_lookup32(uint64_t key, size_t* b, size_t* e);
   void index_lookup64(uint64_t key, size_t* b, size_t* e);
+  void index_lookup_classic(uint64_t key, size_t* b, size_t* e);
   std::function<void(uint64_t,size_t*,size_t*)> index_lookup;
 
   uint32_t get_keyv_val32(uint32_t idx);
@@ -75,11 +77,11 @@ class Reference {
   uint64_t nposv, nkeyv, nkeyv_true;
   mm_idx_t *mi;
   RMI rmi;  // this is fine
-  bool enable_minimizer;
+  unsigned kmer_len;
+  bool enable_minimizer, enable_rmi;
   char mode; // 'c' c-> t; 'g' g->a; ' ' original
 
-  Reference(const char *F, unsigned kmer_len, bool _enable_minimizer, char mode);
-
+  Reference(const char *F, unsigned _kmer_len, bool _enable_minimizer, bool _enable_rmi, char _mode);
   ~Reference();
 };
 

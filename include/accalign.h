@@ -87,9 +87,9 @@ class AccAlign {
       return refs[ref_id]->offset;
   };
 
-  uint32_t get_keyv_val(int ref_id, uint32_t pos_idx){
-    return refs[ref_id]->get_keyv_val(pos_idx);
-  };
+  // uint32_t get_keyv_val(int ref_id, uint32_t pos_idx){
+  //   return refs[ref_id]->get_keyv_val(pos_idx);
+  // };
 
   uint32_t* get_posv(int ref_id){
     return refs[ref_id]->posv;

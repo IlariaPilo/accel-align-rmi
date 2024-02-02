@@ -120,7 +120,7 @@ bool Index::make_index(const char *F, int id) {
   cerr << "writing\n";
   string fn = F;
   if (id)
-    fn += ".hash.part" + to_string(id);
+    fn += ".hash"+to_string(kmer)+".part" + to_string(id);
   else
     fn += ".hash" + to_string(kmer);
   ofstream fo(fn.c_str(), ios::binary);
