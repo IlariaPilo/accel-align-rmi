@@ -32,8 +32,8 @@ int main(int argc, char *argv[]) {
             // Real results
             uint64_t* guess_key, *prec_key = reinterpret_cast<uint64_t*>(ref.keyv);
             // TODO RM
-            uint64_t tmp = 1654588965*3;
-            guess_key = reinterpret_cast<uint64_t*>(ref.keyv+tmp);
+            uint64_t tmp = 1654588965;;
+            guess_key = reinterpret_cast<uint64_t*>(ref.keyv+tmp*3);
             cout << *guess_key << "\n";
             // END RM
             for (uint64_t i=0; i<ref.nkeyv_true; i++) {
