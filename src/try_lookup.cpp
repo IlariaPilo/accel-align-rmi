@@ -31,6 +31,10 @@ int main(int argc, char *argv[]) {
 
             // Real results
             uint64_t* guess_key, *prec_key = reinterpret_cast<uint64_t*>(ref.keyv);
+            // TODO RM
+            guess_key = reinterpret_cast<uint64_t*>(ref.keyv+(1654588965*3));
+            cout << *guess_key << "\n";
+            // END RM
             for (uint64_t i=0; i<ref.nkeyv_true; i++) {
                 guess_key = reinterpret_cast<uint64_t*>(ref.keyv+(i*3));
                 if (*guess_key == userInput) {
