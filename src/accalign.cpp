@@ -2984,7 +2984,7 @@ int main(int ac, char **av) {
         opn += 1;
         flag = true;
       } else if (av[opn][1] == 'r') {
-        enable_rmi = false;
+        enable_rmi = true;
         opn += 1;
         flag = true;
       } else if (av[opn][1] == 'w') {
