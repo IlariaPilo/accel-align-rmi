@@ -64,9 +64,9 @@ class Reference {
   void index_lookup_classic(uint64_t key, size_t* b, size_t* e);
   std::function<void(uint64_t,size_t*,size_t*)> index_lookup;
 
-  uint32_t get_keyv_val32(uint32_t idx);
-  uint32_t get_keyv_val64(uint32_t idx);
-  std::function<uint32_t(uint32_t)> get_keyv_val;
+  uint32_t get_keyv_val32(uint64_t idx);
+  uint32_t get_keyv_val64(uint64_t idx);
+  std::function<uint32_t(uint64_t)> get_keyv_val;
 
   void load_reference(const char *F);  // this is fine
 
