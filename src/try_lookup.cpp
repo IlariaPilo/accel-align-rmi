@@ -29,6 +29,20 @@ int main(int argc, char *argv[]) {
                 continue;
             }
 
+            // Real results
+            uint64_t* guess_key;
+            for (uint64_t i=0; i<ref.nkeyv_true; i++) {
+                guess_key = reinterpret_cast<uint64_t*>(ref.keyv+(i*3));
+                if (*guess_key == userInput) {
+                    cout << "###### Real results ######\n";
+                    cout << "Key found at i = " << i << "\n";
+                    b = ref.get_keyv_val(i);
+                    e = ref.get_keyv_val(i+1);
+                    cout << "position interval = [" << b << ", " << e << ")\n";
+                    break;
+                }
+            }
+            // Index results
             ref.index_lookup(userInput, &b, &e);
             cout << "###### Lookup results ######\n";
             cout << "position interval = [" << b << ", " << e << ")\n";

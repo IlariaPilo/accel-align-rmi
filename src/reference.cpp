@@ -371,6 +371,11 @@ void Reference::index_lookup64(uint64_t key, size_t* b, size_t* e) {
   uint32_t l, r;
   // call the lookup function of the index
   guess_pos = (uint32_t) rmi.lookup(key, &err);
+  // TODO REMOVE
+  cerr << "looking 4 key " << key << "\n";
+  cerr << "predicted position is " << guess_pos << ", error is " << err << "\n";
+  cerr << "key should be in [" << guess_pos-err << ", " << guess_pos+key << "]";
+  // END REMOVE
 
   // set up l and r for the bounded binary search
   l = std::max(int32_t(0), static_cast<int32_t>(guess_pos-err));
