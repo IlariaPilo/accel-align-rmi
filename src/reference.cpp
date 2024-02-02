@@ -375,7 +375,7 @@ void Reference::index_lookup64(uint64_t key, size_t* b, size_t* e) {
   cerr << "------------------------\n";
   cerr << "looking 4 key " << key << "\n";
   cerr << "predicted position is " << guess_pos << ", error is " << err << "\n";
-  cerr << "key should be in [" << guess_pos-err << ", " << guess_pos+key << "]\n";
+  cerr << "key should be in [" << guess_pos-err << ", " << guess_pos+err << "]\n";
   cerr << "------------------------\n";
   // END REMOVE
 
