@@ -13,7 +13,7 @@ string g_out, g_batch_file, g_embed_file;
 char rcsymbol[6] = "TGCAN";
 uint8_t code[256];
 bool enable_extension = true, enable_wfa_extension = false, extend_all = false,
-enable_minimizer = false, enable_bs = false, enable_rmi = F_SEAL_SEAL;
+enable_minimizer = false, enable_bs = false, enable_rmi = false;
 
 
 int g_ncpus = 1;
