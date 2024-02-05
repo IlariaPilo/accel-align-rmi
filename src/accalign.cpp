@@ -92,7 +92,7 @@ void print_usage() {
   cerr << "\t-t INT Number of cpu threads to use [all]\n";
   cerr << "\t-l INT Length of seed [32]\n";
   cerr << "\t-o Name of the output file \n";
-  cerr << "\t-r Use RMI index \n";
+  cerr << "\t-R Use RMI index \n";
   cerr << "\t-x Alignment-free mode\n";
   cerr << "\t-w Use WFA for extension. KSW used by default. \n";
   cerr << "\t-p Maximum distance allowed between the paired-end reads [1000]\n";
@@ -2983,7 +2983,7 @@ int main(int ac, char **av) {
         enable_extension = false;
         opn += 1;
         flag = true;
-      } else if (av[opn][1] == 'r') {
+      } else if (av[opn][1] == 'r' || av[opn][1] == 'R') {
         enable_rmi = true;
         opn += 1;
         flag = true;

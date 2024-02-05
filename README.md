@@ -24,18 +24,33 @@ where `<data_directory>` is the directory storing the reference genome and the r
 
 Inside the container, the content of `<data_directory>` can be found in the `/home/accel-align-rmi/genome/` folder.
 
-<!--
-The generated credentials are (with `sudo` permissions):
+<!--## 🗺️ Configure the TBB path-->
+## 🌊 Install TBB
+Accel-Align-RMI requires [TBB 20](https://github.com/oneapi-src/oneTBB/releases/tag/v2020.3). If you want to run the aligner outside the container, it is necessary to build the library from sources. It can be done as follows:
+```bash
+curl -LJO https://github.com/oneapi-src/oneTBB/archive/refs/tags/v2020.3.tar.gz
+tar -xzvf oneTBB-2020.3.tar.gz
+rm oneTBB-2020.3.tar.gz
+cd oneTBB-2020.3
+make
+cd build
+chmod +x *.sh
+sh generate_tbbvars.sh
+sh tbbvars.sh
+cd linux_intel64_gcc_*_release
+sudo cp *.so /usr/lib
+sudo cp *.so.2 /usr/lib
+sudo /sbin/ldconfig
+cd ../../include
+sudo cp -rf ./* /usr/local/include
 ```
-USER: aligner
-PASSWORD: password
-``` -->
-
-## 🗺️ Configure the TBB path
-Accel-Align-RMI requires [TBB](https://github.com/01org/tbb). If you want to run the aligner outside the container, it is necessary to install the library and modify the value of the `TBB_LIB` variable in the Makefile, setting it to the path of the shared object. Fox example:
+If you don't have `sudo` permissions, you can simply modify the value of the `TBB_INCLUDE` and `TBB_LIB` variables in the Makefile, setting them to the proper paths. For example:
 ```diff
+- TBB_INCLUDE =	## your path here ##
 - TBB_LIB =	## your path here ##
-+ TBB_LIB = /usr/lib/x86_64-linux-gnu/libtbb.so
++ TBB_INCLUDE = /home/ilaria/oneTBB-2020.3/include
++ TBB_LIB = /home/ilaria/oneTBB-2020.3/build/linux_intel64_gcc_cc11_libc2.35_kernel5.15.0_release
+
 ```
 
 ## 📚 Build the index
@@ -62,11 +77,18 @@ The aligner can be built with `make accalign`, and then run as:
 ```
 The following options are available:
 ```
-  -t  INT   The number of threads to be used [all]
-  -l  INT   The length of the kmer [32]
-  -o        Name of the output file
+  -t INT Number of cpu threads to use [all]
+  -l INT Length of seed [32]
+  -o Name of the output file 
+  -R Use RMI index 
+  -x Alignment-free mode
+  -w Use WFA for extension. KSW used by default. 
+  -p Maximum distance allowed between the paired-end reads [1000]
+  -d Disable embedding, extend all candidates from seeding (this mode is super slow, only for benchmark)
+  -m Seeding with minimizer
+  -s bisulfite sequencing read alignment mode
 ```
-⚠️ The original Accel-Align allows more options, which are not yet supported in the RMI version.
+<!--⚠️ The original Accel-Align allows more options, which are not yet supported in the RMI version.-->
 
 ## 🎯 Compute the index precision
 An alignment run will possibly benefit of the RMI index if the classic index precision is low. This mean that the index is returning positions which are actually associated with wrong seeds. 
@@ -100,8 +122,12 @@ It supports the following options:
   -t, --threads  THREADS  The number of threads to be used [all]
   -e, --exec     EXEC     The number of times every program is called [10]
   -l, --len      LEN      The length of the kmer [32]
+  -o, --output   DIR      The directory where to save the output files [accel-align-rmi]
   -h, --help              Display this help message
 ```
+The script plots the average running times for the two versions. Details for each execution can be found in `<output>/accel_align_rmi<LEN>.out` and `<output>/accel_align_release<LEN>.out`. 
+
+SAM results of the last execution are saved in `<output>/rmi<LEN>.sam` and `<output>/release<LEN>.sam`, respectively.
 
 ### 🔬 binary_visualizer.py
 This [script](./utilities/binary_visualizer.sh) can be used to display the content of `keys_uint32`, `keys_uint64` or `pos_uint32` binary files in a human-readable format.

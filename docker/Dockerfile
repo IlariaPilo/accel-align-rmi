@@ -7,7 +7,7 @@ RUN rm oneTBB-2020.3.tar.gz
 RUN cd oneTBB-2020.3 && make
 RUN cd oneTBB-2020.3/build; \
     chmod +x *.sh; \
-    sh generate_tbbvars.sh \
+    sh generate_tbbvars.sh; \
     sh tbbvars.sh
 RUN cd oneTBB-2020.3/build/linux_intel64_gcc_*_release; \
     cp *.so /usr/lib; \
