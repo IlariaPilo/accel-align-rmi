@@ -105,7 +105,7 @@ for ((i=0; i<n; i++))
 do
     ProgressBar $i $n
     echo ">> $i <<" >> $OUT_DIR/accel_align_rmi${kmer_len}.out
-    "$BASE_DIR/accalign" -r -t $thread_number -l $kmer_len - o"$OUT_DIR/rmi$kmer_len.sam" $ref_name $read_name 2>> $OUT_DIR/accel_align_rmi${kmer_len}.out
+    "$BASE_DIR/accalign" -r -t $thread_number -l $kmer_len -o "$OUT_DIR/rmi$kmer_len.sam" $ref_name $read_name 2>> $OUT_DIR/accel_align_rmi${kmer_len}.out
 done
 ProgressBar $n $n
 echo -e "\n\033[1;32m [benchmarks.sh]\033[0m accel-align-rmi execution completed.\n"
@@ -120,7 +120,7 @@ for ((i=0; i<n; i++))
 do
     ProgressBar $i $n
     echo ">> $i <<" >> $OUT_DIR/accel_align_release${kmer_len}.out
-    "$BASE_DIR/accalign" -t $thread_number -l $kmer_len - o"$OUT_DIR/release$kmer_len.sam" $ref_name $read_name 2>> $OUT_DIR/accel_align_release${kmer_len}.out
+    "$BASE_DIR/accalign" -t $thread_number -l $kmer_len -o "$OUT_DIR/release$kmer_len.sam" $ref_name $read_name 2>> $OUT_DIR/accel_align_release${kmer_len}.out
 done
 ProgressBar $n $n
 echo -e "\n\033[1;32m [benchmarks.sh]\033[0m accel-align-release execution completed.\n"
