@@ -4,16 +4,18 @@ A version of [Accel-Align](https://github.com/raja-appuswamy/accel-align-release
 
 **_See also the [original README](./README_og.md)._**
 
-## 🐑 Clone the repository
+## 0 | Init
+### 🐑 Clone the repository
 The repository can be cloned by running:
 ```sh
 git clone --recursive https://github.com/IlariaPilo/accel-align-rmi
 ```
 
-## ⏬ Download a reference string【 optional 】
+### ⏬ Download a reference string【 optional 】
 The script [`/data/download.sh`](./data/download.sh) can be used to download and post-process a reference string. The downloaded string is called `hg37.fna`, and it is saved in the current working directory.
 
-## 🐋 Run in Docker
+## 1 | Setup
+### 🐋 Run in Docker【 recommended 】
 To run the program inside a container, run the following commands:
 ```sh
 cd docker
@@ -25,7 +27,7 @@ where `<data_directory>` is the directory storing the reference genome and the r
 Inside the container, the content of `<data_directory>` can be found in the `/home/accel-align-rmi/genome/` folder.
 
 <!--## 🗺️ Configure the TBB path-->
-## 🌊 Install TBB
+### 🌊 Install TBB
 Accel-Align-RMI requires [TBB 20](https://github.com/oneapi-src/oneTBB/releases/tag/v2020.3). If you want to run the aligner outside the container, it is necessary to build the library from sources. It can be done as follows:
 ```bash
 curl -LJO https://github.com/oneapi-src/oneTBB/archive/refs/tags/v2020.3.tar.gz
@@ -52,8 +54,8 @@ If you don't have `sudo` permissions, you can simply modify the value of the `TB
 + TBB_LIB = /home/ilaria/oneTBB-2020.3/build/linux_intel64_gcc_cc11_libc2.35_kernel5.15.0_release
 
 ```
-
-## 📚 Build the index
+## 2 | Build the index
+### 📚 RMI
 The learned index must be built offline, before running the aligner. This can be done by using the [`index.sh`](./index.sh) script:
 ```sh
 bash index.sh [OPTIONS] <reference.fna>
@@ -70,7 +72,23 @@ It generates an output directory `<reference_string>_index<LEN>`, containing all
 - `rmi_type.txt` - the architecture of the chosen RMI index.
 - `<reference_string>_indexXX.so` and `<reference_string>_indexXX.sym` - the generated shared object for the index and the list of symbol names for the main functions. Notice that the list is necessary to avoid issues with different C++ standards.
 
-## 🔎 Call the aligner
+### 🏛 Classic hash table
+Similarly, the classic Accel-Align hash table must be built before running the aligner. This can be done as:
+```sh
+make accindex
+./accindex [OPTIONS] <reference.fa>
+```
+The following options are available:
+```
+  -l INT length of seed [32]
+  -m enable minimizer
+  -k minimizer: k, kmer size 
+  -w minimizer: w, window size 
+  -s bisulfite sequencing read alignment mode
+```
+The program generates an index file named `<reference.fa>.hash<LEN>`.
+
+## 3 | 🔎 Call the aligner
 The aligner can be built with `make accalign`, and then run as:
 ```sh
 ./accalign [OPTIONS] <reference.fa> <read.fastq>
@@ -90,7 +108,7 @@ The following options are available:
 ```
 <!--⚠️ The original Accel-Align allows more options, which are not yet supported in the RMI version.-->
 
-## 🎯 Compute the index precision
+## 4 | 🎯 Compute the index precision
 An alignment run will possibly benefit of the RMI index if the classic index precision is low. This mean that the index is returning positions which are actually associated with wrong seeds. 
 
 To better analyze this behavior, the script [`stats.sh`](./stats.sh) can be used.
