@@ -4,7 +4,7 @@ set -e
 
 len=32
 mod="2^29-1"
-xxhash=0
+xxhash="0"
 ref=''
 read=''
 
