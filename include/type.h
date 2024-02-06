@@ -80,6 +80,9 @@ class Reference {
   unsigned kmer_len;
   bool enable_minimizer, enable_rmi;
   char mode; // 'c' c-> t; 'g' g->a; ' ' original
+  // for classic index
+  uint64_t mod;
+  uint32_t xxhash;
 
   Reference(const char *F, unsigned _kmer_len, bool _enable_minimizer, bool _enable_rmi, char mode);
 

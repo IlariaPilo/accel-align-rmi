@@ -195,9 +195,17 @@ void Reference::load_index_classic(const char *F) {
     cerr << "Unable to open index file " << fn << endl;
     exit(0);
   }
+  fi.read((char *) &mod, 8);
+  fi.read((char *) &xxhash, 4);
   fi.read((char *) &nposv, 4);
   fi.close();
-  nkeyv_true = MOD + 1;
+  // try to detect whether the index support the mod or not
+  if (mod < 128 || (xxhash!=0 && xxhash!=32 && xxhash!=64)) {
+      cerr << "It looks like you are using an old index.\n";
+      cerr << "Please, run again ./accindex, and come back later!\n";
+      exit(1);
+  }
+  nkeyv_true = mod + 1;
   nkeyv = nkeyv_true;
 
   cerr << "Mapping keyv of size: " << nkeyv * 4 <<
@@ -220,9 +228,9 @@ void Reference::load_index_classic(const char *F) {
 #define MMAP_FLAGS MAP_PRIVATE
 #endif
 
-  char *base = reinterpret_cast<char *>(mmap(NULL, 4 + posv_sz + keyv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
+  char *base = reinterpret_cast<char *>(mmap(NULL, 16 + posv_sz + keyv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
   assert(base != MAP_FAILED);
-  posv = (uint32_t * )(base + 4);
+  posv = (uint32_t * )(base + 16);
   keyv = posv + nposv;
   cerr << "Mapping done" << endl;
   cerr << "done loading hashtable\n";
@@ -401,7 +409,7 @@ void Reference::index_lookup64(uint64_t key, size_t* b, size_t* e) {
 
 void Reference::index_lookup_classic(uint64_t key, size_t* b, size_t* e) {
   // FIXME -- do we need the mask?
-  size_t hash = key % MOD;
+  size_t hash = key % mod;
   *b = keyv[hash];
   *e = keyv[hash+1];
 }
@@ -486,8 +494,8 @@ Reference::~Reference() {
       r = munmap(base, posv_sz + 8);
       assert(r == 0);
     } else {
-      char *base = (char *) posv - 4;
-      r = munmap(base, posv_sz + keyv_sz + 4);
+      char *base = (char *) posv - 16;
+      r = munmap(base, posv_sz + keyv_sz + 16);
       assert(r == 0);
     }
   }

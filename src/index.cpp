@@ -1,8 +1,9 @@
 #include "header.h"
 
 using namespace std;
-const unsigned mod = (1UL << 29) - 1;
+uint64_t mod = MOD_29;    // default value is 2^29 - 1
 const unsigned step = 1;
+uint32_t xxhash = 0;
 unsigned kmer;
 bool enable_idx_minimizer = false, enable_bs = false; //short for bisulfite reads
 
@@ -102,6 +103,7 @@ bool Index::make_index(const char *F, int id) {
 
   vector<Data> data(vsz, Data());
   cerr << "hashing :limit = " << limit << ", vsz = " << vsz << endl;
+  cerr << "using MOD = " << mod << endl;
 
   tbb::parallel_for(tbb::blocked_range<size_t>(0, limit), Tbb_cal_key(data, this));
   cerr << "hash\t" << data.size() << endl;
@@ -130,6 +132,11 @@ bool Index::make_index(const char *F, int id) {
   size_t eof = joff - data.begin();
   cerr << "Found " << eof << " valid entries out of " <<
        data.size() << " total\n";
+  // first, write mod
+  fo.write((char *) &mod, 8);
+  // then, write xxhash
+  fo.write((char *) &xxhash, 4);
+  // then, write the number of positions
   fo.write((char *) &eof, 4);
 
   // write out keys
@@ -204,6 +211,8 @@ int main(int ac, char **av) {
     cerr << "index [options] <ref.fa>\n";
     cerr << "options:\n";
     cerr << "\t-l INT length of seed [32]\n";
+    cerr << "\t-h INT value of hash MOD [2^29-1]\n";
+    cerr << "\t   Special string options = '2^29-1','prime','lprime'\n";
     cerr << "\t-m enable minimizer\n";
     cerr << "\t-k minimizer: k, kmer size \n";
     cerr << "\t-w minimizer: w, window size \n";
@@ -224,6 +233,18 @@ int main(int ac, char **av) {
       mm_w_tmp = atoi(av[it + 1]);
     else if (strcmp(av[it], "-s") == 0)
       enable_bs = true;
+    else if (strcmp(av[it], "-h") == 0) {
+      // check for special string values
+      if (strcmp(av[it+1], "2^29") == 0 || strcmp(av[it+1], "2^29-1") == 0)
+        mod = MOD_29;
+      else if (strcmp(av[it+1], "prime") == 0)
+        mod = MOD_PRIME;
+      else if (strcmp(av[it+1], "lprime") == 0)
+        mod = MOD_LPRIME;
+      // now do classic conversion
+      else mod = stoull(string(av[it+1]));
+    }
+      mm_w_tmp = atoi(av[it + 1]);
   }
   string fn = av[ac - 1]; //input ref file name
 
