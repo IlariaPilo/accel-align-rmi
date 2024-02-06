@@ -104,7 +104,7 @@ bool Index::make_index(const char *F, int id) {
 
   vector<Data> data(vsz, Data());
   cerr << "hashing :limit = " << limit << ", vsz = " << vsz << endl;
-  cerr << "using MOD = " << mod << endl;
+  cerr << "using MOD = " << mod << " and XXH = " << xxh_type << endl;
 
   tbb::parallel_for(tbb::blocked_range<size_t>(0, limit), Tbb_cal_key(data, this));
   cerr << "hash\t" << data.size() << endl;

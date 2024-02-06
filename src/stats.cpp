@@ -33,7 +33,7 @@ unsigned kmer_size = 32;
 uint32_t mod;
 uint32_t xxh_type = 0;
 XXHash xxh;
-bool rev_comp = false;
+bool rev_comp = true;
 
 // Reference string + some methods
 class Reference {
@@ -128,7 +128,7 @@ class Reference {
         cerr << "Mapping keyv of size: " << nkeyv * 4 <<
             " and posv of size " << (size_t) nposv * 4 <<
             " from index file" << endl;
-        cerr << "using MOD = " << mod << endl;
+        cerr << "using MOD = " << mod << " and XXH = " << xxh_type << endl;
 
         size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
         size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
@@ -208,7 +208,7 @@ class Reference {
 
 int main(int ac, char **av) {
     if (ac < 3) {
-        cerr << "./stats [-l LEN] [-rc] <ref.fa> <read.fastq>\n";
+        cerr << "./stats [-l LEN] <ref.fa> <read.fastq>\n";
         return 0;
     }
 
@@ -218,8 +218,6 @@ int main(int ac, char **av) {
             kmer_temp = atoi(av[it + 1]);
             it++;
         }
-        if (strcmp(av[it], "-rc") == 0)
-            rev_comp = true;
     }
 
     if (kmer_temp != 0)

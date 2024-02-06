@@ -81,12 +81,18 @@ make accindex
 The following options are available:
 ```
   -l INT length of seed [32]
+  -h INT value of hash MOD [2^29-1]
+      Special string values = 2^29-1, prime, lprime
+  -x INT size of xxhash [0]
+      Values = 0 (xxh not used), 32, 64
   -m enable minimizer
   -k minimizer: k, kmer size 
   -w minimizer: w, window size 
-  -s bisulfite sequencing read alignment mode
+  -s bisulfite sequencing read alignment mode 
 ```
-The program generates an index file named `<reference.fa>.hash<LEN>`.
+where `prime = 1073741651` and `lprime = 2861333663`.
+
+The program generates an index file named `<reference.fa>.hash<LEN>`. The file contains information about the MOD value and the XXH size used to generate it.
 
 ## 3 | 🔎 Call the aligner
 The aligner can be built with `make accalign`, and then run as:
@@ -117,10 +123,16 @@ bash stats.sh [OPTIONS] <reference.fna> <read.fastq>
 ```
 The following options are available:
 ```
-  -l, --len   LEN   The length of the kmer [32]
-  -h, --help        Display this help message
+  -l  INT  length of the kmer [32]
+  -h  INT  value of hash MOD [2^29-1]
+           special string values = 2^29-1, prime, lprime
+  -x  INT  size of xxhash [0]
+           values = 0 (xxh not used), 32, 64
 ```
-The script first generates the classic index `<reference.fna>.hash`, and then computes its precision (that is, the ratio between correct positions and returned positions) using as seeds kmers coming from the `<read.fastq>` file. Results are saved in a `<read.fastq>.stats<LEN>` csv file.
+
+where `prime = 1073741651` and `lprime = 2861333663`.
+
+The script first generates the classic index `<reference.fna>.hash<LEN>`, and then computes its precision (that is, the ratio between correct positions and returned positions) using as seeds kmers coming from the `<read.fastq>` file. Results are saved in a `<read.fastq>.stats<LEN>` csv file.
 
 It also processes the csv file, and it plots a histogram and a pie chart using the [`stats_analyzer.py`](./utilities/stats_analyzer.py) script.
 

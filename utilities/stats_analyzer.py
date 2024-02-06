@@ -12,20 +12,22 @@ plt.rcParams['grid.linewidth'] = 0.8
 plt.rcParams['text.usetex'] = False
 
 # Read command line arguments
-# python3 stats_analyzer.py STATS_FILE LEN REF_NAME READ_NAME [--headless]
-if len(sys.argv) < 5:
-    print("Usage : python3 stats_analyzer.py STATS_FILE KMER_LEN REF_NAME READ_NAME [--headless]")
+if len(sys.argv) < 7:
+    print("Usage : python3 stats_analyzer.py STATS_FILE KMER_LEN REF_NAME READ_NAME MOD XXH [--full]")
     sys.exit()
 
 FILE = sys.argv[1]
 LEN = sys.argv[2]
 REF_NAME = sys.argv[3]
 READ_NAME = sys.argv[4]
+MOD = sys.argv[5]
+XXH = int(sys.argv[6])
 PREFIX = os.path.abspath(FILE).rsplit('.')[0]
 headless = False
+full = False
 has_reverse = False
-if len(sys.argv) == 6:
-    headless = True
+if len(sys.argv) == 8:
+    full = True
 
 def load():
     df = pd.read_csv(FILE)
@@ -51,7 +53,7 @@ def make_hist(df, which_ratio='ratio_fwd', label='FWD'):
     plt.xlabel(f'Actual/Indexed Position Ratios')
     plt.ylabel('Ratios of Occurrences\n' 
             r'(Out of $10^7$)')
-    plt.text(1, 1.05, f'{REF_NAME} [{LEN}-{label}] {READ_NAME}', fontsize=6.5, horizontalalignment='right', transform=plt.gca().transAxes)
+    plt.text(1, 1.05, f'{REF_NAME} [{LEN}-{label}] {READ_NAME} // mod {MOD} : {"no xxh" if XXH==0 else f"xxh{XXH}"}', fontsize=6.5, horizontalalignment='right', transform=plt.gca().transAxes)
     plt.grid(True)
     plt.savefig(f'{PREFIX}-hist-{LEN}-{label}.png', bbox_inches='tight')
     print(f'Histogram saved as {PREFIX}-hist-{LEN}-{label}.png')
@@ -98,19 +100,22 @@ def make_pie(df, which_ratio='ratio_fwd', label='FWD'):
     plt.pie(label_counts_df['count'], labels=label_counts_df['label'], startangle=180, autopct='%1.1f%%', counterclock=False)
     not headless and plt.title(r'Precision $r$ for the positions'
             '\nreturned by the classic index.')
-    plt.text(1.1, -0, f'{REF_NAME} [{LEN}-{label}] {READ_NAME}', fontsize=6.5, horizontalalignment='right', transform=plt.gca().transAxes)
+    plt.text(1.1, -0, f'{REF_NAME} [{LEN}-{label}] {READ_NAME} // mod {MOD} : {"no xxh" if XXH==0 else f"xxh{XXH}"}', fontsize=6.5, horizontalalignment='right', transform=plt.gca().transAxes)
     plt.savefig(f'{PREFIX}-pie-{LEN}-{label}.png', bbox_inches='tight')
     print(f'Pie saved as {PREFIX}-pie-{LEN}-{label}.png')
 
 if __name__ == '__main__':
     df, has_reverse = load()
-    # Default [FWD]
-    make_hist(df)
-    make_pie(df)
     if has_reverse:
+        # Default [FWD]
+        full and make_hist(df)
+        full and make_pie(df)
         # Reverse
-        make_hist(df, which_ratio='ratio_rev', label='REV')
-        make_pie(df, which_ratio='ratio_rev', label='REV')
+        full and make_hist(df, which_ratio='ratio_rev', label='REV')
+        full and make_pie(df, which_ratio='ratio_rev', label='REV')
         # All
         make_hist(df, which_ratio='ratio_all', label='ALL')
         make_pie (df, which_ratio='ratio_all', label='ALL')
+    else:
+        make_hist(df)
+        make_pie(df)

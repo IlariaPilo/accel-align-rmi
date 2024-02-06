@@ -3,18 +3,22 @@
 set -e
 
 len=32
+mod="2^29-1"
+xxhash=0
 ref=''
 read=''
-reverse_complement='-rc'
 
 # Function to display usage instructions
 usage() {
     echo -e "\n\033[1;96mbash stats.sh [OPTIONS] <reference.fna> <read.fastq>\033[0m"
     echo -e "Generates the precision stats for the default accel-align index."
     echo "Options:"
-    echo "  -l, --len    LEN   The length of the kmer [32]"
-    #echo "  -r                 Enable precision for reverse complement [off]"
-    echo -e "  -h, --help         Display this help message\n"
+    echo "  -l  INT  length of the kmer [32]"
+    echo "  -h  INT  value of hash MOD [2^29-1]"
+    echo "           special string values = 2^29-1, prime, lprime"
+    echo "  -x  INT  size of xxhash [0]"
+    echo "           values = 0 (xxh not used), 32, 64"
+    echo
     exit 1
 }
 
@@ -24,27 +28,25 @@ make_stats() {
     make accindex stats
 
     # create the index
-    if [ ! -e $index_out ]; then
-        echo -e "\n\033[1;96m [stats.sh] \033[0mGenerating the classic index"
-        ./accindex -l $len $ref
-    fi
+    echo -e "\n\033[1;96m [stats.sh] \033[0mGenerating the classic index"
+    ./accindex -l $len -x $xxhash -h $mod $ref
 
     # run the stats
     echo -e "\n\033[1;96m [stats.sh] \033[0mRunning the 'stats' program"
-    ./stats -l $len $reverse_complement $ref $read
+    ./stats -l $len $ref $read
 }
 
 # read options from command line
-while getopts ":l:hr" opt; do
+while getopts ":lxh:" opt; do
     case $opt in
         l)
             len="$OPTARG"
             ;;
-        # r)
-        #     reverse_complement='-rc'
-        #     ;;
         h)
-            usage
+            mod="$OPTARG"
+            ;;
+        x)
+            xxhash="$OPTARG"
             ;;
         \?)
             echo "Invalid option: -$OPTARG" >&2
@@ -96,7 +98,7 @@ fi
 
 # plot the charts
 echo -e "\n\033[1;96m [stats.sh] \033[0mGenerating plots..."
-python3 ./utilities/stats_analyzer.py $stats_out $len $(basename $ref) $(basename $read) --headless
+python3 ./utilities/stats_analyzer.py $stats_out $len $(basename $ref) $(basename $read) $mod $xxh
 
 # delete tmp file
 read -ep $'\033[1;33m [stats.sh] \033[0mWould you like to remove the index file? [y/N] ' choice

@@ -212,7 +212,7 @@ void Reference::load_index_classic(const char *F) {
   cerr << "Mapping keyv of size: " << nkeyv * 4 <<
        " and posv of size " << (size_t) nposv * 4 <<
        " from index file " << fn << endl;
-  cerr << "using MOD = " << mod << endl;
+  cerr << "using MOD = " << mod << " and XXH = " << xxh_type << endl;
 
   size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
   size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
