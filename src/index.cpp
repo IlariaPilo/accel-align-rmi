@@ -244,7 +244,6 @@ int main(int ac, char **av) {
       // now do classic conversion
       else mod = stoull(string(av[it+1]));
     }
-      mm_w_tmp = atoi(av[it + 1]);
   }
   string fn = av[ac - 1]; //input ref file name
 
