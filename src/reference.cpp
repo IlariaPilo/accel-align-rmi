@@ -195,22 +195,25 @@ void Reference::load_index_classic(const char *F) {
     cerr << "Unable to open index file " << fn << endl;
     exit(0);
   }
-  fi.read((char *) &mod, 8);
-  fi.read((char *) &xxhash, 4);
+  fi.read((char *) &mod, 4);
+  fi.read((char *) &xxh_type, 4);
   fi.read((char *) &nposv, 4);
   fi.close();
   // try to detect whether the index support the mod or not
-  if (mod < 128 || (xxhash!=0 && xxhash!=32 && xxhash!=64)) {
+  if (mod < 128 || (xxh_type!=0 && xxh_type!=32 && xxh_type!=64)) {
       cerr << "It looks like you are using an old index.\n";
       cerr << "Please, run again ./accindex, and come back later!\n";
       exit(1);
   }
   nkeyv_true = mod + 1;
   nkeyv = nkeyv_true;
+  bind_xxhash(xxh_type, xxh);
 
   cerr << "Mapping keyv of size: " << nkeyv * 4 <<
        " and posv of size " << (size_t) nposv * 4 <<
        " from index file " << fn << endl;
+  cerr << "using MOD = " << mod << endl;
+
   size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
   size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
   int fd = open(fn.c_str(), O_RDONLY);
@@ -228,9 +231,9 @@ void Reference::load_index_classic(const char *F) {
 #define MMAP_FLAGS MAP_PRIVATE
 #endif
 
-  char *base = reinterpret_cast<char *>(mmap(NULL, 16 + posv_sz + keyv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
+  char *base = reinterpret_cast<char *>(mmap(NULL, 12 + posv_sz + keyv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
   assert(base != MAP_FAILED);
-  posv = (uint32_t * )(base + 16);
+  posv = (uint32_t * )(base + 12);
   keyv = posv + nposv;
   cerr << "Mapping done" << endl;
   cerr << "done loading hashtable\n";
@@ -409,7 +412,7 @@ void Reference::index_lookup64(uint64_t key, size_t* b, size_t* e) {
 
 void Reference::index_lookup_classic(uint64_t key, size_t* b, size_t* e) {
   // FIXME -- do we need the mask?
-  size_t hash = key % mod;
+  size_t hash = uint32_t(xxh(&key) % mod);
   *b = keyv[hash];
   *e = keyv[hash+1];
 }
@@ -494,8 +497,8 @@ Reference::~Reference() {
       r = munmap(base, posv_sz + 8);
       assert(r == 0);
     } else {
-      char *base = (char *) posv - 16;
-      r = munmap(base, posv_sz + keyv_sz + 16);
+      char *base = (char *) posv - 12;
+      r = munmap(base, posv_sz + keyv_sz + 12);
       assert(r == 0);
     }
   }

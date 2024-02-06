@@ -3,6 +3,7 @@
 #include "const.h"
 #include "minimap.h"
 #include "rmi.h"
+#include "hash.hpp"
 
 struct Alignment {
   std::string cigar_string;
@@ -81,8 +82,9 @@ class Reference {
   bool enable_minimizer, enable_rmi;
   char mode; // 'c' c-> t; 'g' g->a; ' ' original
   // for classic index
-  uint64_t mod;
-  uint32_t xxhash;
+  uint32_t mod;
+  uint32_t xxh_type;
+  XXHash xxh;
 
   Reference(const char *F, unsigned _kmer_len, bool _enable_minimizer, bool _enable_rmi, char mode);
 

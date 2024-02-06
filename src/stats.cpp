@@ -30,8 +30,9 @@ using namespace std;
 
 const unsigned step = 1;
 unsigned kmer_size = 32;
-uint64_t mod;
-uint32_t xxhash = 0;
+uint32_t mod;
+uint32_t xxh_type = 0;
+XXHash xxh;
 bool rev_comp = false;
 
 // Reference string + some methods
@@ -111,21 +112,24 @@ class Reference {
             cerr << "Unable to open index file" << endl;
             exit(0);
         }
-        fi.read((char *) &mod, 8);
-        fi.read((char *) &xxhash, 4);
+        fi.read((char *) &mod, 4);
+        fi.read((char *) &xxh_type, 4);
         fi.read((char *) &nposv, 4);
         fi.close();
         // try to detect whether the index support the mod or not
-        if (mod < 128 || (xxhash!=0 && xxhash!=32 && xxhash!=64)) {
+        if (mod < 128 || (xxh_type!=0 && xxh_type!=32 && xxh_type!=64)) {
             cerr << "It looks like you are using an old index.\n";
             cerr << "Please, run again ./accindex, and come back later!\n";
             exit(1);
         }
         nkeyv = mod + 1;
+        bind_xxhash(xxh_type, xxh);
 
         cerr << "Mapping keyv of size: " << nkeyv * 4 <<
             " and posv of size " << (size_t) nposv * 4 <<
             " from index file" << endl;
+        cerr << "using MOD = " << mod << endl;
+
         size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
         size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
         int fd = open(F, O_RDONLY);
@@ -143,9 +147,9 @@ class Reference {
         #define MMAP_FLAGS MAP_PRIVATE
         #endif
 
-        char *base = reinterpret_cast<char *>(mmap(NULL, 16 + posv_sz + keyv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
+        char *base = reinterpret_cast<char *>(mmap(NULL, 12 + posv_sz + keyv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
         assert(base != MAP_FAILED);
-        posv = (uint32_t * )(base + 16);
+        posv = (uint32_t * )(base + 12);
         keyv = posv + nposv;
         cerr << "Mapping done" << endl;
         cerr << "done loading hashtable\n";
@@ -156,7 +160,7 @@ class Reference {
         for (unsigned j = 0; j < kmer_size; j++) {
             h = (h << 2) + code[(int)kmer[j]];
         }
-        return uint32_t(h % mod);
+        return uint32_t(xxh(&h) % mod);
     }
 
     // first element is number of predicted positions, second element is number of actual positions
@@ -196,8 +200,8 @@ class Reference {
     ~Reference() {
         size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
         size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
-        char *base = (char *) posv - 16;
-        int r = munmap(base, 16 + posv_sz + keyv_sz);
+        char *base = (char *) posv - 12;
+        int r = munmap(base, 12 + posv_sz + keyv_sz);
         assert(r == 0);
     }
 };

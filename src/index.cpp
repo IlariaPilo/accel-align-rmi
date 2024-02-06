@@ -1,9 +1,10 @@
 #include "header.h"
 
 using namespace std;
-uint64_t mod = MOD_29;    // default value is 2^29 - 1
+uint32_t mod = MOD_29;    // default value is 2^29 - 1
 const unsigned step = 1;
-uint32_t xxhash = 0;
+uint32_t xxh_type = 0;
+XXHash xxh;
 unsigned kmer;
 bool enable_idx_minimizer = false, enable_bs = false; //short for bisulfite reads
 
@@ -73,7 +74,7 @@ void Index::cal_key(size_t i, vector<Data> &data) {
     h = (h << 2) + ref[i + j];
   }
   if (!hasn) {
-    data[i / step].key = h % mod;
+    data[i / step].key = uint32_t(xxh(&h) % mod);
     data[i / step].pos = i;
   }
 }
@@ -133,9 +134,9 @@ bool Index::make_index(const char *F, int id) {
   cerr << "Found " << eof << " valid entries out of " <<
        data.size() << " total\n";
   // first, write mod
-  fo.write((char *) &mod, 8);
-  // then, write xxhash
-  fo.write((char *) &xxhash, 4);
+  fo.write((char *) &mod, 4);
+  // then, write xxh_type
+  fo.write((char *) &xxh_type, 4);
   // then, write the number of positions
   fo.write((char *) &eof, 4);
 
@@ -212,7 +213,9 @@ int main(int ac, char **av) {
     cerr << "options:\n";
     cerr << "\t-l INT length of seed [32]\n";
     cerr << "\t-h INT value of hash MOD [2^29-1]\n";
-    cerr << "\t   Special string options = '2^29-1','prime','lprime'\n";
+    cerr << "\t   Special string values = 2^29-1, prime, lprime\n";
+    cerr << "\t-x INT size of xxhash [0]\n";
+    cerr << "\t   Values = 0 (xxh not used), 32, 64\n";
     cerr << "\t-m enable minimizer\n";
     cerr << "\t-k minimizer: k, kmer size \n";
     cerr << "\t-w minimizer: w, window size \n";
@@ -242,10 +245,27 @@ int main(int ac, char **av) {
       else if (strcmp(av[it+1], "lprime") == 0)
         mod = MOD_LPRIME;
       // now do classic conversion
-      else mod = stoull(string(av[it+1]));
+      else try {
+        mod = stoul(string(av[it+1]));
+        } catch (const invalid_argument& e) {
+            cerr << "Invalid argument: " << e.what() << endl;
+            cerr << "Special string values for -h are 2^29-1, prime, lprime.\n";
+            exit(1);
+        } catch (const out_of_range& e) {
+            cerr << "Out of range: " << e.what() << endl;
+            exit(1);
+        }
+    } 
+    else if (strcmp(av[it], "-x") == 0) {
+      xxh_type = atoi(av[it + 1]);
+      if (xxh_type!=0 && xxh_type!=32 && xxh_type!=64) {
+        cerr << "Unknown value for xxhash. \nSupported values: 0 (xxh not used), 32, 64.\n";
+        exit(1);
+      }
     }
   }
   string fn = av[ac - 1]; //input ref file name
+  bind_xxhash(xxh_type, xxh);
 
   if (enable_idx_minimizer) {
     int n_threads = 3;
