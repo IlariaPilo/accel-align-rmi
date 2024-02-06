@@ -4,7 +4,7 @@ set -e
 
 len=32
 mod="2^29-1"
-xxhash="0"
+xxhash=0
 ref=''
 read=''
 
@@ -98,7 +98,7 @@ fi
 
 # plot the charts
 echo -e "\n\033[1;96m [stats.sh] \033[0mGenerating plots..."
-python3 ./utilities/stats_analyzer.py $stats_out $len $(basename $ref) $(basename $read) $mod $xxh
+python3 ./utilities/stats_analyzer.py $stats_out $len $(basename $ref) $(basename $read) $mod $xxhash
 
 # delete tmp file
 read -ep $'\033[1;33m [stats.sh] \033[0mWould you like to remove the index file? [y/N] ' choice
