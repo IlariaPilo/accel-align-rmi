@@ -135,7 +135,7 @@ bool Index::key_gen32() {
     sort(data.begin(), data.end(), Data<uint32_t>());
   }
   
-  string fn = dir + "/keys_uint32";
+  string fn = dir + "keys_uint32";
 
   ofstream fo_key(fn.c_str(), ios::binary);
 
@@ -390,6 +390,7 @@ int main(int argc, char **argv) {
   if (!fs::exists(dir)) {
       fs::create_directory(dir);
   }
+  dir += "/";
 
   if (kmer <= 16)
     good = i.key_gen32();
