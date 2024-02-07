@@ -1,9 +1,20 @@
 #include "header.h"
+#include <experimental/filesystem>
 
+namespace fs = std::experimental::filesystem;
 using namespace std;
-const unsigned mod = (1UL << 29) - 1;
+
 const unsigned step = 1;
 unsigned kmer;
+string dir;
+
+string remove_extension(const string& fn) {
+    size_t last_dot = fn.find_last_of(".");
+    if (last_dot != string::npos) {
+        return fn.substr(0, last_dot);
+    }
+    return fn;
+}
 
 // a structure of pairs (key, position)
 // T is supposed to be either uint32_t or uint64_t
@@ -73,7 +84,6 @@ class Index {
       h = (h << 2) + ref[i + j];
     }
     if (!hasn) {
-      //data[i / step].key = h % mod;
       data[i / step].key = h;
       data[i / step].pos = i;
     }
@@ -125,7 +135,7 @@ bool Index::key_gen32() {
     sort(data.begin(), data.end(), Data<uint32_t>());
   }
   
-  string fn = "keys_uint32";
+  string fn = dir + "/keys_uint32";
 
   ofstream fo_key(fn.c_str(), ios::binary);
 
@@ -195,7 +205,7 @@ bool Index::key_gen32() {
   fo_key.close();
 
   // now, write positions
-  fn = "pos_uint32";
+  fn = dir + "pos_uint32";
 
   ofstream fo_pos(fn.c_str(), ios::binary);
 
@@ -249,7 +259,7 @@ bool Index::key_gen64() {
     sort(data.begin(), data.end(), Data<uint64_t>());
   }
   
-  string fn = "keys_uint64";
+  string fn = dir + "keys_uint64";
   ofstream fo_key(fn.c_str(), ios::binary);
 
   // determine the number of valid and unique entries
@@ -324,7 +334,7 @@ bool Index::key_gen64() {
   fo_key.close();
 
   // now, write positions
-  fn = "pos_uint32";
+  fn = dir + "pos_uint32";
 
   ofstream fo_pos(fn.c_str(), ios::binary);
 
@@ -373,6 +383,14 @@ int main(int argc, char **argv) {
   bool good;
   if (!i.load_ref(argv[argc - 1]))
     return 0;
+
+  //make directory
+  string prefix = remove_extension(string(argv[argc - 1]));
+  dir = prefix + "_index" + to_string(kmer);
+  if (!fs::exists(dir)) {
+      fs::create_directory(dir);
+  }
+
   if (kmer <= 16)
     good = i.key_gen32();
   else

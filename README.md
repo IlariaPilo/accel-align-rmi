@@ -55,7 +55,7 @@ If you don't have `sudo` permissions, you can simply modify the value of the `TB
 
 ```
 ## 2 | Build the index
-### 📚 RMI
+### 🧠 RMI
 The learned index must be built offline, before running the aligner. This can be done by using the [`index.sh`](./index.sh) script:
 ```sh
 bash index.sh [OPTIONS] <reference.fna>
@@ -72,6 +72,13 @@ It generates an output directory `<reference_string>_index<LEN>`, containing all
 - `rmi_type.txt` - the architecture of the chosen RMI index.
 - `<reference_string>_indexXX.so` and `<reference_string>_indexXX.sym` - the generated shared object for the index and the list of symbol names for the main functions. Notice that the list is necessary to avoid issues with different C++ standards.
 
+### 🦘 Binary search index
+The binary search index requires the same files as the RMI one (`keys_uintXX` and `pos_uint32`). If you already built an RMI index over a given reference, then there is no need to run anything. Otherwise, the `key_gen` program can be used to generate the files:
+```sh
+make key_gen
+./key_gen [-l LEN] <reference.fna>
+```
+
 ### 🏛 Classic hash table
 Similarly, the classic Accel-Align hash table must be built before running the aligner. This can be done as:
 ```sh
@@ -80,14 +87,19 @@ make accindex
 ```
 The following options are available:
 ```
-  -l INT length of seed [32]
-  -h INT value of hash MOD [2^29-1]
-      Special string values = 2^29-1, prime, lprime
-  -x INT size of xxhash [0]
-      Values = 0 (xxh not used), 32, 64
-  -m enable minimizer
-  -k minimizer: k, kmer size 
-  -w minimizer: w, window size 
+  -t INT Number of cpu threads to use [all]
+  -l INT Length of seed [32]
+  -o Name of the output file 
+  +-- index options [choose 1] --+
+  |   -R Use RMI index           |
+  |   -B Use binary index        |
+  |   -H Use MOD hash table      |
+  +------------------------------+
+  -x Alignment-free mode
+  -w Use WFA for extension. KSW used by default. 
+  -p Maximum distance allowed between the paired-end reads [1000]
+  -d Disable embedding, extend all candidates from seeding (this mode is super slow, only for benchmark).
+  -m Seeding with minimizer.
   -s bisulfite sequencing read alignment mode 
 ```
 where `prime = 1073741651` and `lprime = 2861333663`.

@@ -34,7 +34,7 @@ WFA-paper: .wfa
 	touch .wfa
 
 key_gen: WFA-paper ${IDXSRC} ${HEADERS}
-	${CXX} -o $@ ${IDXSRC} ${ACCLDFLAGS} ${TBBFLAGS} ${CXXFLAGS} -pthread
+	${CXX} -o $@ ${IDXSRC} ${ACCLDFLAGS} ${TBBFLAGS} ${CXXFLAGS} -pthread -lstdc++fs
 
 accalign: WFA-paper ${CPUSRC} ${HEADERS}
 	${CXX} -o $@ ${CPUSRC} ${ACCLDFLAGS} ${TBBFLAGS} ${CXXFLAGS} -ldl -pthread

@@ -94,11 +94,11 @@ void print_usage() {
   cerr << "\t-t INT Number of cpu threads to use [all]\n";
   cerr << "\t-l INT Length of seed [32]\n";
   cerr << "\t-o Name of the output file \n";
-  cerr << "--- index options [choose 1] ---\n";
-  cerr << "\t-R Use RMI index \n";
-  cerr << "\t-B Use binary index \n";
-  cerr << "\t-H Use MOD hash table \n";
-  cerr << "--------------------------------\n";
+  cerr << "\t+-- index options [choose 1] --+\n";
+  cerr << "\t|   -R Use RMI index           |\n";
+  cerr << "\t|   -B Use binary index        |\n";
+  cerr << "\t|   -H Use MOD hash table      |\n";
+  cerr << "\t+------------------------------+\n";
   cerr << "\t-x Alignment-free mode\n";
   cerr << "\t-w Use WFA for extension. KSW used by default. \n";
   cerr << "\t-p Maximum distance allowed between the paired-end reads [1000]\n";
