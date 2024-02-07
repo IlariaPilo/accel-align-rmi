@@ -53,10 +53,10 @@ def make_hist(df, which_ratio='ratio_fwd', label='FWD'):
     plt.xlabel(f'Actual/Indexed Position Ratios')
     plt.ylabel('Ratios of Occurrences\n' 
             r'(Out of $10^7$)')
-    plt.text(1, 1.05, f'{REF_NAME} [{LEN}-{label}] {READ_NAME} // mod {MOD} : {"no xxh" if XXH==0 else f"xxh{XXH}"}', fontsize=6.5, horizontalalignment='right', transform=plt.gca().transAxes)
+    plt.text(1, 1.05, f'{REF_NAME} [{LEN}-{label}] {READ_NAME} // MOD {MOD} : {"NO XXH" if XXH==0 else f"XXH{XXH}"}', fontsize=6.5, horizontalalignment='right', transform=plt.gca().transAxes)
     plt.grid(True)
-    plt.savefig(f'{PREFIX}-hist-{LEN}-{label}.png', bbox_inches='tight')
-    print(f'Histogram saved as {PREFIX}-hist-{LEN}-{label}.png')
+    plt.savefig(f'{PREFIX}-hist-{LEN}-{label}_{MOD}-{XXH}.png', bbox_inches='tight')
+    print(f'Histogram saved as {PREFIX}-hist-{LEN}-{label}_{MOD}-{XXH}.png')
 
 def make_pie(df, which_ratio='ratio_fwd', label='FWD'):
     def get_label(ratio):
@@ -100,9 +100,9 @@ def make_pie(df, which_ratio='ratio_fwd', label='FWD'):
     plt.pie(label_counts_df['count'], labels=label_counts_df['label'], startangle=180, autopct='%1.1f%%', counterclock=False)
     not headless and plt.title(r'Precision $r$ for the positions'
             '\nreturned by the classic index.')
-    plt.text(1.1, -0, f'{REF_NAME} [{LEN}-{label}] {READ_NAME} // mod {MOD} : {"no xxh" if XXH==0 else f"xxh{XXH}"}', fontsize=6.5, horizontalalignment='right', transform=plt.gca().transAxes)
-    plt.savefig(f'{PREFIX}-pie-{LEN}-{label}.png', bbox_inches='tight')
-    print(f'Pie saved as {PREFIX}-pie-{LEN}-{label}.png')
+    plt.text(1.1, -0, f'{REF_NAME} [{LEN}-{label}] {READ_NAME} // MOD {MOD} : {"NO XXH" if XXH==0 else f"XXH{XXH}"}', fontsize=6.5, horizontalalignment='right', transform=plt.gca().transAxes)
+    plt.savefig(f'{PREFIX}-pie-{LEN}-{label}_{MOD}-{XXH}.png', bbox_inches='tight')
+    print(f'Pie saved as {PREFIX}-pie-{LEN}-{label}_{MOD}-{XXH}.png')
 
 if __name__ == '__main__':
     df, has_reverse = load()
