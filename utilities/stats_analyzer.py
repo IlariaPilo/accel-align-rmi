@@ -23,7 +23,7 @@ READ_NAME = sys.argv[4]
 MOD = sys.argv[5]
 XXH = int(sys.argv[6])
 PREFIX = os.path.abspath(FILE).rsplit('.')[0]
-headless = False
+headless = True
 full = False
 has_reverse = False
 if len(sys.argv) == 8:
