@@ -323,16 +323,7 @@ void Reference::load_reference(const char *F){
   }
 }
 
-// add lookup function
-/**
- * Function to query the RMI index.
- *
- * It first uses the rmi::lookup function and then performs a binary search, bounded by the (known) error.
- *
- * @param key The value we want to search in the index.
- * @return The position of key in the index container, UINT32_T(-1) if the key was not found.
- */
-void Reference::index_lookup32(uint64_t key, size_t* b, size_t* e) {
+void Reference::index_rmi_lookup32(uint64_t key, size_t* b, size_t* e) {
   size_t err;
   uint32_t guess_key;
   uint64_t guess_pos;
@@ -368,15 +359,7 @@ void Reference::index_lookup32(uint64_t key, size_t* b, size_t* e) {
   *e = 0;
 }
 
-/**
- * Function to query the RMI index.
- *
- * It first uses the rmi::lookup function and then performs a binary search, bounded by the (known) error.
- *
- * @param key The value we want to search in the index.
- * @return The position of key in the index container, UINT32_T(-1) if the key was not found.
- */
-void Reference::index_lookup64(uint64_t key, size_t* b, size_t* e) {
+void Reference::index_rmi_lookup64(uint64_t key, size_t* b, size_t* e) {
   size_t err;
   uint64_t* guess_key;
   uint64_t guess_pos, l, r;
@@ -386,6 +369,71 @@ void Reference::index_lookup64(uint64_t key, size_t* b, size_t* e) {
   // set up l and r for the bounded binary search
   l = guess_pos < err? 0 : (guess_pos-err);
   r = (guess_pos+err) < (nkeyv_true-1)? (guess_pos+err) : (nkeyv_true-1);
+
+  // check in the keyv array
+  while (l <= r) {
+      guess_key = reinterpret_cast<uint64_t*>(keyv+(guess_pos*3));
+      // if it's the same, done
+      if (*guess_key == key) {
+        *b = get_keyv_val(guess_pos);
+        *e = get_keyv_val(guess_pos+1);
+        return;
+      }
+      // else, do binary search
+      if (*guess_key < key) {
+          l = guess_pos + 1;
+      } else {
+          r = guess_pos - 1;
+      }
+      // update guess_pos
+      guess_pos = l + (r-l)/2;
+  }
+  // not found :(
+  *b = 0;
+  *e = 0;
+}
+
+void Reference::index_bin_lookup32(uint64_t key, size_t* b, size_t* e) {
+  uint32_t guess_key;
+  uint64_t guess_pos;
+  uint64_t l, r;
+  uint32_t key32 = (uint32_t) key;
+  
+  // set up l and r for the bounded binary search
+  l = 0;
+  r = nkeyv_true-1;
+  guess_pos = l + (r-l)/2;
+
+  // check in the keyv array
+  while (l <= r) {
+      guess_key = keyv[guess_pos*2];
+      // if it's the same, done
+      if (guess_key == key32) {
+        *b = get_keyv_val(guess_pos);
+        *e = get_keyv_val(guess_pos+1);
+        return;
+      }
+      // else, do binary search
+      if (guess_key < key32) {
+          l = guess_pos + 1;
+      } else {
+          r = guess_pos - 1;
+      }
+      // update guess_pos
+      guess_pos = l + (r-l)/2;
+  }
+  // not found :(
+  *b = 0;
+  *e = 0;
+}
+
+void Reference::index_bin_lookup64(uint64_t key, size_t* b, size_t* e) {
+  uint64_t* guess_key;
+  uint64_t guess_pos, l, r;
+    
+  l = 0;
+  r = nkeyv_true-1;
+  guess_pos = l + (r-l)/2;
 
   // check in the keyv array
   while (l <= r) {
@@ -424,10 +472,10 @@ uint32_t Reference::get_keyv_val64(uint64_t idx) {
   return keyv[idx*3+2];
 }
 
-Reference::Reference(const char *F, unsigned _kmer_len, bool _enable_minimizer, bool _enable_rmi, char _mode): 
+Reference::Reference(const char *F, unsigned _kmer_len, bool _enable_minimizer, IndexType _index_type, char _mode): 
       kmer_len(_kmer_len),
       enable_minimizer(_enable_minimizer), 
-      enable_rmi(_enable_rmi), 
+      index_type(_index_type), 
       mode(_mode) {
   auto start = std::chrono::system_clock::now();
 
@@ -445,16 +493,19 @@ Reference::Reference(const char *F, unsigned _kmer_len, bool _enable_minimizer, 
     load_reference(F);
   } else{
     string F_index;
-    if (enable_rmi) {
+    ////// case HASH //////
+    if (index_type == IndexType::HASH_IDX) {
+      load_index = std::bind(&Reference::load_index_classic, this, std::placeholders::_1);
+      index_lookup = std::bind(&Reference::index_lookup_classic, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+      F_index = F;
+    } else {
+      // common
       unsigned bit_len = kmer_len > 16? 64 : 32;
-      // initialize load_index and index_lookup
       if (bit_len==32) {
         load_index = std::bind(&Reference::load_index32, this, std::placeholders::_1);
-        index_lookup = std::bind(&Reference::index_lookup32, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
         get_keyv_val = std::bind(&Reference::get_keyv_val32, this, std::placeholders::_1);
       } else {
         load_index = std::bind(&Reference::load_index64, this, std::placeholders::_1);
-        index_lookup = std::bind(&Reference::index_lookup64, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
         get_keyv_val = std::bind(&Reference::get_keyv_val64, this, std::placeholders::_1);
       }
       // F          ./data/hg37.fna
@@ -463,13 +514,24 @@ Reference::Reference(const char *F, unsigned _kmer_len, bool _enable_minimizer, 
       // F_library  ./data/hg37_index32/hg37_index
       string F_prefix = string(F).substr(0, string(F).find_last_of("."));
       F_index = F_prefix  + "_index" + to_string(kmer_len);
-      string F_library = F_index + "/" + get_last_directory(F_index);
-      rmi.init(F_library.c_str());
-    } else {
-      // classic
-      load_index = std::bind(&Reference::load_index_classic, this, std::placeholders::_1);
-      index_lookup = std::bind(&Reference::index_lookup_classic, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-      F_index = F;
+      ////// case RMI //////
+      if (index_type == IndexType::RMI_IDX) {
+        // bind index lookup
+        if (bit_len==32) 
+          index_lookup = std::bind(&Reference::index_rmi_lookup32, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+        else 
+          index_lookup = std::bind(&Reference::index_rmi_lookup64, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+        
+        string F_library = F_index + "/" + get_last_directory(F_index);
+        rmi.init(F_library.c_str());
+      } else {
+        ////// case BINARY //////
+        // bind index lookup
+        if (bit_len==32) 
+          index_lookup = std::bind(&Reference::index_bin_lookup32, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+        else 
+          index_lookup = std::bind(&Reference::index_bin_lookup64, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+      }
     }
     thread t([this, F_index]() {load_index(F_index.c_str());});
     load_reference(F);
@@ -489,16 +551,16 @@ Reference::~Reference() {
     size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
     size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
     int r;
-    if (enable_rmi) {
+    if (index_type == IndexType::HASH_IDX) {
+      char *base = (char *) posv - 12;
+      r = munmap(base, posv_sz + keyv_sz + 12);
+      assert(r == 0);
+    } else {
       char *base = (char *) keyv - 8;
       r = munmap(base, keyv_sz + 8);
       assert(r == 0);
       base = (char *) posv - 8;
       r = munmap(base, posv_sz + 8);
-      assert(r == 0);
-    } else {
-      char *base = (char *) posv - 12;
-      r = munmap(base, posv_sz + keyv_sz + 12);
       assert(r == 0);
     }
   }

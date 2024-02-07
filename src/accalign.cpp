@@ -13,7 +13,9 @@ string g_out, g_batch_file, g_embed_file;
 char rcsymbol[6] = "TGCAN";
 uint8_t code[256];
 bool enable_extension = true, enable_wfa_extension = false, extend_all = false,
-enable_minimizer = false, enable_bs = false, enable_rmi = false;
+enable_minimizer = false, enable_bs = false;
+// possible indices
+int enable_rmi = 0, enable_hash = 0, enable_bin = 0;
 
 
 int g_ncpus = 1;
@@ -92,7 +94,11 @@ void print_usage() {
   cerr << "\t-t INT Number of cpu threads to use [all]\n";
   cerr << "\t-l INT Length of seed [32]\n";
   cerr << "\t-o Name of the output file \n";
+  cerr << "--- index options [choose 1] ---\n";
   cerr << "\t-R Use RMI index \n";
+  cerr << "\t-B Use binary index \n";
+  cerr << "\t-H Use MOD hash table \n";
+  cerr << "--------------------------------\n";
   cerr << "\t-x Alignment-free mode\n";
   cerr << "\t-w Use WFA for extension. KSW used by default. \n";
   cerr << "\t-p Maximum distance allowed between the paired-end reads [1000]\n";
@@ -2952,6 +2958,8 @@ int main(int ac, char **av) {
 
   int opn = 1;
   int kmer_temp = 0;
+  IndexType index_type = IndexType::__NONE__;
+
   while (opn < ac) {
     bool flag = false;
     if (av[opn][0] == '-') {
@@ -2983,11 +2991,24 @@ int main(int ac, char **av) {
         enable_extension = false;
         opn += 1;
         flag = true;
-      } else if (av[opn][1] == 'r' || av[opn][1] == 'R') {
-        enable_rmi = true;
+      } /////// indices ///////
+      else if (av[opn][1] == 'r' || av[opn][1] == 'R') {
+        enable_rmi = 1;
         opn += 1;
         flag = true;
-      } else if (av[opn][1] == 'w') {
+        index_type = IndexType::RMI_IDX;
+      } else if (av[opn][1] == 'B') {
+        enable_bin = 1;
+        opn += 1;
+        flag = true;
+        index_type = IndexType::BINARY_IDX;
+      }else if (av[opn][1] == 'H') {
+        enable_hash = 1;
+        opn += 1;
+        flag = true;
+        index_type = IndexType::HASH_IDX;
+      }////////////////////// 
+      else if (av[opn][1] == 'w') {
         enable_wfa_extension = true;
         opn += 1;
         flag = true;
@@ -3010,6 +3031,22 @@ int main(int ac, char **av) {
     if (!flag)
       break;
   }
+  
+  /////// check indices ///////
+  if (!(enable_hash || enable_rmi || enable_bin)) {
+    // default is hash
+    enable_hash = 1;
+    index_type = IndexType::HASH_IDX;
+  }
+  if ((enable_hash + enable_rmi + enable_bin)>1) {
+    // too many indices! abort
+    cerr << "Please, select only one index!\n";
+    print_usage();
+    // exit
+    return 1;
+  }
+  /////////////////////////////
+
   if (kmer_temp != 0)
     kmer_len = kmer_temp;
   mask = kmer_len == 32 ? ~0 : (1ULL << (kmer_len * 2)) - 1;
@@ -3023,10 +3060,10 @@ int main(int ac, char **av) {
   // load reference once
   Reference **r = new Reference*[2];
   if (enable_bs){
-    r[0] = new Reference(av[opn], kmer_len, enable_minimizer, enable_rmi, 'c');
-    r[1] = new Reference(av[opn++], kmer_len, enable_minimizer, enable_rmi, 'g');
+    r[0] = new Reference(av[opn], kmer_len, enable_minimizer, index_type, 'c');
+    r[1] = new Reference(av[opn++], kmer_len, enable_minimizer, index_type, 'g');
   } else {
-    r[0] = new Reference(av[opn++], kmer_len, enable_minimizer, enable_rmi, ' ');
+    r[0] = new Reference(av[opn++], kmer_len, enable_minimizer, index_type, ' ');
   }
 
   if (enable_extension && !enable_wfa_extension)

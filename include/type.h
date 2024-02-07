@@ -5,6 +5,13 @@
 #include "rmi.h"
 #include "hash.hpp"
 
+enum IndexType {
+  __NONE__,
+  RMI_IDX,
+  BINARY_IDX,
+  HASH_IDX
+};
+
 struct Alignment {
   std::string cigar_string;
   int ref_begin;
@@ -60,8 +67,10 @@ class Reference {
   void load_index_classic(const char *F);
   std::function<void(const char*)> load_index;
 
-  void index_lookup32(uint64_t key, size_t* b, size_t* e);
-  void index_lookup64(uint64_t key, size_t* b, size_t* e);
+  void index_rmi_lookup32(uint64_t key, size_t* b, size_t* e);
+  void index_rmi_lookup64(uint64_t key, size_t* b, size_t* e);
+  void index_bin_lookup32(uint64_t key, size_t* b, size_t* e);
+  void index_bin_lookup64(uint64_t key, size_t* b, size_t* e);
   void index_lookup_classic(uint64_t key, size_t* b, size_t* e);
   std::function<void(uint64_t,size_t*,size_t*)> index_lookup;
 
@@ -79,14 +88,15 @@ class Reference {
   mm_idx_t *mi;
   RMI rmi;  // this is fine
   unsigned kmer_len;
-  bool enable_minimizer, enable_rmi;
+  bool enable_minimizer;
+  IndexType index_type;
   char mode; // 'c' c-> t; 'g' g->a; ' ' original
   // for classic index
   uint32_t mod;
   uint32_t xxh_type;
   XXHash xxh;
 
-  Reference(const char *F, unsigned _kmer_len, bool _enable_minimizer, bool _enable_rmi, char mode);
+  Reference(const char *F, unsigned _kmer_len, bool _enable_minimizer, IndexType _index_type, char _mode);
 
   ~Reference();
 };
