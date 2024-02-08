@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo -e "Printing average running times for $1!\n"
+echo -e "\nPrinting average running times for \e[3m$1\e[0m !\n"
 
 cat $1 | grep "Time to align:" | awk '{ sum += $4 } END { avg = sum / NR; printf("Time to align: %.3f s\n", avg) }'
 echo Breakdown:
