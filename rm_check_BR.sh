@@ -1,5 +1,18 @@
 #!/bin/bash
 
+function ProgressBar {
+
+    let _progress=(${1}*100/${2}*100)/100
+    let _done=(${_progress}*4)/10
+    let _left=40-$_done
+
+    _fill=$(printf "%${_done}s")
+    _empty=$(printf "%${_left}s")
+
+printf "\r${_fill// /▇}${_empty// / } ${_progress}%%"
+[[ $_progress -eq 100 ]] && printf "\n"
+}
+
 # Check if the correct number of arguments is provided
 if [ "$#" -ne 1 ]; then
     echo "Usage: $0 K"
@@ -20,6 +33,7 @@ check_files_equal() {
 
 # Loop K times
 for ((i=0; i<K; i++)); do
+    ProgressBar $i $K
     # Generate a random number between 0 and N-1
     random_number=$((RANDOM % N))
 
@@ -38,6 +52,7 @@ for ((i=0; i<K; i++)); do
 
     check_files_equal B.out R.out
 done
+ProgressBar $K $K
 
 rm tmp.sam
 rm tmp.out
