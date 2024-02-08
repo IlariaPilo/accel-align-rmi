@@ -154,22 +154,23 @@ It also processes the csv file, and it plots a histogram and a pie chart using t
 The `utility` folder contains some useful helper scripts.
 
 ### 📊 benchmarks.sh
-This [script](./utilities/benchmarks.sh) can be used to run automatic benchmarks comparing accel-align with/without learned index and averaging the results.
+This [script](./utilities/benchmarks.sh) can be used to run automatic benchmarks averaging the results.
 Programs should be already compiled, and indices should be built in advance, using the proper -l option.
 ```sh
 bash benchmarks.sh [OPTIONS] <reference.fa> <read.fastq>
 ```
 It supports the following options:
 ```
+  -i, --index    IDX      The index to be used [R]
+                          Options = H (hash), B (binary), R (rmi)
   -t, --threads  THREADS  The number of threads to be used [all]
   -e, --exec     EXEC     The number of times every program is called [10]
   -l, --len      LEN      The length of the kmer [32]
   -o, --output   DIR      The directory where to save the output files [accel-align-rmi]
   -h, --help              Display this help message
 ```
-The script plots the average running times for the two versions. Details for each execution can be found in `<output>/accel_align_rmi<LEN>.out` and `<output>/accel_align_release<LEN>.out`. 
-
-SAM results of the last execution are saved in `<output>/rmi<LEN>.sam` and `<output>/release<LEN>.sam`, respectively.
+The script plots the average running times. Details for each execution can be found in `<output>/accel_align_<IDX><LEN>.out`. 
+SAM results of the last execution are saved in `<output>/<IDX><LEN>.sam`.
 
 ### 🔬 binary_visualizer.py
 This [script](./utilities/binary_visualizer.sh) can be used to display the content of `keys_uint32`, `keys_uint64` or `pos_uint32` binary files in a human-readable format.

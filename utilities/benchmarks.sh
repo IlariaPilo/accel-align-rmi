@@ -5,6 +5,7 @@ read_name=""
 thread_number=$(nproc --all)
 kmer_len=32
 n=10
+index="R"
 
 _source_dir_=$(dirname "$0")
 BASE_DIR=$(readlink -f "$_source_dir_/..")
@@ -13,12 +14,14 @@ OUT_DIR=$BASE_DIR
 
 usage() {
     echo -e "\n\033[1;96mbash benchmarks.sh [OPTIONS] <reference.fa> <read.fastq>\033[0m"
-    echo -e "Runs some benchmarks for accel-align (with/without rmi index)."
+    echo -e "Runs some benchmarks for accel-align."
     echo -e "Executables should be already present (just run make)."
     echo -e "Indices should be built in advance (with proper -l option)."
     echo "Options:"
+    echo "  -i, --index    IDX      The index to be used [R]"
+    echo "                          Options = H (hash), B (binary), R (rmi)" 
     echo "  -t, --threads  THREADS  The number of threads to be used [all]"
-    echo "  -e, --exec     EXEC     The number of times every program is called [10]"
+    echo "  -e, --exec     EXEC     The number of times the program is called [10]"
     echo "  -l, --len      LEN      The length of the kmer [32]"
     echo "  -o, --output   DIR      The directory where to save the output files [accel-align-rmi]"
     echo -e "  -h, --help              Display this help message\n"
@@ -60,6 +63,10 @@ while [[ $# -gt 2 ]]; do
             OUT_DIR=$2
             shift 2
             ;;
+        -i|--index)
+            index=$2
+            shift 2
+            ;;
         -h|--help)
             usage
             ;;
@@ -92,79 +99,44 @@ if [ ! -d $OUT_DIR ]; then
 fi
 
 echo -e "\n\033[1;96m [benchmarks.sh] \033[0m"
+echo -e "       --- index is $index."
 echo -e "       --- output directory is $OUT_DIR."
 echo -e "       --- kmer length is $kmer_len."
 echo -e "       --- Running $n times, using $thread_number threads."
 
-echo "---------------- BEGIN ----------------" > $OUT_DIR/accel_align_rmi${kmer_len}.out
-echo "Running $n times, using $thread_number threads." >> $OUT_DIR/accel_align_rmi${kmer_len}.out
+echo "---------------- BEGIN ----------------" > $OUT_DIR/accel_align_${index}${kmer_len}.out
+echo "Running $n times, using $thread_number threads." >> $OUT_DIR/accel_align_${index}${kmer_len}.out
 
 echo
-echo "=========== accel-align-rmi ==========="
 for ((i=0; i<n; i++))
 do
     ProgressBar $i $n
-    echo ">> $i <<" >> $OUT_DIR/accel_align_rmi${kmer_len}.out
-    "$BASE_DIR/accalign" -r -t $thread_number -l $kmer_len -o "$OUT_DIR/rmi$kmer_len.sam" $ref_name $read_name 2>> $OUT_DIR/accel_align_rmi${kmer_len}.out
+    echo ">> $i <<" >> $OUT_DIR/accel_align_${index}${kmer_len}.out
+    "$BASE_DIR/accalign" -${index} -t $thread_number -l $kmer_len -o "$OUT_DIR/${index}$kmer_len.sam" $ref_name $read_name 2>> $OUT_DIR/accel_align_${index}${kmer_len}.out
 done
 ProgressBar $n $n
-echo -e "\n\033[1;32m [benchmarks.sh]\033[0m accel-align-rmi execution completed.\n"
-echo "----------------- END -----------------" >> $OUT_DIR/accel_align_rmi${kmer_len}.out
-
-echo "---------------- BEGIN ----------------" > $OUT_DIR/accel_align_release${kmer_len}.out
-echo "Running $n times, using $thread_number threads." >> $OUT_DIR/accel_align_release${kmer_len}.out
-
-echo
-echo "========= accel-align-release ========="
-for ((i=0; i<n; i++))
-do
-    ProgressBar $i $n
-    echo ">> $i <<" >> $OUT_DIR/accel_align_release${kmer_len}.out
-    "$BASE_DIR/accalign" -t $thread_number -l $kmer_len -o "$OUT_DIR/release$kmer_len.sam" $ref_name $read_name 2>> $OUT_DIR/accel_align_release${kmer_len}.out
-done
-ProgressBar $n $n
-echo -e "\n\033[1;32m [benchmarks.sh]\033[0m accel-align-release execution completed.\n"
-echo "----------------- END -----------------" >> $OUT_DIR/accel_align_release${kmer_len}.out
+echo "----------------- END -----------------" >> $OUT_DIR/accel_align_${index}${kmer_len}.out
 
 echo
 # print some final considerations
 echo -e "\n\033[1;32m [benchmarks.sh]\033[0m Printing average running times!\n"
-echo -e "========= accel-align-rmi ========="
 # time to align
-cat $OUT_DIR/accel_align_rmi${kmer_len}.out | grep "Time to align:" | awk '{ sum += $4 } END { avg = sum / NR; printf("Time to align: %.3f s\n", avg) }'
+cat $OUT_DIR/accel_align_${index}${kmer_len}.out | grep "Time to align:" | awk '{ sum += $4 } END { avg = sum / NR; printf("Time to align: %.3f s\n", avg) }'
 echo Breakdown:
-cat $OUT_DIR/accel_align_rmi${kmer_len}.out | grep "Input IO" | awk '{ sum += $4 } END { avg = sum / NR; printf("Input IO time: %.3f s\n", avg) }'
-cat $OUT_DIR/accel_align_rmi${kmer_len}.out | grep "Parse" | awk '{ sum += $3 } END { avg = sum / NR; printf("Parse time: %.3f s\n", avg) }'
-cat $OUT_DIR/accel_align_rmi${kmer_len}.out | grep "Seeding" | awk '{ sum += $3 } END { avg = sum / NR; printf("Seeding time: %.3f s\n", avg) }'
+cat $OUT_DIR/accel_align_${index}${kmer_len}.out | grep "Input IO" | awk '{ sum += $4 } END { avg = sum / NR; printf("Input IO time: %.3f s\n", avg) }'
+cat $OUT_DIR/accel_align_${index}${kmer_len}.out | grep "Parse" | awk '{ sum += $3 } END { avg = sum / NR; printf("Parse time: %.3f s\n", avg) }'
+cat $OUT_DIR/accel_align_${index}${kmer_len}.out | grep "Seeding" | awk '{ sum += $3 } END { avg = sum / NR; printf("Seeding time: %.3f s\n", avg) }'
 # Seeding breakdown
-cat $OUT_DIR/accel_align_rmi${kmer_len}.out | grep "lookup keyv" | awk '{ sum += $4 } END { avg = sum / NR; printf("\tLookup keyv time: %.3f s\n", avg) }'
-cat $OUT_DIR/accel_align_rmi${kmer_len}.out | grep "lookup posv" | awk '{ sum += $4 } END { avg = sum / NR; printf("\tLookup posv time: %.3f s\n", avg) }'
-cat $OUT_DIR/accel_align_rmi${kmer_len}.out | grep "Hit count" | awk '{ sum += $4 } END { avg = sum / NR; printf("\tHit count time: %.3f s\n", avg) }'
-cat $OUT_DIR/accel_align_rmi${kmer_len}.out | grep "Swap high cov" | awk '{ sum += $5 } END { avg = sum / NR; printf("\tSwap high cov time: %.3f s\n", avg) }'
-cat $OUT_DIR/accel_align_rmi${kmer_len}.out | grep "Vpair build" | awk '{ sum += $6 } END { avg = sum / NR; printf("\tVpair build time [only for pe]: %.3f s\n", avg) }'
+cat $OUT_DIR/accel_align_${index}${kmer_len}.out | grep "lookup keyv" | awk '{ sum += $4 } END { avg = sum / NR; printf("\tLookup keyv time: %.3f s\n", avg) }'
+cat $OUT_DIR/accel_align_${index}${kmer_len}.out | grep "lookup posv" | awk '{ sum += $4 } END { avg = sum / NR; printf("\tLookup posv time: %.3f s\n", avg) }'
+cat $OUT_DIR/accel_align_${index}${kmer_len}.out | grep "Hit count" | awk '{ sum += $4 } END { avg = sum / NR; printf("\tHit count time: %.3f s\n", avg) }'
+cat $OUT_DIR/accel_align_${index}${kmer_len}.out | grep "Swap high cov" | awk '{ sum += $5 } END { avg = sum / NR; printf("\tSwap high cov time: %.3f s\n", avg) }'
+cat $OUT_DIR/accel_align_${index}${kmer_len}.out | grep "Vpair build" | awk '{ sum += $6 } END { avg = sum / NR; printf("\tVpair build time [only for pe]: %.3f s\n", avg) }'
 # embedding
-cat $OUT_DIR/accel_align_rmi${kmer_len}.out | grep "Embedding" | awk '{ sum += $3 } END { avg = sum / NR; printf("Embedding time: %.3f s\n", avg) }'
+cat $OUT_DIR/accel_align_${index}${kmer_len}.out | grep "Embedding" | awk '{ sum += $3 } END { avg = sum / NR; printf("Embedding time: %.3f s\n", avg) }'
 # extending
-cat $OUT_DIR/accel_align_rmi${kmer_len}.out | grep "Extending" | awk '{ sum += $9 } END { avg = sum / NR; printf("Extending time: %.3f s\n", avg) }'
+cat $OUT_DIR/accel_align_${index}${kmer_len}.out | grep "Extending" | awk '{ sum += $9 } END { avg = sum / NR; printf("Extending time: %.3f s\n", avg) }'
 # mark best region
-cat $OUT_DIR/accel_align_rmi${kmer_len}.out | grep "Mark best region" | awk '{ sum += $5 } END { avg = sum / NR; printf("Mark best region time: %.3f s\n", avg) }'
+cat $OUT_DIR/accel_align_${index}${kmer_len}.out | grep "Mark best region" | awk '{ sum += $5 } END { avg = sum / NR; printf("Mark best region time: %.3f s\n", avg) }'
 # output
-cat $OUT_DIR/accel_align_rmi${kmer_len}.out | grep "SAM" | awk '{ sum += $5 } END { avg = sum / NR; printf("SAM output time: %.3f s\n", avg) }'
-
-echo
-echo -e "========= accel-align-release ========="
-cat $OUT_DIR/accel_align_rmi${kmer_len}.out | grep "Time to align:" | awk '{ sum += $4 } END { avg = sum / NR; printf("Time to align: %.3f s\n", avg) }'
-echo Breakdown:
-cat $OUT_DIR/accel_align_release${kmer_len}.out | grep "Input IO" | awk '{ sum += $4 } END { avg = sum / NR; printf("Input IO time: %.3f s\n", avg) }'
-cat $OUT_DIR/accel_align_release${kmer_len}.out | grep "Parse" | awk '{ sum += $3 } END { avg = sum / NR; printf("Parse time: %.3f s\n", avg) }'
-cat $OUT_DIR/accel_align_release${kmer_len}.out | grep "Seeding" | awk '{ sum += $3 } END { avg = sum / NR; printf("Seeding time: %.3f s\n", avg) }'
-cat $OUT_DIR/accel_align_release${kmer_len}.out | grep "lookup keyv" | awk '{ sum += $4 } END { avg = sum / NR; printf("\tLookup keyv time: %.3f s\n", avg) }'
-cat $OUT_DIR/accel_align_release${kmer_len}.out | grep "lookup posv" | awk '{ sum += $4 } END { avg = sum / NR; printf("\tLookup posv time: %.3f s\n", avg) }'
-cat $OUT_DIR/accel_align_release${kmer_len}.out | grep "Hit count" | awk '{ sum += $4 } END { avg = sum / NR; printf("\tHit count time: %.3f s\n", avg) }'
-cat $OUT_DIR/accel_align_release${kmer_len}.out | grep "Swap high cov" | awk '{ sum += $5 } END { avg = sum / NR; printf("\tSwap high cov time: %.3f s\n", avg) }'
-cat $OUT_DIR/accel_align_release${kmer_len}.out | grep "Vpair build" | awk '{ sum += $6 } END { avg = sum / NR; printf("\tVpair build time [only for pe]: %.3f s\n", avg) }'
-cat $OUT_DIR/accel_align_release${kmer_len}.out | grep "Embedding" | awk '{ sum += $3 } END { avg = sum / NR; printf("Embedding time: %.3f s\n", avg) }'
-cat $OUT_DIR/accel_align_release${kmer_len}.out | grep "Extending" | awk '{ sum += $9 } END { avg = sum / NR; printf("Extending time: %.3f s\n", avg) }'
-cat $OUT_DIR/accel_align_release${kmer_len}.out | grep "Mark best region" | awk '{ sum += $5 } END { avg = sum / NR; printf("Mark best region time: %.3f s\n", avg) }'
-cat $OUT_DIR/accel_align_release${kmer_len}.out | grep "SAM" | awk '{ sum += $5 } END { avg = sum / NR; printf("SAM output time: %.3f s\n", avg) }'
-echo
+cat $OUT_DIR/accel_align_${index}${kmer_len}.out | grep "SAM" | awk '{ sum += $5 } END { avg = sum / NR; printf("SAM output time: %.3f s\n", avg) }'
