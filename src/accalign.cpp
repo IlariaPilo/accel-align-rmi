@@ -3045,6 +3045,21 @@ int main(int ac, char **av) {
     // exit
     return 1;
   }
+  switch (index_type) {
+  case IndexType::RMI_IDX:
+    cerr << "Using RMI index\n";
+    break;
+  case IndexType::HASH_IDX:
+    cerr << "Using hash table\n";
+    break;
+  case IndexType::BINARY_IDX:
+    cerr << "Using binary search\n";
+    break;
+  default:
+    // this should never happen
+    cerr << "*panic*\n";
+    exit(1);
+  }
   /////////////////////////////
 
   if (kmer_temp != 0)
