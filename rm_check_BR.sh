@@ -7,7 +7,7 @@ if [ "$#" -ne 1 ]; then
 fi
 
 N=10000000
-K=$2  # Number of times to repeat
+K=$1  # Number of times to repeat
 
 # Loop K times
 for ((i=0; i<K; i++)); do
