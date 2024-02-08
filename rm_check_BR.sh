@@ -19,7 +19,7 @@ for ((i=0; i<K; i++)); do
     end_line=$(((random_number + 1) * 4))
 
     # Copy the content to a temporary file
-    sed -n "${start_line},${end_line}p" input_file.txt > temp_file_$i.txt
+    sed -n "${start_line},${end_line}p" /home/ilaria/genomes/sv-10m-100-r.fastq > temp_file_$i.txt
 
     echo "Copied content from lines ${start_line} to ${end_line} to temp_file_$i.txt"
 done
