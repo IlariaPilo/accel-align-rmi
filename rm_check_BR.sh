@@ -32,9 +32,9 @@ for ((i=0; i<K; i++)); do
 
     # try the program
     /home/ilaria/accel-align-rmi/accalign -B -t 46 -o tmp.sam /home/ilaria/genomes/hg37.fna /home/ilaria/genomes/simulated.fq 2> tmp.out
-    cat tmp.out | grep \*\*\* > B.out
+    cat tmp.out | grep \* > B.out
     /home/ilaria/accel-align-rmi/accalign -R -t 46 -o tmp.sam /home/ilaria/genomes/hg37.fna /home/ilaria/genomes/simulated.fq 2> tmp.out
-    cat tmp.out | grep \*\*\* > R.out
+    cat tmp.out | grep \* > R.out
 
     check_files_equal B.out R.out
 done
