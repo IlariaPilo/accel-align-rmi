@@ -117,4 +117,4 @@ done
 ProgressBar $n $n
 echo "----------------- END -----------------" >> $OUT_DIR/accel_align_${index}${kmer_len}-${thread_number}t.out
 
-bash $BASE_DIR/print_avg_time.sh $OUT_DIR/accel_align_${index}${kmer_len}-${thread_number}t.out
+bash $BASE_DIR/utilities/print_avg_time.sh $OUT_DIR/accel_align_${index}${kmer_len}-${thread_number}t.out
