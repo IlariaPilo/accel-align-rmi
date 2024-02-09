@@ -84,12 +84,12 @@ void Reference::load_index32(const char *F) {
   assert(base != MAP_FAILED);
   keyv = (uint32_t * )(base + 8);
 
-  cerr << "Printing first 4 entries" << endl;
-  cerr << "------ keyv ------" << endl;
-  cerr << keyv[0] << " [" << keyv[1] << " pos]" << endl;    
-  cerr << keyv[2] << " [" << keyv[3] << " pos]" << endl;
-  cerr << keyv[4] << " [" << keyv[5] << " pos]" << endl;
-  cerr << keyv[6] << " [" << keyv[7] << " pos]" << endl;
+  // cerr << "Printing first 4 entries" << endl;
+  // cerr << "------ keyv ------" << endl;
+  // cerr << keyv[0] << " [" << keyv[1] << " pos]" << endl;    
+  // cerr << keyv[2] << " [" << keyv[3] << " pos]" << endl;
+  // cerr << keyv[4] << " [" << keyv[5] << " pos]" << endl;
+  // cerr << keyv[6] << " [" << keyv[7] << " pos]" << endl;
 
   fd = open(pos_f.c_str(), O_RDONLY);
   base = reinterpret_cast<char *>(mmap(NULL, 8 + posv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
@@ -97,12 +97,12 @@ void Reference::load_index32(const char *F) {
   posv = (uint32_t * )(base + 8);
 
   // print first 4 entries
-  cerr << "------ posv ------" << endl;
-  cerr << posv[0] << endl;
-  cerr << posv[1] << endl;
-  cerr << posv[2] << endl;
-  cerr << posv[3] << endl;
-  cerr << "------------------" << endl;
+  // cerr << "------ posv ------" << endl;
+  // cerr << posv[0] << endl;
+  // cerr << posv[1] << endl;
+  // cerr << posv[2] << endl;
+  // cerr << posv[3] << endl;
+  // cerr << "------------------" << endl;
 
   cerr << "Mapping done" << endl;
   cerr << "done loading hashtable\n";
@@ -155,12 +155,12 @@ void Reference::load_index64(const char *F) {
   assert(base != MAP_FAILED);
   keyv = (uint32_t * )(base + 8);
 
-  cerr << "Printing first 4 entries" << endl;
-  cerr << "------ keyv ------" << endl;
-  cerr << *((uint64_t*)(keyv+0)) << " [" << keyv[2] << " pos]" << endl;      
-  cerr << *((uint64_t*)(keyv+3)) << " [" << keyv[5] << " pos]" << endl;  
-  cerr << *((uint64_t*)(keyv+6)) << " [" << keyv[8] << " pos]" << endl;  
-  cerr << *((uint64_t*)(keyv+9)) << " [" << keyv[11] << " pos]" << endl;
+  // cerr << "Printing first 4 entries" << endl;
+  // cerr << "------ keyv ------" << endl;
+  // cerr << *((uint64_t*)(keyv+0)) << " [" << keyv[2] << " pos]" << endl;      
+  // cerr << *((uint64_t*)(keyv+3)) << " [" << keyv[5] << " pos]" << endl;  
+  // cerr << *((uint64_t*)(keyv+6)) << " [" << keyv[8] << " pos]" << endl;  
+  // cerr << *((uint64_t*)(keyv+9)) << " [" << keyv[11] << " pos]" << endl;
 
   fd = open(pos_f.c_str(), O_RDONLY);
   base = reinterpret_cast<char *>(mmap(NULL, 8 + posv_sz, PROT_READ, MMAP_FLAGS, fd, 0));
@@ -168,12 +168,12 @@ void Reference::load_index64(const char *F) {
   posv = (uint32_t * )(base + 8);
 
   // print first 4 entries
-  cerr << "------ posv ------" << endl;
-  cerr << posv[0] << endl;
-  cerr << posv[1] << endl;
-  cerr << posv[2] << endl;
-  cerr << posv[3] << endl;
-  cerr << "------------------" << endl;
+  // cerr << "------ posv ------" << endl;
+  // cerr << posv[0] << endl;
+  // cerr << posv[1] << endl;
+  // cerr << posv[2] << endl;
+  // cerr << posv[3] << endl;
+  // cerr << "------------------" << endl;
 
   cerr << "Mapping done" << endl;
   cerr << "done loading hashtable\n";
