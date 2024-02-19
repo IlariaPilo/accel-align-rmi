@@ -104,7 +104,7 @@ bool Index::make_index(const char *F, int id) {
     vsz = ref.size() / step + 1;
 
   vector<Data> data(vsz, Data());
-  cerr << "hashing :limit = " << limit << ", vsz = " << vsz << endl;
+  cerr << "hashing : limit = " << limit << ", vsz = " << vsz << endl;
   cerr << "using MOD = " << mod << " and XXH = " << xxh_type << endl;
 
   tbb::parallel_for(tbb::blocked_range<size_t>(0, limit), Tbb_cal_key(data, this));
@@ -141,7 +141,7 @@ bool Index::make_index(const char *F, int id) {
   // then, write the number of positions
   fo.write((char *) &eof, 4);
 
-  // write out keys
+  // write out positions
   for (size_t i = eof; i < data.size(); i++)
     assert(data[i].key == (uint32_t) -1);
   try {
@@ -159,13 +159,15 @@ bool Index::make_index(const char *F, int id) {
     }
   }
 
+  // write out keys
   size_t last_key = 0, offset;
   try {
     cerr << "Fast writing keyv\n";
-    size_t buf_idx = 0;
+    uint64_t buf_idx = 0;
     uint32_t *buf = new uint32_t[mod + 1];
+    // for each position
     for (size_t i = 0; i < eof;) {
-      assert (data[i].key != (uint32_t) -1);
+      assert (data[i].pos != (uint32_t) -1);
       size_t h = data[i].key, n;
       offset = i;
       for (size_t j = last_key; j <= h; j++) {
@@ -177,7 +179,7 @@ bool Index::make_index(const char *F, int id) {
       i = n;
     }
     offset = eof;
-    for (size_t j = last_key; j <= mod; j++) {
+    for (uint64_t j = (uint64_t)last_key; j <= mod; j++) {
       buf[buf_idx] = offset;
       ++buf_idx;
     }
@@ -187,7 +189,7 @@ bool Index::make_index(const char *F, int id) {
   } catch (std::bad_alloc &e) {
     cerr << "Fall back to slow writing keyv (low mem)\n";
     for (size_t i = 0; i < eof;) {
-      assert (data[i].key != (uint32_t) -1);
+      assert (data[i].pos != (uint32_t) -1);
       size_t h = data[i].key, n;
       offset = i;
       for (size_t j = last_key; j <= h; j++) {
@@ -198,7 +200,7 @@ bool Index::make_index(const char *F, int id) {
       i = n;
     }
     offset = eof;
-    for (size_t j = last_key; j <= mod; j++) {
+    for (uint64_t j = (uint64_t)last_key; j <= mod; j++) {
       fo.write((char *) &offset, 4);
     }
   }
