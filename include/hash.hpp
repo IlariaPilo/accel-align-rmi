@@ -12,7 +12,7 @@
 #define MOD_29      ((1UL<<29)-1)
 #define MOD_PRIME   1073741651
 #define MOD_LPRIME  2861333663
-#define MOD_32      UINT64_C(4294967296)
+#define MOD_32      (1UL<<32)
 
 #define SEED        426942
 #define IN_LEN      8

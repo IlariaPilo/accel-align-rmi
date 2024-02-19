@@ -250,6 +250,7 @@ int main(int ac, char **av) {
       // now do classic conversion
       else try {
         mod_tmp = stoul(string(av[it+1]));
+        mod = static_cast<uint64_t>(mod_tmp);
         } catch (const invalid_argument& e) {
             cerr << "Invalid argument: " << e.what() << endl;
             cerr << "Special string values for -h are 2^29-1, prime, lprime.\n";
@@ -258,7 +259,6 @@ int main(int ac, char **av) {
             cerr << "Out of range: " << e.what() << endl;
             exit(1);
         }
-        mod = static_cast<uint64_t>(mod_tmp);
     } 
     else if (strcmp(av[it], "-x") == 0) {
       xxh_type = atoi(av[it + 1]);
