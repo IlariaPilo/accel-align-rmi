@@ -200,11 +200,13 @@ void Reference::load_index_classic(const char *F) {
   fi.read((char *) &nposv, 4);
   fi.close();
   // try to detect whether the index support the mod or not
-  if (mod < 128 || (xxh_type!=0 && xxh_type!=32 && xxh_type!=64)) {
+  if ((mod < 128 && mod != 0) || (xxh_type!=0 && xxh_type!=32 && xxh_type!=64)) {
       cerr << "It looks like you are using an old index.\n";
       cerr << "Please, run again ./accindex, and come back later!\n";
       exit(1);
   }
+  if (mod == 0)
+    mod = MOD_32;
   nkeyv_true = mod + 1;
   nkeyv = nkeyv_true;
   bind_xxhash(xxh_type, xxh);
@@ -215,7 +217,7 @@ void Reference::load_index_classic(const char *F) {
   cerr << "using MOD = " << mod << " and XXH = " << xxh_type << endl;
 
   size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
-  size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
+  uint64_t keyv_sz = (uint64_t) nkeyv * sizeof(uint32_t);
   int fd = open(fn.c_str(), O_RDONLY);
 
 #if __linux__
@@ -460,7 +462,7 @@ void Reference::index_bin_lookup64(uint64_t key, size_t* b, size_t* e) {
 
 void Reference::index_lookup_classic(uint64_t key, size_t* b, size_t* e) {
   // FIXME -- do we need the mask?
-  size_t hash = uint32_t(xxh(&key) % mod);
+  uint64_t hash = uint64_t(xxh(&key) % mod);
   *b = keyv[hash];
   *e = keyv[hash+1];
 }
@@ -549,7 +551,7 @@ Reference::~Reference() {
     mm_idx_destroy(mi);
   } else {
     size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
-    size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
+    uint64_t keyv_sz = (uint64_t) nkeyv * sizeof(uint32_t);
     int r;
     if (index_type == IndexType::HASH_IDX) {
       char *base = (char *) posv - 12;

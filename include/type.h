@@ -92,7 +92,7 @@ class Reference {
   IndexType index_type;
   char mode; // 'c' c-> t; 'g' g->a; ' ' original
   // for classic index
-  uint32_t mod;
+  uint64_t mod;
   uint32_t xxh_type;
   XXHash xxh;
 
