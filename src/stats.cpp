@@ -30,7 +30,7 @@ using namespace std;
 
 const unsigned step = 1;
 unsigned kmer_size = 32;
-uint32_t mod;
+uint64_t mod;
 uint32_t xxh_type = 0;
 XXHash xxh;
 bool rev_comp = true;
@@ -40,7 +40,8 @@ class Reference {
  private:
     string ref;
     uint32_t *keyv, *posv;
-    uint32_t nposv, nkeyv;
+    uint32_t nposv;
+    uint64_t nkeyv;
     char code[256];
 
     static bool ichar_equals(char a, char b) {
@@ -117,11 +118,13 @@ class Reference {
         fi.read((char *) &nposv, 4);
         fi.close();
         // try to detect whether the index support the mod or not
-        if (mod < 128 || (xxh_type!=0 && xxh_type!=32 && xxh_type!=64)) {
+        if ((mod < 128 && mod != 0) || (xxh_type!=0 && xxh_type!=32 && xxh_type!=64)) {
             cerr << "It looks like you are using an old index.\n";
             cerr << "Please, run again ./accindex, and come back later!\n";
             exit(1);
         }
+        if (mod == 0)
+            mod = MOD_32;
         nkeyv = mod + 1;
         bind_xxhash(xxh_type, xxh);
 
@@ -131,7 +134,7 @@ class Reference {
         cerr << "using MOD = " << mod << " and XXH = " << xxh_type << endl;
 
         size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
-        size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
+        uint64_t keyv_sz = (uint64_t) nkeyv * sizeof(uint32_t);
         int fd = open(F, O_RDONLY);
 
         #if __linux__
@@ -155,18 +158,18 @@ class Reference {
         cerr << "done loading hashtable\n";
     }
 
-    uint32_t to_hash(string const& kmer) {
+    uint64_t to_hash(string const& kmer) {
         uint64_t h = 0;
         for (unsigned j = 0; j < kmer_size; j++) {
             h = (h << 2) + code[(int)kmer[j]];
         }
-        return uint32_t(xxh(&h) % mod);
+        return uint64_t(xxh(&h) % mod);
     }
 
     // first element is number of predicted positions, second element is number of actual positions
     pair<size_t,size_t> stats(string const& kmer) {
         // compute key
-        uint32_t k = to_hash(kmer);
+        uint64_t k = to_hash(kmer);
         uint32_t first_pos_idx, last_pos_idx;
         // get first and last positions
         first_pos_idx = keyv[k];
@@ -199,7 +202,7 @@ class Reference {
 
     ~Reference() {
         size_t posv_sz = (size_t) nposv * sizeof(uint32_t);
-        size_t keyv_sz = (size_t) nkeyv * sizeof(uint32_t);
+        uint64_t keyv_sz = (uint64_t) nkeyv * sizeof(uint32_t);
         char *base = (char *) posv - 12;
         int r = munmap(base, 12 + posv_sz + keyv_sz);
         assert(r == 0);
