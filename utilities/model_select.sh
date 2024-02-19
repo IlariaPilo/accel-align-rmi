@@ -1,7 +1,7 @@
 #!/bin/bash
 
 while true; do
-    read -ep $'\033[1;33m [index.sh] \033[0mwhich index would you like to train? [1-10] ' choice
+    read -ep $'\033[1;33m [rmi.sh] \033[0mwhich index would you like to train? [1-10] ' choice
 
     # Check if the input is a number
     if [[ "$choice" =~ ^[1-9]$|^10$ ]]; then

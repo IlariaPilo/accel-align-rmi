@@ -56,9 +56,9 @@ If you don't have `sudo` permissions, you can simply modify the value of the `TB
 ```
 ## 2 | Build the index
 ### 🧠 RMI
-The learned index must be built offline, before running the aligner. This can be done by using the [`index.sh`](./index.sh) script:
+The learned index must be built offline, before running the aligner. This can be done by using the [`rmi.sh`](./rmi.sh) script:
 ```sh
-bash index.sh [OPTIONS] <reference.fna>
+bash rmi.sh [OPTIONS] <reference.fna>
 ```
 The script supports the following options:
 ```
