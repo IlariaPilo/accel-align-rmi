@@ -131,7 +131,7 @@ The following options are available:
 ```
 <!--⚠️ The original Accel-Align allows more options, which are not yet supported in the RMI version.-->
 
-## 4 | 🎯 Compute the index precision
+## 🎯 Compute the index precision
 An alignment run will possibly benefit of the RMI index if the classic index precision is low. This mean that the index is returning positions which are actually associated with wrong seeds. 
 
 To better analyze this behavior, the script [`stats.sh`](./stats.sh) can be used.
