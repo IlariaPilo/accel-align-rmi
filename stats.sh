@@ -15,7 +15,7 @@ usage() {
     echo "Options:"
     echo "  -l  INT  length of the kmer [32]"
     echo "  -h  INT  value of hash MOD [2^29-1]"
-    echo "           special string values = 2^29-1, prime, lprime"
+    echo "           special string values = 2^29-1, 2^32, prime, lprime"
     echo "  -x  INT  size of xxhash [0]"
     echo "           values = 0 (xxh not used), 32, 64"
     echo
