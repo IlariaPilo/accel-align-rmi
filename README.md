@@ -102,9 +102,9 @@ where `prime = 1073741651` and `lprime = 2861333663`.
 The program generates an index file named `<reference.fa>.hash<LEN>`. MOD must be expressible on 32 bits. The only exception to this rule is the string value `2^32`.
 
 The file contains information about the MOD value and the XXH size used to generate it.
-To display these values without having to dump the binary file, just call the [`binary_visualizer.py`](./utilities/binary_visualizer.py) script:
+To display these values without having to dump the binary file, just call the [`hash_visualizer.py`](./utilities/hash_visualizer.py) script:
 ```sh
-python3 binary_visualizer.py <hash-file>
+python3 hash_visualizer.py <hash-file>
 ```
 
 ## 3 | 🔎 Call the aligner
