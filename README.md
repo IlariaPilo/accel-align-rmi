@@ -137,7 +137,7 @@ The following options are available:
 ```
   -l  INT  length of the kmer [32]
   -h  INT  value of hash MOD [2^29-1]
-           special string values = 2^29-1, prime, lprime
+           special string values = 2^29-1, 2^32, prime, lprime
   -x  INT  size of xxhash [0]
            values = 0 (xxh not used), 32, 64
 ```

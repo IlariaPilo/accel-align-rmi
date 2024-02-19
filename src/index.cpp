@@ -1,7 +1,8 @@
 #include "header.h"
 
 using namespace std;
-uint32_t mod = MOD_29;    // default value is 2^29 - 1
+uint64_t mod = MOD_29;    // default value is 2^29 - 1
+uint32_t mod_tmp;
 const unsigned step = 1;
 uint32_t xxh_type = 0;
 XXHash xxh;
@@ -213,7 +214,7 @@ int main(int ac, char **av) {
     cerr << "options:\n";
     cerr << "\t-l INT length of seed [32]\n";
     cerr << "\t-h INT value of hash MOD [2^29-1]\n";
-    cerr << "\t   Special string values = 2^29-1, prime, lprime\n";
+    cerr << "\t   Special string values = 2^29-1, 2^32, prime, lprime\n";
     cerr << "\t-x INT size of xxhash [0]\n";
     cerr << "\t   Values = 0 (xxh not used), 32, 64\n";
     cerr << "\t-m enable minimizer\n";
@@ -240,13 +241,15 @@ int main(int ac, char **av) {
       // check for special string values
       if (strcmp(av[it+1], "2^29") == 0 || strcmp(av[it+1], "2^29-1") == 0)
         mod = MOD_29;
+      else if (strcmp(av[it+1], "2^32") == 0)
+        mod = MOD_32;
       else if (strcmp(av[it+1], "prime") == 0)
         mod = MOD_PRIME;
       else if (strcmp(av[it+1], "lprime") == 0)
         mod = MOD_LPRIME;
       // now do classic conversion
       else try {
-        mod = stoul(string(av[it+1]));
+        mod_tmp = stoul(string(av[it+1]));
         } catch (const invalid_argument& e) {
             cerr << "Invalid argument: " << e.what() << endl;
             cerr << "Special string values for -h are 2^29-1, prime, lprime.\n";
@@ -255,6 +258,7 @@ int main(int ac, char **av) {
             cerr << "Out of range: " << e.what() << endl;
             exit(1);
         }
+        mod = static_cast<uint64_t>(mod_tmp);
     } 
     else if (strcmp(av[it], "-x") == 0) {
       xxh_type = atoi(av[it + 1]);
