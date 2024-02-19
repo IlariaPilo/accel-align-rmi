@@ -12,7 +12,7 @@ input_dir=$1
 _source_dir_=$(dirname "$0")
 BASE_DIR=$(readlink -f "${_source_dir_}/..")
 
-input_dir=$(realpath $input_dir)
+input_dir=$(realpath -se $input_dir)
 
 if [ ! -d $input_dir ]; then
     echo "It looks like \`$input_dir\` does not exists..."

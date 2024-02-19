@@ -82,16 +82,16 @@ if [ -z "$ref_name" ] || [ ! -e "$ref_name" ]; then
     echo -e "\033[1;31m [error!]\033[0m Please provide a valid reference genome file."
     usage
 fi
-ref_name=$(realpath $ref_name)              
+ref_name=$(realpath -se $ref_name)              
 # check read name
 read_name="$2"
 if [ -z "$read_name" ] || [ ! -e "$read_name" ]; then
     echo -e "\033[1;31m [error!]\033[0m Please provide a valid read file."
     usage
 fi
-read_name=$(realpath $read_name)
+read_name=$(realpath -se $read_name)
 # check output directory
-OUT_DIR=$(realpath $OUT_DIR)
+OUT_DIR=$(realpath -se $OUT_DIR)
 if [ ! -d $OUT_DIR ]; then
     echo "It looks like \`$OUT_DIR\` does not exists..."
     echo "Falling back to the default output directory!"

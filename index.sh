@@ -52,7 +52,7 @@ if [ -z "$ref_name" ] || [ ! -e "$ref_name" ]; then
     echo "Error: Please provide a valid reference genome file."
     usage
 fi
-ref_name=$(realpath $ref_name)              # ./data/hg37.fna
+ref_name=$(realpath -se $ref_name)              # ./data/hg37.fna
 
 INITIAL_DIR=$(pwd)
 _source_dir_=$(dirname "$0")
@@ -65,7 +65,7 @@ base_name=$(basename $ref_name .fna)        # hg37
 
 # Make output directory
 OUTPUT_DIR="${dir_name}/${base_name}_index${kmer_len}"   # ./data/hg37_index32
-OUTPUT_DIR=$(realpath $OUTPUT_DIR)
+OUTPUT_DIR=$(realpath -se $OUTPUT_DIR)
 
 echo -e "\n\033[1;96m [index.sh] \033[0mBuilding index on file $base_name.fna"
 echo -e "            --- Using $thread_number threads."
