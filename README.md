@@ -79,11 +79,38 @@ make key_gen
 ./key_gen [-l LEN] <reference.fna>
 ```
 
-### 🏛 Classic hash table
+### 🏺 Classic hash table
 Similarly, the classic Accel-Align hash table must be built before running the aligner. This can be done as:
 ```sh
 make accindex
 ./accindex [OPTIONS] <reference.fa>
+```
+The following options are available:
+```
+  -l INT length of seed [32]
+  -h INT value of hash MOD [2^29-1]
+      Special string values = 2^29-1, 2^32, prime, lprime
+  -x INT size of xxhash [0]
+      Values = 0 (xxh not used), 32, 64
+  -m enable minimizer
+  -k minimizer: k, kmer size 
+  -w minimizer: w, window size 
+  -s bisulfite sequencing read alignment mode 
+```
+where `prime = 1073741651` and `lprime = 2861333663`.
+
+The program generates an index file named `<reference.fa>.hash<LEN>`. MOD must be expressible on 32 bits. The only exception to this rule is the string value `2^32`.
+
+The file contains information about the MOD value and the XXH size used to generate it.
+To display these values without having to dump the binary file, just call the [`binary_visualizer.py`](./utilities/binary_visualizer.py) script:
+```sh
+python3 binary_visualizer.py <hash-file>
+```
+
+## 3 | 🔎 Call the aligner
+The aligner can be built with `make accalign`, and then run as:
+```sh
+./accalign [OPTIONS] <reference.fa> <read.fastq>
 ```
 The following options are available:
 ```
@@ -101,28 +128,6 @@ The following options are available:
   -d Disable embedding, extend all candidates from seeding (this mode is super slow, only for benchmark).
   -m Seeding with minimizer.
   -s bisulfite sequencing read alignment mode 
-```
-where `prime = 1073741651` and `lprime = 2861333663`.
-
-The program generates an index file named `<reference.fa>.hash<LEN>`. The file contains information about the MOD value and the XXH size used to generate it.
-
-## 3 | 🔎 Call the aligner
-The aligner can be built with `make accalign`, and then run as:
-```sh
-./accalign [OPTIONS] <reference.fa> <read.fastq>
-```
-The following options are available:
-```
-  -t INT Number of cpu threads to use [all]
-  -l INT Length of seed [32]
-  -o Name of the output file 
-  -R Use RMI index 
-  -x Alignment-free mode
-  -w Use WFA for extension. KSW used by default. 
-  -p Maximum distance allowed between the paired-end reads [1000]
-  -d Disable embedding, extend all candidates from seeding (this mode is super slow, only for benchmark)
-  -m Seeding with minimizer
-  -s bisulfite sequencing read alignment mode
 ```
 <!--⚠️ The original Accel-Align allows more options, which are not yet supported in the RMI version.-->
 
