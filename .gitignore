@@ -61,4 +61,4 @@ docker/.bash_history
 # Others
 night*
 results/*
-! results/*.png
+!results/*.png
