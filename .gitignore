@@ -59,5 +59,6 @@ WFA-paper/*
 docker/.bash_history
 
 # Others
-*.out
 night*
+results/*
+! results/*.png
