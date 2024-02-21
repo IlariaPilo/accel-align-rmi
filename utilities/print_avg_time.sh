@@ -14,7 +14,7 @@ cat $1 | grep "Hit count" | awk '{ sum += $4 } END { avg = sum / NR; printf("\tH
 cat $1 | grep "Swap high cov" | awk '{ sum += $5 } END { avg = sum / NR; printf("\tSwap high cov time:\t%.3f s\n", avg) }'
 cat $1 | grep "Vpair build" | awk '{ sum += $6 } END { avg = sum / NR; printf("\tVpair build time [only for pe]:\t%.3f s\n", avg) }'
 # embedding
-cat $1 | grep "Embedding" | awk '{ sum += $3 } END { avg = sum / NR; printf("Embedding time:\t%.3f s\n", avg) }'
+cat $1 | grep "Embedding time" | awk '{ sum += $3 } END { avg = sum / NR; printf("Embedding time:\t%.3f s\n", avg) }'
 # extending
 cat $1 | grep "Extending" | awk '{ sum += $9 } END { avg = sum / NR; printf("Extending time:\t%.3f s\n", avg) }'
 # mark best region
