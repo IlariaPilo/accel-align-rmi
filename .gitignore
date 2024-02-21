@@ -62,3 +62,4 @@ docker/.bash_history
 night*
 results/*
 !results/*.png
+!results/*.csv
