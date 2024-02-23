@@ -172,10 +172,13 @@ It supports the following options:
   -e, --exec     EXEC     The number of times every program is called [10]
   -l, --len      LEN      The length of the kmer [32]
   -o, --output   DIR      The directory where to save the output files [accel-align-rmi]
+  -n, --numactl           Run using numactl to manage sockets [off]
   -h, --help              Display this help message
 ```
 The script plots the average running times. Details for each execution can be found in `<output>/accel_align_<IDX><LEN>.out`. 
 SAM results of the last execution are saved in `<output>/<IDX><LEN>.sam`.
+
+The `--numactl` option is a useful tool to automatically detect the number of sockets in the server, and run the program using the minimum number of sockets. 
 
 ### 🔬 binary_visualizer.py
 This [script](./utilities/binary_visualizer.sh) can be used to display the content of `keys_uint32`, `keys_uint64` or `pos_uint32` binary files in a human-readable format.

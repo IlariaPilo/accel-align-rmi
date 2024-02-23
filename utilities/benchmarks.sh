@@ -129,7 +129,7 @@ if [ "$numactl" == true ]; then\
     numacmd="numactl --cpunodebind $socket_interval --membind $socket_interval"
 
     echo " |- Socket interval = $socket_interval"
-    echo " \`- numactl command = $numacmd"
+    echo " \`- numactl command : \`$numacmd\`"
 fi
 
 echo -e "\n\033[1;96m [benchmarks.sh] \033[0m"
